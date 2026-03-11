@@ -1,3 +1,8 @@
 export { SceneManager } from './SceneManager';
-export type { Scene } from './SceneManager';
+export type { Scene, SceneContext, TransitionOptions } from './SceneManager';
+export { GameLoop } from './GameLoop';
+export { InputManager } from './InputManager';
+export type { Action, KeyBindings } from './InputManager';
+export { AssetLoader } from './AssetLoader';
+export type { AssetBundle } from './AssetLoader';
 export { EventBus, eventBus } from './EventBus';

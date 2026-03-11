@@ -3,12 +3,13 @@
  * All event names and payload types are defined in EventMap.
  */
 
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface EventMap {
+  'scene:transition': { from: string; to: string };
+  'scene:ready': { scene: string };
+  'input:action': { action: string; state: 'pressed' | 'released' };
   // Add game events here as development progresses, e.g.:
   // 'plant:grew': { plantId: string; stage: number };
   // 'day:ended': { dayNumber: number };
-  // 'scene:transition': { from: string; to: string };
 }
 
 type EventName = keyof EventMap & string;
