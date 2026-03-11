@@ -7,3 +7,6 @@ export interface Entity {
   y: number;
   active: boolean;
 }
+
+// Export Plant entity and types
+export * from './Plant';
