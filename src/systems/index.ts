@@ -6,3 +6,5 @@ export interface System {
   update(delta: number): void;
   destroy(): void;
 }
+
+export * from './GridSystem';

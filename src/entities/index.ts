@@ -7,3 +7,6 @@ export interface Entity {
   y: number;
   active: boolean;
 }
+
+export * from './Tile';
+export * from './GardenGrid';
