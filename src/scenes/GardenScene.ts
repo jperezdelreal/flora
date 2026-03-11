@@ -1,5 +1,5 @@
-import { Application, Container, Text } from 'pixi.js';
-import type { Scene } from '../core';
+import { Container, Text } from 'pixi.js';
+import type { Scene, SceneContext } from '../core';
 import { GardenGrid } from '../entities/GardenGrid';
 import { TileState } from '../entities/Tile';
 import { GridSystem } from '../systems/GridSystem';
@@ -11,9 +11,8 @@ export class GardenScene implements Scene {
   private gridSystem!: GridSystem;
   private infoText!: Text;
 
-  async init(app: Application): Promise<void> {
-    const sceneManager = app.stage.children[0] as Container;
-    sceneManager.addChild(this.container);
+  async init(ctx: SceneContext): Promise<void> {
+    ctx.sceneManager.stage.addChild(this.container);
 
     // Initialize garden grid (8x8)
     this.grid = new GardenGrid({
@@ -25,7 +24,7 @@ export class GardenScene implements Scene {
 
     // Initialize grid rendering system
     this.gridSystem = new GridSystem(this.grid);
-    this.gridSystem.centerInViewport(app.screen.width, app.screen.height);
+    this.gridSystem.centerInViewport(ctx.app.screen.width, ctx.app.screen.height);
     this.container.addChild(this.gridSystem.getContainer());
 
     // Add some demo state to tiles
@@ -64,7 +63,7 @@ export class GardenScene implements Scene {
       },
     });
     this.infoText.anchor.set(0.5, 0);
-    this.infoText.x = app.screen.width / 2;
+    this.infoText.x = ctx.app.screen.width / 2;
     this.infoText.y = 20;
     this.container.addChild(this.infoText);
 
@@ -72,7 +71,7 @@ export class GardenScene implements Scene {
     this.gridSystem.update();
   }
 
-  update(_delta: number): void {
+  update(_delta: number, _ctx: SceneContext): void {
     // Update grid system (re-renders if state changed)
     this.gridSystem.update();
 
