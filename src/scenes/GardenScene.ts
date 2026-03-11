@@ -1,8 +1,8 @@
 import { Graphics, Text, Container } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
-import { GARDEN, COLORS } from '../config';
+import { GARDEN, COLORS, SEED_CONFIG } from '../config';
 import { HUD, ToolBar, PlantInfo, DaySummary, SeedInventory, PauseMenu } from '../ui';
-import type { ToolType, PlantData, SummaryData, Seed } from '../ui';
+import type { ToolType, PlantData, SummaryData } from '../ui';
 
 /**
  * Garden scene — main gameplay view with UI/HUD
@@ -111,14 +111,7 @@ export class GardenScene implements Scene {
 
     this.seedInventory = new SeedInventory();
     this.seedInventory.setPosition(app.screen.width - 220, 100);
-    this.seedInventory.setSeeds([
-      { name: 'Tomato', icon: '🍅', available: true },
-      { name: 'Lettuce', icon: '🥬', available: true },
-      { name: 'Carrot', icon: '🥕', available: true },
-      { name: 'Sunflower', icon: '🌻', available: true },
-      { name: 'Mint', icon: '🌿', available: false },
-      { name: 'Frost Willow', icon: '❄️', available: false },
-    ]);
+    this.seedInventory.setSeeds([...SEED_CONFIG]);
     this.container.addChild(this.seedInventory);
 
     this.pauseMenu = new PauseMenu(app.screen.width, app.screen.height);
@@ -157,13 +150,15 @@ export class GardenScene implements Scene {
   }
 
   private showDemoPlantInfo(x: number, y: number): void {
-    const demoData: PlantData = {
+    // Placeholder data until PlantSystem is connected
+    // TODO: Replace with actual game state when PlantSystem is implemented
+    const placeholderData: PlantData = {
       name: 'Tomato',
-      growthPercent: Math.floor(Math.random() * 100),
-      waterStatus: ['Thirsty', 'Hydrated', 'Overwatered'][Math.floor(Math.random() * 3)],
-      health: Math.floor(Math.random() * 100),
+      growthPercent: 45,
+      waterStatus: 'Hydrated',
+      health: 85,
     };
-    this.plantInfo.show(demoData, x, y);
+    this.plantInfo.show(placeholderData, x, y);
     
     // Auto-hide after 3 seconds
     setTimeout(() => this.plantInfo.hide(), 3000);

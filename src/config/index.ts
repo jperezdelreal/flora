@@ -37,3 +37,5 @@ export const COLORS = {
   WHITE: 0xffffff,
   BLACK: 0x000000,
 } as const;
+
+export * from './seeds';
