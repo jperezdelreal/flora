@@ -35,12 +35,25 @@ export class AudioManager {
     ambient: false,
     music: false,
   };
+
+  // User volume preferences (persisted)
+  private volumePreferences = {
+    master: AUDIO.VOLUMES.MASTER,
+    sfx: AUDIO.VOLUMES.SFX,
+    ambient: AUDIO.VOLUMES.AMBIENT,
+    music: AUDIO.VOLUMES.MUSIC,
+  };
+
+  private readonly STORAGE_KEY = 'flora:audio:preferences';
   
   /**
    * Initialize audio context and routing graph
    */
   init(): void {
     if (this.ctx) return; // Already initialized
+    
+    // Load saved volume preferences
+    this._loadPreferences();
     
     this.ctx = new AudioContext();
     
@@ -54,20 +67,20 @@ export class AudioManager {
     this.compressor.connect(this.ctx.destination);
     
     this.masterGain = this.ctx.createGain();
-    this.masterGain.gain.value = AUDIO.VOLUMES.MASTER;
+    this.masterGain.gain.value = this.volumePreferences.master;
     this.masterGain.connect(this.compressor);
     
     // Create mix buses
     this.sfxBus = this.ctx.createGain();
-    this.sfxBus.gain.value = AUDIO.VOLUMES.SFX;
+    this.sfxBus.gain.value = this.volumePreferences.sfx;
     this.sfxBus.connect(this.masterGain);
     
     this.ambientBus = this.ctx.createGain();
-    this.ambientBus.gain.value = AUDIO.VOLUMES.AMBIENT;
+    this.ambientBus.gain.value = this.volumePreferences.ambient;
     this.ambientBus.connect(this.masterGain);
     
     this.musicBus = this.ctx.createGain();
-    this.musicBus.gain.value = AUDIO.VOLUMES.MUSIC;
+    this.musicBus.gain.value = this.volumePreferences.music;
     this.musicBus.connect(this.masterGain);
   }
   
@@ -181,7 +194,7 @@ export class AudioManager {
       
       // Restore bus gain
       if (this.ambientBus && this.ctx) {
-        this.ambientBus.gain.value = AUDIO.VOLUMES.AMBIENT;
+        this.ambientBus.gain.value = this.volumePreferences.ambient;
       }
     }, 1100);
   }
@@ -218,7 +231,10 @@ export class AudioManager {
    */
   setMasterVolume(volume: number): void {
     if (!this.masterGain) return;
-    this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.volumePreferences.master = clamped;
+    this.masterGain.gain.value = clamped;
+    this._savePreferences();
   }
   
   /**
@@ -226,7 +242,10 @@ export class AudioManager {
    */
   setSFXVolume(volume: number): void {
     if (!this.sfxBus) return;
-    this.sfxBus.gain.value = Math.max(0, Math.min(1, volume));
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.volumePreferences.sfx = clamped;
+    this.sfxBus.gain.value = clamped;
+    this._savePreferences();
   }
   
   /**
@@ -234,7 +253,10 @@ export class AudioManager {
    */
   setAmbientVolume(volume: number): void {
     if (!this.ambientBus) return;
-    this.ambientBus.gain.value = Math.max(0, Math.min(1, volume));
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.volumePreferences.ambient = clamped;
+    this.ambientBus.gain.value = clamped;
+    this._savePreferences();
   }
   
   /**
@@ -242,7 +264,10 @@ export class AudioManager {
    */
   setMusicVolume(volume: number): void {
     if (!this.musicBus) return;
-    this.musicBus.gain.value = Math.max(0, Math.min(1, volume));
+    const clamped = Math.max(0, Math.min(1, volume));
+    this.volumePreferences.music = clamped;
+    this.musicBus.gain.value = clamped;
+    this._savePreferences();
   }
   
   /**
@@ -256,9 +281,10 @@ export class AudioManager {
     this.masterGain.gain.cancelScheduledValues(now);
     this.masterGain.gain.setValueAtTime(this.masterGain.gain.value, now);
     this.masterGain.gain.linearRampToValueAtTime(
-      muted ? 0 : AUDIO.VOLUMES.MASTER,
+      muted ? 0 : this.volumePreferences.master,
       now + 0.1
     );
+    this._savePreferences();
   }
   
   /**
@@ -272,9 +298,10 @@ export class AudioManager {
     this.sfxBus.gain.cancelScheduledValues(now);
     this.sfxBus.gain.setValueAtTime(this.sfxBus.gain.value, now);
     this.sfxBus.gain.linearRampToValueAtTime(
-      muted ? 0 : AUDIO.VOLUMES.SFX,
+      muted ? 0 : this.volumePreferences.sfx,
       now + 0.1
     );
+    this._savePreferences();
   }
   
   /**
@@ -288,9 +315,10 @@ export class AudioManager {
     this.ambientBus.gain.cancelScheduledValues(now);
     this.ambientBus.gain.setValueAtTime(this.ambientBus.gain.value, now);
     this.ambientBus.gain.linearRampToValueAtTime(
-      muted ? 0 : AUDIO.VOLUMES.AMBIENT,
+      muted ? 0 : this.volumePreferences.ambient,
       now + 0.1
     );
+    this._savePreferences();
   }
   
   /**
@@ -304,9 +332,10 @@ export class AudioManager {
     this.musicBus.gain.cancelScheduledValues(now);
     this.musicBus.gain.setValueAtTime(this.musicBus.gain.value, now);
     this.musicBus.gain.linearRampToValueAtTime(
-      muted ? 0 : AUDIO.VOLUMES.MUSIC,
+      muted ? 0 : this.volumePreferences.music,
       now + 0.1
     );
+    this._savePreferences();
   }
   
   /**
@@ -570,6 +599,54 @@ export class AudioManager {
     }
     
     return buffer;
+  }
+
+  /**
+   * Load volume preferences from localStorage
+   */
+  private _loadPreferences(): void {
+    try {
+      const stored = localStorage.getItem(this.STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed && typeof parsed === 'object') {
+          this.volumePreferences = {
+            master: parsed.master ?? AUDIO.VOLUMES.MASTER,
+            sfx: parsed.sfx ?? AUDIO.VOLUMES.SFX,
+            ambient: parsed.ambient ?? AUDIO.VOLUMES.AMBIENT,
+            music: parsed.music ?? AUDIO.VOLUMES.MUSIC,
+          };
+          this.muted = {
+            master: parsed.muted?.master ?? false,
+            sfx: parsed.muted?.sfx ?? false,
+            ambient: parsed.muted?.ambient ?? false,
+            music: parsed.muted?.music ?? false,
+          };
+        }
+      }
+    } catch (e) {
+      // localStorage unavailable or parse error - use defaults
+      console.warn('Failed to load audio preferences:', e);
+    }
+  }
+
+  /**
+   * Save volume preferences to localStorage
+   */
+  private _savePreferences(): void {
+    try {
+      const data = {
+        master: this.volumePreferences.master,
+        sfx: this.volumePreferences.sfx,
+        ambient: this.volumePreferences.ambient,
+        music: this.volumePreferences.music,
+        muted: { ...this.muted },
+      };
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
+    } catch (e) {
+      // localStorage unavailable - fail silently
+      console.warn('Failed to save audio preferences:', e);
+    }
   }
 }
 
