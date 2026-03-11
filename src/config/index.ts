@@ -42,3 +42,4 @@ export const COLORS = {
 export * from './plants';
 export * from './tools';
 export * from './hazards';
+export * from './audio';
