@@ -1,10 +1,13 @@
 import { System } from './index';
 import { Plant, PlantConfig, GrowthStage } from '../entities/Plant';
 import { PLANT_BY_ID } from '../config/plants';
+import type { EncyclopediaSystem } from './EncyclopediaSystem';
 
 export interface PlantSystemConfig {
   /** Frames per in-game day (60fps * seconds) */
   framesPerDay: number;
+  /** Optional encyclopedia system for discovery tracking */
+  encyclopediaSystem?: EncyclopediaSystem;
 }
 
 /**
@@ -78,26 +81,32 @@ export class PlantSystem implements System {
   }
 
   /** Harvest a plant at grid position */
-  harvestPlant(x: number, y: number): { success: boolean; seeds: number; plantId: string } {
+  harvestPlant(x: number, y: number): { success: boolean; seeds: number; plantId: string; isNewDiscovery: boolean } {
     const plant = this.getPlantAt(x, y);
     if (!plant) {
-      return { success: false, seeds: 0, plantId: '' };
+      return { success: false, seeds: 0, plantId: '', isNewDiscovery: false };
     }
 
     if (!plant.canHarvest()) {
-      return { success: false, seeds: 0, plantId: plant.getConfig().id };
+      return { success: false, seeds: 0, plantId: plant.getConfig().id, isNewDiscovery: false };
     }
 
     const seeds = plant.harvest();
     const plantConfigId = plant.getConfig().id;
 
-    // Update encyclopedia
+    // Update local encyclopedia
     this.discoveredPlants.add(plantConfigId);
+
+    // Update global encyclopedia system if available
+    let isNewDiscovery = false;
+    if (this.config.encyclopediaSystem) {
+      isNewDiscovery = this.config.encyclopediaSystem.discoverPlant(plantConfigId);
+    }
 
     // Remove plant from system
     this.removePlant(plant.id);
 
-    return { success: true, seeds, plantId: plantConfigId };
+    return { success: true, seeds, plantId: plantConfigId, isNewDiscovery };
   }
 
   /** Click handler for plant interaction (harvest mature plants) */
