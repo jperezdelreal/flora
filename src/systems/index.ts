@@ -11,3 +11,4 @@ export interface System {
 export * from './PlantSystem';
 export * from './GridSystem';
 export * from './PlayerSystem';
+export * from './EncyclopediaSystem';

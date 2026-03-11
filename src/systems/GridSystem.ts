@@ -8,6 +8,7 @@ export class GridSystem {
   private tileGraphics: Map<Tile, Graphics>;
   private selectedTile: Tile | null = null;
   private selectionHighlight: Graphics;
+  private tileClickCallbacks: Array<(row: number, col: number) => void> = [];
 
   constructor(grid: GardenGrid) {
     this.grid = grid;
@@ -127,6 +128,16 @@ export class GridSystem {
   private selectTile(tile: Tile): void {
     this.selectedTile = tile;
     this.updateSelectionHighlight();
+    
+    // Notify all registered callbacks
+    for (const callback of this.tileClickCallbacks) {
+      callback(tile.row, tile.col);
+    }
+  }
+
+  /** Register a callback to be notified when a tile is clicked */
+  public onTileClick(callback: (row: number, col: number) => void): void {
+    this.tileClickCallbacks.push(callback);
   }
 
   private updateSelectionHighlight(): void {
