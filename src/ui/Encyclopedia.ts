@@ -1,4 +1,4 @@
-import { Container, Graphics, Text, Rectangle } from 'pixi.js';
+import { Container, Graphics, Text, Rectangle, FederatedPointerEvent } from 'pixi.js';
 import { EncyclopediaEntry } from '../systems/EncyclopediaSystem';
 
 const RARITY_COLORS = {
@@ -13,6 +13,9 @@ const ENTRY_HEIGHT = 140;
 const GRID_COLS = 4;
 const GRID_PADDING = 16;
 
+const SCROLL_SPEED = 40;
+const VIEWPORT_HEIGHT = 500;
+
 /**
  * Encyclopedia displays all plant entries in a grid layout.
  * Shows discovered plants with details, undiscovered as '??' silhouettes.
@@ -25,6 +28,11 @@ export class Encyclopedia {
   private entries: EncyclopediaEntry[] = [];
   private scrollOffset = 0;
   private maxScroll = 0;
+  private isDragging = false;
+  private dragLastY = 0;
+  private scrollUpIndicator!: Container;
+  private scrollDownIndicator!: Container;
+  private boundOnKeyDown: (e: KeyboardEvent) => void;
 
   constructor() {
     this.container = new Container();
@@ -66,6 +74,54 @@ export class Encyclopedia {
     this.entriesContainer = new Container();
     this.entriesContainer.y = 100;
     this.container.addChild(this.entriesContainer);
+
+    // Scroll indicators
+    this.scrollUpIndicator = this.createScrollIndicator('▲', 100);
+    this.scrollDownIndicator = this.createScrollIndicator('▼', 100 + VIEWPORT_HEIGHT - 24);
+    this.container.addChild(this.scrollUpIndicator);
+    this.container.addChild(this.scrollDownIndicator);
+    this.scrollUpIndicator.visible = false;
+    this.scrollDownIndicator.visible = false;
+
+    // Scrollable area hit region for mouse events
+    const scrollArea = new Graphics();
+    scrollArea.rect(0, 100, 800, VIEWPORT_HEIGHT);
+    scrollArea.fill({ color: 0x000000, alpha: 0.001 });
+    scrollArea.eventMode = 'static';
+    scrollArea.cursor = 'default';
+    this.container.addChildAt(scrollArea, this.container.getChildIndex(this.entriesContainer));
+
+    // Mouse wheel scrolling
+    scrollArea.on('wheel', (e: WheelEvent) => {
+      this.scroll(e.deltaY > 0 ? SCROLL_SPEED : -SCROLL_SPEED);
+    });
+
+    // Click-and-drag scrolling
+    scrollArea.on('pointerdown', (e: FederatedPointerEvent) => {
+      this.isDragging = true;
+      this.dragLastY = e.globalY;
+    });
+    scrollArea.on('pointermove', (e: FederatedPointerEvent) => {
+      if (!this.isDragging) return;
+      const dy = this.dragLastY - e.globalY;
+      this.dragLastY = e.globalY;
+      this.scroll(dy);
+    });
+    scrollArea.on('pointerup', () => { this.isDragging = false; });
+    scrollArea.on('pointerupoutside', () => { this.isDragging = false; });
+
+    // Arrow key navigation
+    this.boundOnKeyDown = (e: KeyboardEvent) => {
+      if (!this.container.visible) return;
+      if (e.key === 'ArrowDown') {
+        this.scroll(SCROLL_SPEED);
+        e.preventDefault();
+      } else if (e.key === 'ArrowUp') {
+        this.scroll(-SCROLL_SPEED);
+        e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', this.boundOnKeyDown);
   }
 
   /** Update encyclopedia with current entries */
@@ -114,7 +170,8 @@ export class Encyclopedia {
     // Calculate max scroll
     const totalRows = Math.ceil(sortedEntries.length / GRID_COLS);
     const contentHeight = totalRows * (ENTRY_HEIGHT + GRID_PADDING) + GRID_PADDING;
-    this.maxScroll = Math.max(0, contentHeight - 500); // Assuming 500px viewport height
+    this.maxScroll = Math.max(0, contentHeight - VIEWPORT_HEIGHT);
+    this.updateScrollIndicators();
   }
 
   /** Create a single entry card */
@@ -222,6 +279,8 @@ export class Encyclopedia {
           fontSize: 16,
           fill: '#555555',
           fontWeight: 'bold',
+          wordWrap: true,
+          wordWrapWidth: ENTRY_WIDTH - 20,
         },
       });
       unknownText.anchor.set(0.5, 0);
@@ -270,6 +329,34 @@ export class Encyclopedia {
   scroll(delta: number): void {
     this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset + delta));
     this.entriesContainer.y = 100 - this.scrollOffset;
+    this.updateScrollIndicators();
+  }
+
+  /** Create a scroll direction indicator arrow */
+  private createScrollIndicator(symbol: string, y: number): Container {
+    const indicator = new Container();
+    const bg = new Graphics();
+    bg.rect(0, 0, 800, 24);
+    bg.fill({ color: 0x1a1a1a, alpha: 0.85 });
+    indicator.addChild(bg);
+
+    const label = new Text({
+      text: symbol,
+      style: { fontFamily: 'Arial', fontSize: 14, fill: '#aaaaaa' },
+    });
+    label.anchor.set(0.5, 0);
+    label.x = 400;
+    label.y = 3;
+    indicator.addChild(label);
+
+    indicator.y = y;
+    return indicator;
+  }
+
+  /** Update visibility of scroll indicators based on scroll position */
+  private updateScrollIndicators(): void {
+    this.scrollUpIndicator.visible = this.scrollOffset > 0;
+    this.scrollDownIndicator.visible = this.scrollOffset < this.maxScroll;
   }
 
   /** Position the encyclopedia on screen */
@@ -295,6 +382,7 @@ export class Encyclopedia {
 
   /** Destroy and cleanup */
   destroy(): void {
+    window.removeEventListener('keydown', this.boundOnKeyDown);
     this.container.destroy({ children: true });
   }
 }

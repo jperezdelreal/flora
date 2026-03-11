@@ -24,6 +24,7 @@ const STORAGE_KEY = 'flora_encyclopedia';
 export class EncyclopediaSystem implements System {
   readonly name = 'EncyclopediaSystem';
   private discoveredPlants: Set<string> = new Set();
+  private discoveryTimestamps: Map<string, number> = new Map();
   private discoveryCallbacks: Array<(event: DiscoveryEvent) => void> = [];
 
   constructor() {
@@ -47,13 +48,15 @@ export class EncyclopediaSystem implements System {
       return false;
     }
 
+    const timestamp = Date.now();
     this.discoveredPlants.add(plantId);
+    this.discoveryTimestamps.set(plantId, timestamp);
     this.saveToStorage();
 
     const event: DiscoveryEvent = {
       plantId,
       config,
-      timestamp: Date.now(),
+      timestamp,
     };
 
     // Notify all callbacks
@@ -80,9 +83,7 @@ export class EncyclopediaSystem implements System {
       plantId: config.id,
       config,
       discovered: this.discoveredPlants.has(config.id),
-      firstDiscoveredAt: this.discoveredPlants.has(config.id) 
-        ? Date.now() // Simplified - could store actual timestamps in future
-        : undefined,
+      firstDiscoveredAt: this.discoveryTimestamps.get(config.id),
     }));
   }
 
@@ -131,30 +132,40 @@ export class EncyclopediaSystem implements System {
       if (stored) {
         const data = JSON.parse(stored);
         if (Array.isArray(data)) {
+          // Legacy format: plain array of plant IDs
           this.discoveredPlants = new Set(data);
+        } else if (data && typeof data === 'object') {
+          // New format: { plants: string[], timestamps: Record<string, number> }
+          this.discoveredPlants = new Set(data.plants ?? []);
+          this.discoveryTimestamps = new Map(
+            Object.entries(data.timestamps ?? {}).map(([k, v]) => [k, v as number])
+          );
         }
       }
     } catch (error) {
       console.warn('EncyclopediaSystem: Failed to load from storage', error);
-      // Graceful fallback - start with empty encyclopedia
       this.discoveredPlants = new Set();
+      this.discoveryTimestamps = new Map();
     }
   }
 
   /** Save discovered plants to localStorage */
   private saveToStorage(): void {
     try {
-      const data = Array.from(this.discoveredPlants);
+      const data = {
+        plants: Array.from(this.discoveredPlants),
+        timestamps: Object.fromEntries(this.discoveryTimestamps),
+      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.warn('EncyclopediaSystem: Failed to save to storage', error);
-      // Graceful degradation - continue without persistence
     }
   }
 
   /** Reset discovered plants (for testing or new game+) */
   reset(): void {
     this.discoveredPlants.clear();
+    this.discoveryTimestamps.clear();
     this.saveToStorage();
   }
 

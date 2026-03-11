@@ -283,47 +283,6 @@ export class GardenScene implements Scene {
     
     this.statusText.text = `Day: ${day} | Actions: ${actions}/${maxActions} | Tool: ${toolName}`;
   }
-    // Plant a variety of plants at different stages for demo
-    const demoPlants = [
-      { id: 'tomato', row: 2, col: 2 },
-      { id: 'lettuce', row: 2, col: 4 },
-      { id: 'carrot', row: 4, col: 3 },
-      { id: 'sunflower', row: 5, col: 5 },
-    ];
-
-    for (const { id, row, col } of demoPlants) {
-      const plant = this.plantSystem.createPlant(id, col, row);
-      if (plant) {
-        const tile = this.grid.getTile(row, col);
-        if (tile) {
-          tile.state = TileState.OCCUPIED;
-        }
-      }
-    }
-  }
-
-  private toggleEncyclopedia(): void {
-    this.encyclopediaVisible = !this.encyclopediaVisible;
-    if (this.encyclopediaVisible) {
-      this.updateEncyclopediaEntries();
-      this.encyclopedia.show();
-    } else {
-      this.encyclopedia.hide();
-    }
-  }
-
-  private updateEncyclopediaEntries(): void {
-    const entries = this.encyclopediaSystem.getEntries();
-    this.encyclopedia.setEntries(entries);
-  }
-
-  private updateInfoText(message: string): void {
-    this.infoText.text = message;
-    // Reset after 2 seconds
-    setTimeout(() => {
-      this.infoText.text = '🌱 Garden - Click mature plants to harvest';
-    }, 2000);
-  }
 
   private plantDemoPlants(): void {
     // Plant a variety of plants at different stages for demo
@@ -374,7 +333,6 @@ export class GardenScene implements Scene {
 
     // Update plant system (advances growth)
     this.plantSystem.update(delta);
->>>>>>> ea67151 (feat: implement encyclopedia and seed discovery system)
 
     // Update grid system (re-renders if state changed)
     this.gridSystem.update();
