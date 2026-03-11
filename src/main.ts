@@ -1,30 +1,29 @@
-import { Application, Text } from 'pixi.js'
+import { Application } from 'pixi.js';
+import { SceneManager } from './core';
+import { BootScene } from './scenes';
+import { GAME, SCENES } from './config';
 
-const app = new Application()
+async function main(): Promise<void> {
+  const app = new Application();
 
-async function init() {
   await app.init({
-    background: '#1a1a2e',
-    resizeTo: window
-  })
+    background: GAME.BACKGROUND_COLOR,
+    resizeTo: window,
+  });
 
-  document.body.appendChild(app.canvas)
+  document.body.appendChild(app.canvas);
 
-  const text = new Text({
-    text: '🌿 FLORA — First Frame Studios',
-    style: {
-      fontFamily: 'Arial',
-      fontSize: 36,
-      fill: '#88d498',
-      align: 'center'
-    }
-  })
+  // Set up scene manager
+  const sceneManager = new SceneManager(app);
+  sceneManager.register(new BootScene());
 
-  text.anchor.set(0.5)
-  text.x = app.screen.width / 2
-  text.y = app.screen.height / 2
+  // Boot the first scene
+  await sceneManager.switchTo(SCENES.BOOT);
 
-  app.stage.addChild(text)
+  // Game loop
+  app.ticker.add((ticker) => {
+    sceneManager.update(ticker.deltaTime);
+  });
 }
 
-init()
+main().catch(console.error);
