@@ -208,4 +208,14 @@ export class DaySummary extends Container {
   setContinueCallback(callback: () => void): void {
     this.onContinue = callback;
   }
+
+  destroy(): void {
+    this.overlay.destroy();
+    this.titleText.destroy();
+    this.contentContainer.destroy({ children: true });
+    this.continueButton.removeAllListeners();
+    this.continueButton.destroy({ children: true });
+    this.removeChildren();
+    super.destroy();
+  }
 }

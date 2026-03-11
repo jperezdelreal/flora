@@ -137,4 +137,14 @@ export class ToolBar extends Container {
     this.x = x;
     this.y = y;
   }
+
+  destroy(): void {
+    this.toolButtons.forEach((button) => {
+      button.removeAllListeners();
+      button.destroy({ children: true });
+    });
+    this.toolButtons.clear();
+    this.removeChildren();
+    super.destroy();
+  }
 }

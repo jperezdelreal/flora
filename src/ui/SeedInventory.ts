@@ -143,4 +143,13 @@ export class SeedInventory extends Container {
     this.x = x;
     this.y = y;
   }
+
+  destroy(): void {
+    this.panel.removeAllListeners();
+    this.panel.destroy();
+    this.titleText.destroy();
+    this.seedList.destroy({ children: true });
+    this.removeChildren();
+    super.destroy();
+  }
 }

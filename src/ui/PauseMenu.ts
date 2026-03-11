@@ -127,4 +127,15 @@ export class PauseMenu extends Container {
   setActionCallback(callback: (action: MenuAction) => void): void {
     this.onAction = callback;
   }
+
+  destroy(): void {
+    this.overlay.destroy();
+    this.children.forEach((child) => {
+      if (child !== this.overlay) {
+        child.removeAllListeners();
+      }
+    });
+    this.removeChildren();
+    super.destroy();
+  }
 }

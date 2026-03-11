@@ -95,4 +95,13 @@ export class HUD extends Container {
     this.x = x;
     this.y = y;
   }
+
+  destroy(): void {
+    this.dayText.destroy();
+    this.seasonText.destroy();
+    this.progressBar.destroy();
+    this.progressFill.destroy();
+    this.removeChildren();
+    super.destroy();
+  }
 }

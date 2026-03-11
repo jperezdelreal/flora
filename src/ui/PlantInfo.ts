@@ -108,4 +108,14 @@ export class PlantInfo extends Container {
     if (health >= 40) return 0xffd700; // Gold/yellow
     return 0xff6b6b; // Red
   }
+
+  destroy(): void {
+    this.nameText.destroy();
+    this.growthText.destroy();
+    this.waterText.destroy();
+    this.healthText.destroy();
+    this.panel.destroy();
+    this.removeChildren();
+    super.destroy();
+  }
 }
