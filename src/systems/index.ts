@@ -9,3 +9,4 @@ export interface System {
 
 // Export PlantSystem
 export * from './PlantSystem';
+export * from './GridSystem';

@@ -1,110 +1,92 @@
-import { Graphics, Text, Container } from 'pixi.js';
-import type { Scene, SceneContext } from '../core';
-import { GARDEN, COLORS } from '../config';
+import { Application, Container, Text } from 'pixi.js';
+import type { Scene } from '../core';
+import { GardenGrid } from '../entities/GardenGrid';
+import { TileState } from '../entities/Tile';
+import { GridSystem } from '../systems/GridSystem';
 
-/**
- * Garden scene stub — colored background, 8x8 plot grid, and title text.
- * Ready for gameplay systems to be wired in.
- */
 export class GardenScene implements Scene {
   readonly name = 'garden';
   private container = new Container();
+  private grid!: GardenGrid;
+  private gridSystem!: GridSystem;
+  private infoText!: Text;
 
-  async init(ctx: SceneContext): Promise<void> {
-    const { app } = ctx;
-    const sceneStage = app.stage.children[0] as Container;
-    sceneStage.addChild(this.container);
+  async init(app: Application): Promise<void> {
+    const sceneManager = app.stage.children[0] as Container;
+    sceneManager.addChild(this.container);
 
-    const cx = app.screen.width / 2;
-    const cy = app.screen.height / 2;
+    // Initialize garden grid (8x8)
+    this.grid = new GardenGrid({
+      rows: 8,
+      cols: 8,
+      tileSize: 64,
+      padding: 4,
+    });
 
-    // Sky / background
-    const bg = new Graphics();
-    bg.rect(0, 0, app.screen.width, app.screen.height);
-    bg.fill({ color: COLORS.SKY_BLUE });
-    this.container.addChild(bg);
+    // Initialize grid rendering system
+    this.gridSystem = new GridSystem(this.grid);
+    this.gridSystem.centerInViewport(app.screen.width, app.screen.height);
+    this.container.addChild(this.gridSystem.getContainer());
 
-    // Ground strip
-    const ground = new Graphics();
-    ground.rect(0, app.screen.height * 0.55, app.screen.width, app.screen.height * 0.45);
-    ground.fill({ color: COLORS.MID_GREEN });
-    this.container.addChild(ground);
+    // Add some demo state to tiles
+    const demoTile1 = this.grid.getTile(2, 3);
+    if (demoTile1) {
+      demoTile1.state = TileState.OCCUPIED;
+      demoTile1.setSoilQuality(85);
+    }
 
-    // 8x8 garden grid (centered)
-    const gridWidth = GARDEN.GRID_COLS * GARDEN.CELL_SIZE;
-    const gridHeight = GARDEN.GRID_ROWS * GARDEN.CELL_SIZE;
-    const gridX = cx - gridWidth / 2;
-    const gridY = cy - gridHeight / 2 + 40;
+    const demoTile2 = this.grid.getTile(4, 5);
+    if (demoTile2) {
+      demoTile2.state = TileState.PEST;
+      demoTile2.setSoilQuality(45);
+    }
 
-    for (let row = 0; row < GARDEN.GRID_ROWS; row++) {
-      for (let col = 0; col < GARDEN.GRID_COLS; col++) {
-        const cell = new Graphics();
-        const x = gridX + col * GARDEN.CELL_SIZE;
-        const y = gridY + row * GARDEN.CELL_SIZE;
-        cell.rect(x, y, GARDEN.CELL_SIZE, GARDEN.CELL_SIZE);
-        cell.fill({ color: GARDEN.SOIL_COLOR });
-        cell.stroke({ color: GARDEN.CELL_BORDER_COLOR, width: 1 });
-        this.container.addChild(cell);
+    // Vary soil quality across grid for visual feedback
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const tile = this.grid.getTile(row, col);
+        if (tile && tile.state === TileState.EMPTY) {
+          // Create some variation: checkerboard-ish pattern
+          const variation = ((row + col) % 3) * 15;
+          tile.setSoilQuality(60 + variation);
+        }
       }
     }
 
-    // Title
-    const title = new Text({
-      text: '🌿 Flora',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 32,
-        fill: '#ffffff',
-        align: 'center',
-        dropShadow: {
-          color: '#000000',
-          blur: 4,
-          distance: 2,
-          angle: Math.PI / 4,
-        },
-      },
-    });
-    title.anchor.set(0.5);
-    title.x = cx;
-    title.y = 36;
-    this.container.addChild(title);
-
-    // Day counter placeholder
-    const dayText = new Text({
-      text: 'Day 1 · Spring',
+    // Info text at top
+    this.infoText = new Text({
+      text: '🌱 Garden Grid - Click tiles to select',
       style: {
         fontFamily: 'Arial',
         fontSize: 18,
-        fill: '#2d5a27',
+        fill: '#c8e6c9',
         align: 'center',
       },
     });
-    dayText.anchor.set(0.5);
-    dayText.x = cx;
-    dayText.y = 72;
-    this.container.addChild(dayText);
+    this.infoText.anchor.set(0.5, 0);
+    this.infoText.x = app.screen.width / 2;
+    this.infoText.y = 20;
+    this.container.addChild(this.infoText);
 
-    // Hint text
-    const hint = new Text({
-      text: 'Press E to interact · Arrow keys to move',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#1a3a18',
-        align: 'center',
-      },
-    });
-    hint.anchor.set(0.5);
-    hint.x = cx;
-    hint.y = app.screen.height - 30;
-    this.container.addChild(hint);
+    // Initial render
+    this.gridSystem.update();
   }
 
-  update(_dt: number, _ctx: SceneContext): void {
-    // Gameplay systems will hook in here
+  update(_delta: number): void {
+    // Update grid system (re-renders if state changed)
+    this.gridSystem.update();
+
+    // Update info text based on selection
+    const selectedTile = this.gridSystem.getSelectedTile();
+    if (selectedTile) {
+      this.infoText.text = `Tile [${selectedTile.row}, ${selectedTile.col}] | State: ${selectedTile.state} | Soil: ${selectedTile.soilQuality}% | Moisture: ${selectedTile.moisture}%`;
+    } else {
+      this.infoText.text = '🌱 Garden Grid - Click tiles to select';
+    }
   }
 
   destroy(): void {
+    this.gridSystem.destroy();
     this.container.destroy({ children: true });
     this.container = new Container();
   }
