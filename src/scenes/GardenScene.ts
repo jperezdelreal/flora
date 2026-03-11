@@ -67,7 +67,11 @@ export class GardenScene implements Scene {
       ctx.app.screen.height - 100,
     );
     this.toolBar.setOnToolSelect((tool) => {
-      this.player.selectTool(tool);
+      if (tool) {
+        this.player.selectTool(tool);
+      } else {
+        this.player.deselectTool();
+      }
       this.updateStatusText();
     });
     this.container.addChild(this.toolBar.getContainer());
@@ -185,10 +189,11 @@ export class GardenScene implements Scene {
   private updateStatusText(): void {
     const day = this.player.getCurrentDay();
     const actions = this.player.getActionsRemaining();
+    const maxActions = this.player.getState().maxActions;
     const tool = this.player.getSelectedTool();
     const toolName = tool ? tool.replace('_', ' ').toUpperCase() : 'None';
     
-    this.statusText.text = `Day: ${day} | Actions: ${actions} | Tool: ${toolName}`;
+    this.statusText.text = `Day: ${day} | Actions: ${actions}/${maxActions} | Tool: ${toolName}`;
   }
 
   update(delta: number, _ctx: SceneContext): void {

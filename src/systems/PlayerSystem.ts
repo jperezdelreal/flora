@@ -108,6 +108,11 @@ export class PlayerSystem {
   }
 
   private startMove(targetRow: number, targetCol: number): void {
+    // Check if player has actions remaining
+    if (!this.player.hasActionsRemaining()) {
+      return;
+    }
+
     const currentPos = this.player.getGridPosition();
     
     // Get current world position
@@ -119,6 +124,9 @@ export class PlayerSystem {
     const targetWorldPos = this.grid.getTilePosition(targetRow, targetCol);
     this.targetX = targetWorldPos.x + this.grid.config.tileSize / 2;
     this.targetY = targetWorldPos.y + this.grid.config.tileSize / 2;
+
+    // Consume action point for movement
+    this.player.consumeAction();
 
     // Start movement
     this.player.moveTo(targetRow, targetCol);
@@ -133,6 +141,14 @@ export class PlayerSystem {
       this.moveAnimationT = 1.0;
       this.player.completeMovement();
       this.updatePlayerPosition();
+
+      // Check if day should advance after action
+      if (!this.player.hasActionsRemaining()) {
+        this.player.advanceDay();
+        if (this.onDayAdvance) {
+          this.onDayAdvance();
+        }
+      }
     }
 
     // Ease in-out cubic interpolation

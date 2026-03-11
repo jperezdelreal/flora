@@ -7,7 +7,7 @@ export class ToolBar {
   private toolButtons: Map<ToolType, Graphics>;
   private toolTexts: Map<ToolType, Text>;
   private selectedTool: ToolType | null = null;
-  private onToolSelect?: (tool: ToolType) => void;
+  private onToolSelect?: (tool: ToolType | null) => void;
 
   constructor() {
     this.container = new Container();
@@ -115,8 +115,8 @@ export class ToolBar {
       }
     }
 
-    if (this.onToolSelect) {
-      this.onToolSelect(this.selectedTool!);
+    if (this.onToolSelect && this.selectedTool !== null) {
+      this.onToolSelect(this.selectedTool);
     }
   }
 
@@ -132,7 +132,7 @@ export class ToolBar {
     return this.selectedTool;
   }
 
-  setOnToolSelect(callback: (tool: ToolType) => void): void {
+  setOnToolSelect(callback: (tool: ToolType | null) => void): void {
     this.onToolSelect = callback;
   }
 
