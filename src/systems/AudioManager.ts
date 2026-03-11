@@ -46,6 +46,10 @@ export class AudioManager {
 
   private readonly STORAGE_KEY = 'flora:audio:preferences';
   
+  // SFX debounce tracking (50ms per type to prevent stacking)
+  private lastPlayTimes: Map<SFXType, number> = new Map();
+  private readonly DEBOUNCE_MS = 50;
+  
   /**
    * Initialize audio context and routing graph
    */
@@ -205,7 +209,17 @@ export class AudioManager {
   playSFX(type: SFXType): void {
     if (!this.ctx || !this.sfxBus) return;
     
+    // Debounce check: prevent same sound from playing within 50ms
     const now = this.ctx.currentTime;
+    const nowMs = now * 1000;
+    const lastPlayMs = this.lastPlayTimes.get(type);
+    
+    if (lastPlayMs !== undefined && (nowMs - lastPlayMs) < this.DEBOUNCE_MS) {
+      return; // Skip - too soon since last play
+    }
+    
+    // Update last play time
+    this.lastPlayTimes.set(type, nowMs);
     
     switch (type) {
       case 'PLANT':
