@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import { Container, Text, Graphics } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { GardenGrid } from '../entities/GardenGrid';
@@ -13,6 +14,16 @@ import { Encyclopedia } from '../ui/Encyclopedia';
 import { DiscoveryPopup } from '../ui/DiscoveryPopup';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
+=======
+import { Application, Container, Text } from 'pixi.js';
+import type { Scene, SceneContext } from '../core';
+import { GardenGrid } from '../entities/GardenGrid';
+import { TileState, Tile } from '../entities/Tile';
+import { GridSystem } from '../systems/GridSystem';
+import { HazardSystem } from '../systems/HazardSystem';
+import { PlantSystem } from '../systems/PlantSystem';
+import { HazardUI } from '../ui/HazardUI';
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -28,6 +39,7 @@ export class GardenScene implements Scene {
   private encyclopedia!: Encyclopedia;
   private discoveryPopup!: DiscoveryPopup;
   private infoText!: Text;
+<<<<<<< HEAD
   private statusText!: Text;
   private helpText!: Text;
   private encyclopediaButton!: Graphics;
@@ -49,6 +61,24 @@ export class GardenScene implements Scene {
       framesPerDay: GAME.TARGET_FPS * 30,
       encyclopediaSystem: this.encyclopediaSystem,
     });
+=======
+  private hazardSystem!: HazardSystem;
+  private plantSystem!: PlantSystem;
+  private hazardUI!: HazardUI;
+
+  async init(ctx: SceneContext): Promise<void> {
+    const { app } = ctx;
+    const sceneManager = app.stage.children[0] as Container;
+    sceneManager.addChild(this.container);
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
+
+    // Initialize systems
+    this.plantSystem = new PlantSystem({ framesPerDay: 60 * 5 });
+    this.hazardSystem = new HazardSystem({
+      seasonCount: 1,
+      enablePests: true,
+      enableDrought: true,
+    });
 
     // Initialize garden grid (8x8)
     this.grid = new GardenGrid({
@@ -63,6 +93,7 @@ export class GardenScene implements Scene {
     this.gridSystem.centerInViewport(ctx.app.screen.width, ctx.app.screen.height);
     this.container.addChild(this.gridSystem.getContainer());
 
+<<<<<<< HEAD
     // Initialize player at center of grid
     this.player = new Player('player-1', {
       startRow: 4,
@@ -103,12 +134,34 @@ export class GardenScene implements Scene {
 
     // Demo: Plant some starter plants for testing
     this.plantDemoPlants();
+=======
+    // Setup tile click handler for pest removal
+    this.gridSystem.onTileClick(this.handleTileClick.bind(this));
+
+    // Initialize hazard UI
+    this.hazardUI = new HazardUI();
+    this.hazardUI.setPosition(
+      app.screen.width / 2 - 160,
+      app.screen.height - 80
+    );
+    this.container.addChild(this.hazardUI.getContainer());
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
 
     // Add some demo state to tiles
     const demoTile1 = this.grid.getTile(2, 3);
     if (demoTile1) {
       demoTile1.state = TileState.OCCUPIED;
       demoTile1.setSoilQuality(85);
+      
+      // Create a demo plant (x=col, y=row)
+      const plant = this.plantSystem.createPlant('basil', demoTile1.col, demoTile1.row);
+      if (plant) {
+        // Simulate pest spawn for demo
+        const pestSpawned = this.hazardSystem.trySpawnPestOnPlant(plant);
+        if (pestSpawned) {
+          demoTile1.state = TileState.PEST;
+        }
+      }
     }
 
     const demoTile2 = this.grid.getTile(4, 5);
@@ -116,6 +169,9 @@ export class GardenScene implements Scene {
       demoTile2.state = TileState.PEST;
       demoTile2.setSoilQuality(45);
     }
+
+    // Simulate drought for demo (trigger at day 5)
+    this.hazardSystem.onDayAdvance(5);
 
     // Vary soil quality across grid for visual feedback
     for (let row = 0; row < 8; row++) {
@@ -130,7 +186,11 @@ export class GardenScene implements Scene {
 
     // Info text at top
     this.infoText = new Text({
+<<<<<<< HEAD
       text: '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools',
+=======
+      text: '🌱 Garden - Click pest tiles to remove',
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
       style: {
         fontFamily: 'Arial',
         fontSize: 16,
@@ -254,6 +314,7 @@ export class GardenScene implements Scene {
     this.updateEncyclopediaEntries();
   }
 
+<<<<<<< HEAD
   private setupGridClickHandling(): void {
     // This method is no longer needed as we use gridSystem.onTileClick callback
     // Kept as stub in case needed for future direct grid container interactions
@@ -299,11 +360,26 @@ export class GardenScene implements Scene {
         const tile = this.grid.getTile(row, col);
         if (tile) {
           tile.state = TileState.OCCUPIED;
+=======
+  private handleTileClick(tile: Tile): void {
+    // Handle pest removal
+    if (tile.hasPest()) {
+      // Get pest at this tile (x=col, y=row in grid coordinates)
+      const pest = this.hazardSystem.getPestAt(tile.col, tile.row);
+      if (pest) {
+        const removed = this.hazardSystem.removePest(pest.id);
+        if (removed) {
+          // Clear pest state from tile
+          tile.state = TileState.OCCUPIED;
+          // TODO: Deduct action point when action system is implemented
+          this.updateInfoText(`Pest removed from [${tile.row}, ${tile.col}]!`);
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
         }
       }
     }
   }
 
+<<<<<<< HEAD
   private toggleEncyclopedia(): void {
     this.encyclopediaVisible = !this.encyclopediaVisible;
     if (this.encyclopediaVisible) {
@@ -360,17 +436,54 @@ export class GardenScene implements Scene {
           this.infoText.text = `${state.config.displayName} | Stage: ${state.growthStage} | Health: ${Math.round(state.health)}% | Days: ${state.daysGrown}/${state.config.growthTime}`;
         }
       }
+=======
+  private updateInfoText(text: string): void {
+    this.infoText.text = text;
+  }
+
+  update(_delta: number, ctx: SceneContext): void {
+    // Update grid system (re-renders if state changed)
+    this.gridSystem.update();
+
+    // Update hazard UI based on drought status
+    const droughtInfo = this.hazardSystem.getDroughtInfo();
+    if (droughtInfo.active) {
+      this.hazardUI.showDroughtWarning({
+        daysRemaining: droughtInfo.daysRemaining,
+        waterMultiplier: droughtInfo.multiplier,
+      });
+    } else {
+      this.hazardUI.hideDroughtWarning();
+    }
+
+    // Update info text based on selection
+    const selectedTile = this.gridSystem.getSelectedTile();
+    if (selectedTile) {
+      let stateText: string = selectedTile.state;
+      if (selectedTile.hasPest()) {
+        stateText += ' (click to remove)';
+      }
+      this.infoText.text = `Tile [${selectedTile.row}, ${selectedTile.col}] | State: ${stateText} | Soil: ${selectedTile.soilQuality}%`;
+    } else {
+      this.infoText.text = '🌱 Garden - Click pest tiles to remove';
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
     }
   }
 
   destroy(): void {
     this.gridSystem.destroy();
+<<<<<<< HEAD
     this.playerSystem.destroy();
     this.plantSystem.destroy();
     this.toolBar.destroy();
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();
     this.plants.clear();
+=======
+    this.hazardSystem.destroy();
+    this.plantSystem.destroy();
+    this.hazardUI.destroy();
+>>>>>>> 0b67f98 (feat: add hazard UI indicators and pest removal action)
     this.container.destroy({ children: true });
     this.container = new Container();
   }
