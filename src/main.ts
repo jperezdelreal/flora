@@ -1,5 +1,5 @@
 import { Application } from 'pixi.js';
-import { SceneManager } from './core';
+import { SceneManager, GameLoop, InputManager, AssetLoader } from './core';
 import { BootScene, GardenScene } from './scenes';
 import { GAME, SCENES } from './config';
 
@@ -13,23 +13,26 @@ async function main(): Promise<void> {
 
   document.body.appendChild(app.canvas);
 
-  // Set up scene manager
-  const sceneManager = new SceneManager(app);
-  sceneManager.register(new BootScene());
-  sceneManager.register(new GardenScene());
+  // Core systems
+  const input = new InputManager();
+  const assets = new AssetLoader();
+  const sceneManager = new SceneManager(app, input, assets);
+
+  // Register all scenes
+  sceneManager.register(new BootScene(), new GardenScene());
 
   // Boot the first scene
   await sceneManager.switchTo(SCENES.BOOT);
 
-  // Game loop
-  app.ticker.add((ticker) => {
-    sceneManager.update(ticker.deltaTime);
+  // Fixed-timestep game loop (60 FPS deterministic updates)
+  const gameLoop = new GameLoop(app.ticker, GAME.TARGET_FPS);
+
+  gameLoop.setUpdateCallback((dt: number) => {
+    sceneManager.update(dt);
+    input.endFrame();
   });
 
-  // Auto-switch to garden scene after 2 seconds for demo
-  setTimeout(() => {
-    sceneManager.switchTo(SCENES.GARDEN).catch(console.error);
-  }, 2000);
+  gameLoop.start();
 }
 
 main().catch(console.error);

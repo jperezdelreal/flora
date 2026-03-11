@@ -7,4 +7,6 @@ export interface System {
   destroy(): void;
 }
 
+// Export PlantSystem
+export * from './PlantSystem';
 export * from './GridSystem';

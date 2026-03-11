@@ -8,5 +8,7 @@ export interface Entity {
   active: boolean;
 }
 
+// Export Plant entity and types
+export * from './Plant';
 export * from './Tile';
 export * from './GardenGrid';
