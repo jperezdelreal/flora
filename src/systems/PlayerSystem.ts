@@ -4,8 +4,10 @@ import { GardenGrid } from '../entities/GardenGrid';
 import { Plant } from '../entities/Plant';
 import { InputManager } from '../core/InputManager';
 import { getToolConfig, ToolActionResult } from '../config/tools';
+import { System } from './index';
 
-export class PlayerSystem {
+export class PlayerSystem implements System {
+  readonly name = 'PlayerSystem';
   private container: Container;
   private player: Player;
   private grid: GardenGrid;
@@ -108,11 +110,6 @@ export class PlayerSystem {
   }
 
   private startMove(targetRow: number, targetCol: number): void {
-    // Check if player has actions remaining
-    if (!this.player.hasActionsRemaining()) {
-      return;
-    }
-
     const currentPos = this.player.getGridPosition();
     
     // Get current world position
@@ -125,10 +122,7 @@ export class PlayerSystem {
     this.targetX = targetWorldPos.x + this.grid.config.tileSize / 2;
     this.targetY = targetWorldPos.y + this.grid.config.tileSize / 2;
 
-    // Consume action point for movement
-    this.player.consumeAction();
-
-    // Start movement
+    // Movement is free — only tool use costs actions
     this.player.moveTo(targetRow, targetCol);
     this.moveAnimationT = 0;
   }
@@ -137,18 +131,10 @@ export class PlayerSystem {
     this.moveAnimationT += deltaTime / this.moveAnimationDuration;
 
     if (this.moveAnimationT >= 1.0) {
-      // Complete movement
+      // Complete movement — no day-advance check here; only tool actions advance the day
       this.moveAnimationT = 1.0;
       this.player.completeMovement();
       this.updatePlayerPosition();
-
-      // Check if day should advance after action
-      if (!this.player.hasActionsRemaining()) {
-        this.player.advanceDay();
-        if (this.onDayAdvance) {
-          this.onDayAdvance();
-        }
-      }
     }
 
     // Ease in-out cubic interpolation

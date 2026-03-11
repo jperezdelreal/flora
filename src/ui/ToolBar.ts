@@ -115,7 +115,7 @@ export class ToolBar {
       }
     }
 
-    if (this.onToolSelect && this.selectedTool !== null) {
+    if (this.onToolSelect) {
       this.onToolSelect(this.selectedTool);
     }
   }
