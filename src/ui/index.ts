@@ -4,3 +4,5 @@
 export * from './ToolBar';
 export * from './Encyclopedia';
 export * from './DiscoveryPopup';
+export { HazardUI } from './HazardUI';
+export type { DroughtWarningOptions } from './HazardUI';
