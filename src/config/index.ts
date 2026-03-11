@@ -40,3 +40,4 @@ export const COLORS = {
 
 // Export plant configurations
 export * from './plants';
+export * from './tools';
