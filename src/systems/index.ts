@@ -6,3 +6,6 @@ export interface System {
   update(delta: number): void;
   destroy(): void;
 }
+
+// Export PlantSystem
+export * from './PlantSystem';
