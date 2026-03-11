@@ -13,3 +13,4 @@ export * from './Plant';
 export * from './Tile';
 export * from './GardenGrid';
 export * from './Player';
+export * from './Hazard';
