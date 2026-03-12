@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { PLANT_BY_ID, ALL_PLANTS } from '../config/plants';
+import { ALL_PLANTS } from '../config/plants';
 import { PlantConfig } from '../entities/Plant';
 
 const RARITY_COLORS = {

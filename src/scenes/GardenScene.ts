@@ -48,6 +48,9 @@ export class GardenScene implements Scene {
   // Session tracking
   private harvestedSeeds: Map<string, number> = new Map();
   private newDiscoveriesThisSeason: Set<string> = new Set();
+  
+  // Keyboard handler reference for cleanup
+  private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private frameCounter = 0;
 
   async init(ctx: SceneContext): Promise<void> {
@@ -356,9 +359,10 @@ export class GardenScene implements Scene {
   }
   
   private setupKeyboardShortcuts(): void {
-    // Escape key - toggle pause menu
-    window.addEventListener('keydown', (e) => {
+    // Store bound reference for proper cleanup
+    this.boundOnKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Escape key - toggle pause menu
         this.isPaused = !this.isPaused;
         if (this.isPaused) {
           this.pauseMenu.show();
@@ -371,7 +375,8 @@ export class GardenScene implements Scene {
           this.seedInventory.toggle();
         }
       }
-    });
+    };
+    window.addEventListener('keydown', this.boundOnKeyDown);
   }
   
   private startNewSeason(): void {
@@ -618,6 +623,7 @@ export class GardenScene implements Scene {
   }
 
   destroy(): void {
+    window.removeEventListener('keydown', this.boundOnKeyDown);
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();
