@@ -9,10 +9,8 @@ import { PlayerSystem } from '../systems/PlayerSystem';
 import { PlantSystem } from '../systems/PlantSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { HazardSystem } from '../systems/HazardSystem';
-import { ToolBar } from '../ui/ToolBar';
-import { Encyclopedia } from '../ui/Encyclopedia';
-import { DiscoveryPopup } from '../ui/DiscoveryPopup';
-import { HazardUI } from '../ui/HazardUI';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu } from '../ui';
+import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
 
@@ -38,6 +36,22 @@ export class GardenScene implements Scene {
   private input!: InputManager;
   private hazardSystem!: HazardSystem;
   private hazardUI!: HazardUI;
+  
+  // New UI components
+  private hud!: HUD;
+  private seedInventory!: SeedInventory;
+  private plantInfoPanel!: PlantInfoPanel;
+  private daySummary!: DaySummary;
+  private pauseMenu!: PauseMenu;
+  private isPaused = false;
+  
+  // Session tracking
+  private harvestedSeeds: Map<string, number> = new Map();
+  private newDiscoveriesThisSeason: Set<string> = new Set();
+  
+  // Keyboard handler reference for cleanup
+  private boundOnKeyDown!: (e: KeyboardEvent) => void;
+  private frameCounter = 0;
 
   async init(ctx: SceneContext): Promise<void> {
     const { input } = ctx;
@@ -247,10 +261,59 @@ export class GardenScene implements Scene {
     // Listen for discovery events
     this.encyclopediaSystem.onDiscovery((event) => {
       this.discoveryPopup.show(event.config);
+      this.newDiscoveriesThisSeason.add(event.config.displayName);
     });
+    
+    // Initialize HUD (replaces statusText/helpText)
+    this.hud = new HUD();
+    this.hud.setPosition(
+      (ctx.app.screen.width - 600) / 2,
+      10
+    );
+    this.container.addChild(this.hud.getContainer());
+    
+    // Initialize Seed Inventory (side panel)
+    this.seedInventory = new SeedInventory();
+    this.seedInventory.setPosition(10, 0);
+    this.container.addChild(this.seedInventory.getContainer());
+    
+    // Initialize Plant Info Panel (tooltip)
+    this.plantInfoPanel = new PlantInfoPanel();
+    this.container.addChild(this.plantInfoPanel.getContainer());
+    
+    // Initialize Day Summary (full-screen overlay)
+    this.daySummary = new DaySummary();
+    this.daySummary.setOnNext(() => {
+      this.startNewSeason();
+    });
+    this.container.addChild(this.daySummary.getContainer());
+    
+    // Initialize Pause Menu
+    const pauseCallbacks: PauseMenuCallbacks = {
+      onResume: () => {
+        this.isPaused = false;
+      },
+      onRestart: () => {
+        this.restartRun();
+      },
+      onEncyclopedia: () => {
+        this.toggleEncyclopedia();
+      },
+      onMainMenu: () => {
+        // TODO: Navigate to main menu scene
+        console.log('Main menu not implemented yet');
+      },
+    };
+    this.pauseMenu = new PauseMenu(pauseCallbacks);
+    this.container.addChild(this.pauseMenu.getContainer());
+    
+    // Setup keyboard shortcuts
+    this.setupKeyboardShortcuts();
 
     // Setup click handler for harvesting (via gridSystem callback)
     this.gridSystem.onTileClick((row, col) => {
+      if (this.isPaused) return; // Ignore clicks when paused
+      
       // Let player system handle clicks first if player is moving or needs to interact
       const playerPos = this.player.getGridPosition();
       const selectedTool = this.player.getSelectedTool();
@@ -273,6 +336,10 @@ export class GardenScene implements Scene {
         if (result.success) {
           tile.state = TileState.EMPTY;
           this.updateInfoText(`Harvested! +${result.seeds} seeds`);
+          
+          // Track harvested seeds for day summary
+          const currentCount = this.harvestedSeeds.get(result.plantId) || 0;
+          this.harvestedSeeds.set(result.plantId, currentCount + result.seeds);
         }
       } else {
         // Move to tile
@@ -289,6 +356,58 @@ export class GardenScene implements Scene {
   private setupGridClickHandling(): void {
     // This method is no longer needed as we use gridSystem.onTileClick callback
     // Kept as stub in case needed for future direct grid container interactions
+  }
+  
+  private setupKeyboardShortcuts(): void {
+    // Store bound reference for proper cleanup
+    this.boundOnKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Escape key - toggle pause menu
+        this.isPaused = !this.isPaused;
+        if (this.isPaused) {
+          this.pauseMenu.show();
+        } else {
+          this.pauseMenu.hide();
+        }
+      } else if (e.key === 'i' || e.key === 'I') {
+        // I key - toggle seed inventory
+        if (!this.isPaused && !this.encyclopediaVisible) {
+          this.seedInventory.toggle();
+        }
+      }
+    };
+    window.addEventListener('keydown', this.boundOnKeyDown);
+  }
+  
+  private startNewSeason(): void {
+    // Reset session tracking
+    this.harvestedSeeds.clear();
+    this.newDiscoveriesThisSeason.clear();
+    
+    // Reset player
+    this.player.setGridPosition(4, 4);
+    
+    // Clear grid and plants
+    for (let row = 0; row < 8; row++) {
+      for (let col = 0; col < 8; col++) {
+        const tile = this.grid.getTile(row, col);
+        if (tile) {
+          tile.state = TileState.EMPTY;
+        }
+      }
+    }
+    this.plants.clear();
+    
+    // Plant demo plants for next season
+    this.plantDemoPlants();
+    this.gridSystem.update();
+  }
+  
+  private restartRun(): void {
+    // Full restart: clear encyclopedia and start fresh
+    this.encyclopediaSystem.reset();
+    this.startNewSeason();
+    this.isPaused = false;
   }
 
   private showActionMessage(message: string): void {
@@ -375,8 +494,44 @@ export class GardenScene implements Scene {
       this.infoText.text = '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools';
     }, 2000);
   }
+  
+  private showDaySummary(): void {
+    // Build summary data
+    const encycStats = this.encyclopediaSystem.getStats();
+    
+    // Convert harvested seeds map to array
+    const seedsHarvested = Array.from(this.harvestedSeeds.entries()).map(([plantId, count]) => {
+      const config = this.plantSystem.getPlant(plantId)?.getConfig();
+      return {
+        name: config?.displayName || plantId,
+        count,
+      };
+    });
+    
+    const summaryData: DaySummaryData = {
+      day: this.player.getCurrentDay(),
+      seedsHarvested,
+      newDiscoveries: Array.from(this.newDiscoveriesThisSeason),
+      encyclopediaProgress: {
+        discovered: encycStats.discovered,
+        total: encycStats.total,
+      },
+    };
+    
+    this.daySummary.show(summaryData);
+  }
 
   update(delta: number, _ctx: SceneContext): void {
+    // Don't update game logic when paused
+    if (this.isPaused) {
+      return;
+    }
+    
+    // Update frame counter for day progress tracking
+    this.frameCounter++;
+    const framesPerDay = GAME.TARGET_FPS * 30; // 30 seconds per day
+    const dayProgress = (this.frameCounter % framesPerDay) / framesPerDay;
+    
     // Update player system (handles input and movement)
     this.playerSystem.update(delta);
 
@@ -402,13 +557,19 @@ export class GardenScene implements Scene {
     } else {
       this.hazardUI.hideDroughtWarning();
     }
+    
+    // Update HUD with current status
+    const day = this.player.getCurrentDay();
+    const actions = this.player.getActionsRemaining();
+    const maxActions = this.player.getState().maxActions;
+    this.hud.update(day, 12, dayProgress, actions, maxActions);
 
-    // Update help text with stats
+    // Update help text with stats (keep for legacy but HUD now shows this)
     const stats = this.plantSystem.getStats();
     const encycStats = this.encyclopediaSystem.getStats();
     this.helpText.text = `Day: ${stats.currentDay} | Plants: ${stats.activePlants} (${stats.maturePlants} mature) | Discovered: ${encycStats.discovered}/${encycStats.total}`;
 
-    // Update selected tile info
+    // Update selected tile info and plant info panel
     const selectedTile = this.gridSystem.getSelectedTile();
     if (selectedTile && !this.player.isMoving()) {
       const pos = this.player.getGridPosition();
@@ -419,18 +580,50 @@ export class GardenScene implements Scene {
           stateText += ' (click to remove)';
         }
         this.infoText.text = `Tile [${selectedTile.row}, ${selectedTile.col}] | State: ${stateText} | Soil: ${selectedTile.soilQuality}% | Moisture: ${selectedTile.moisture}%`;
+        
+        // Show plant info panel if tile has a plant
+        if (selectedTile.state === TileState.OCCUPIED) {
+          const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
+          if (plant) {
+            // Convert grid position to screen position for tooltip
+            const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
+            const gridPos = this.gridSystem.getContainer().position;
+            this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+          } else {
+            this.plantInfoPanel.hide();
+          }
+        } else {
+          this.plantInfoPanel.hide();
+        }
       } else if (selectedTile.state === TileState.OCCUPIED) {
         // Show plant info when on occupied tile
         const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
         if (plant) {
           const state = plant.getState();
           this.infoText.text = `${state.config.displayName} | Stage: ${state.growthStage} | Health: ${Math.round(state.health)}% | Days: ${state.daysGrown}/${state.config.growthTime}`;
+          
+          // Show plant info panel
+          const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
+          const gridPos = this.gridSystem.getContainer().position;
+          this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+        } else {
+          this.plantInfoPanel.hide();
         }
+      } else {
+        this.plantInfoPanel.hide();
       }
+    } else {
+      this.plantInfoPanel.hide();
+    }
+    
+    // Check for season end (day 12 reached)
+    if (day >= 12 && !this.daySummary.isVisible()) {
+      this.showDaySummary();
     }
   }
 
   destroy(): void {
+    window.removeEventListener('keydown', this.boundOnKeyDown);
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();
@@ -439,6 +632,11 @@ export class GardenScene implements Scene {
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();
     this.hazardUI.destroy();
+    this.hud.destroy();
+    this.seedInventory.destroy();
+    this.plantInfoPanel.destroy();
+    this.daySummary.destroy();
+    this.pauseMenu.destroy();
     this.plants.clear();
     this.container.destroy({ children: true });
     this.container = new Container();
