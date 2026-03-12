@@ -37,7 +37,12 @@ export class AudioManager {
   };
 
   // User volume preferences (persisted)
-  private volumePreferences = {
+  private volumePreferences: {
+    master: number;
+    sfx: number;
+    ambient: number;
+    music: number;
+  } = {
     master: AUDIO.VOLUMES.MASTER,
     sfx: AUDIO.VOLUMES.SFX,
     ambient: AUDIO.VOLUMES.AMBIENT,
