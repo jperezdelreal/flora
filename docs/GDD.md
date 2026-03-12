@@ -383,8 +383,8 @@ Cozy games are *about* feeling. Our palette and animation timing should say "thi
 
 **Status:** Ready for Architecture Review  
 **Next Steps:** 
-1. Solo reviews for technical feasibility
-2. Jango plans Sprint 0 timeline
+1. Oak reviews for technical feasibility
+2. Brock plans Sprint 0 timeline
 3. Art spike on plant sprites
 4. Audio spike on seasonal ambient tracks
 
