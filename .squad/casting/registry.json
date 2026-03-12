@@ -40,42 +40,42 @@
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "surge": {
       "persistent_name": "Surge",
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "blaine": {
       "persistent_name": "Blaine",
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "lance": {
       "persistent_name": "Lance",
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "giovanni": {
       "persistent_name": "Giovanni",
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "cynthia": {
       "persistent_name": "Cynthia",
       "universe": "Pokémon",
       "created_at": "2026-03-12T10:54:00Z",
       "legacy_named": false,
-      "status": "active"
+      "status": "retired"
     },
     "agatha": {
       "persistent_name": "Agatha",

@@ -7,8 +7,8 @@
 | **Trigger** | auto |
 | **When** | after |
 | **Condition** | sprint declared complete |
-| **Facilitator** | Blaine |
-| **Participants** | Blaine |
+| **Facilitator** | Oak |
+| **Participants** | Oak, Brock |
 | **Enabled** | yes |
 
 **Checklist:**

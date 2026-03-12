@@ -14,7 +14,7 @@ Lead architect for FLORA. Defines project structure, integration patterns, and a
 ## Boundaries
 - Owns: .squad/, project structure, architecture documents
 - Reviews any file; does not implement features directly
-- Defines conventions that Giovanni enforces
+- Defines and enforces conventions (Brock handles Vite/tooling enforcement)
 
 ## Model
 Preferred: auto

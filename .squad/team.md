@@ -17,12 +17,6 @@
 | Erika | Systems Dev | .squad/agents/erika/charter.md | ⚔️ Active |
 | Misty | Web UI Dev | .squad/agents/misty/charter.md | ⚛️ Active |
 | Sabrina | Procedural Art Director | .squad/agents/sabrina/charter.md | 🎨 Active |
-| Meowth | Ambient Sound Designer | .squad/agents/meowth/charter.md | 🔊 Active |
-| Surge | Procedural Content Dev | .squad/agents/surge/charter.md | 🌿 Active |
-| Blaine | QA / Playtester | .squad/agents/blaine/charter.md | 🧪 Active |
-| Lance | Game Designer / Vision Keeper | .squad/agents/lance/charter.md | 🎯 Active |
-| Giovanni | DevOps / Build Engineer | .squad/agents/giovanni/charter.md | ⚙️ Active |
-| Cynthia | Producer | .squad/agents/cynthia/charter.md | 📊 Active |
 | Scribe | Session Logger | .squad/agents/scribe/charter.md | 📋 Active |
 | Ralph | Work Monitor | — | 🔄 Monitor |
 
@@ -30,6 +24,12 @@
 
 | Name | Last Active | Reason |
 |------|------------|--------|
+| Meowth | Pokémon Migration | Audio is post-MVP |
+| Surge | Pokémon Migration | Content data absorbable by Erika |
+| Blaine | Pokémon Migration | QA covered by Oak's code review for now |
+| Lance | Pokémon Migration | GDD exists; user provides creative direction |
+| Giovanni | Pokémon Migration | DevOps is occasional; Brock handles Vite config |
+| Cynthia | Pokémon Migration | Producer overhead unnecessary for small project |
 | Agatha | Ashfall Sprint 1 | No environment art — FLORA is procedural |
 | Lorelei | Ashfall Sprint 1 | VFX absorbed by Sabrina for procedural games |
 | Bruno | Ashfall Sprint 1 | No character art — player IS the plant |

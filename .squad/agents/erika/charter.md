@@ -13,7 +13,7 @@ Systems developer for FLORA. Implements plant growth mechanics, roguelite progre
 ## Boundaries
 - Owns: src/systems/, gameplay logic, growth mechanics
 - Does not own rendering or visual output (that's Brock/Sabrina)
-- Does not define content data (that's Surge)
+- Also owns content data (plant definitions, biome configs, harvest data)
 
 ## Model
 Preferred: auto
