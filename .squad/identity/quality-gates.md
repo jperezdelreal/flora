@@ -1,6 +1,6 @@
 # Quality Gates & Definition of Done — First Frame Studios
 
-**Author:** Solo (Lead / Chief Architect)  
+**Author:** Oak (Lead / Chief Architect)  
 **Date:** 2026-03-12  
 **Context:** Phase 2 — Rewritten for web games. Covers HTML/JS/Canvas and TypeScript/Vite/PixiJS stacks.  
 **Applies to:** All deliverables in web game projects, effective this phase.
@@ -24,11 +24,11 @@ A code deliverable is accepted when ALL of the following are true:
 | WC3 | **All imports/dependencies resolve** | All `import` statements, asset paths, and module references resolve. No 404s in network tab. |
 | WC4 | **Tested in browser AND exported build** | Runs correctly in dev server AND in production build. Build output verified on staging/production domain. |
 | WC5 | **No dead/orphaned code** | Every module, listener, and handler is wired to a consumer. No commented-out integration stubs. |
-| WC6 | **Cross-reviewed by a second engineer** | Solo reviews anything touching event bus, global state, or canvas rendering. Peer reviews game logic. Separate code review from QA. |
+| WC6 | **Cross-reviewed by a second engineer** | Oak reviews anything touching event bus, global state, or canvas rendering. Peer reviews game logic. Separate code review from QA. |
 | WC7 | **Web style conventions followed** | Naming (camelCase), module organization, ES6+ patterns, and async handling match project standards. |
 | WC8 | **Responsive layout verified** | Game responds to viewport changes. Test on desktop (1920×1080), tablet (768×1024), and mobile (360×640). |
 
-**Gate owner:** Solo (Lead) + cross-review engineer.
+**Gate owner:** Oak (Lead) + cross-review engineer.
 
 ---
 
@@ -45,7 +45,7 @@ A canvas/rendering deliverable is accepted when ALL of the following are true:
 | CG5 | **Rendering correct across browsers** | WebGL contexts initialize correctly. Canvas scale and DPI handled. Test on Chrome, Firefox, Safari (desktop + mobile). |
 | CG6 | **Asset management verified** | Images loaded, spritesheet frames calculated correctly. No texture bleeding or scaling artifacts. |
 
-**Gate owner:** Solo (Lead) for architecture. QA for performance verification.
+**Gate owner:** Oak (Lead) for architecture. QA for performance verification.
 
 ---
 
@@ -61,7 +61,7 @@ A TypeScript deliverable is accepted when ALL of the following are true:
 | TS4 | **Build produces no warnings** | `npm run build` (or equivalent) emits zero TypeScript warnings. Vite build clean. |
 | TS5 | **Type coverage documented** | New public APIs have JSDoc with `@param` and `@returns`. Complex logic has inline type guards explained. |
 
-**Gate owner:** Solo (Lead). Build verification by CI.
+**Gate owner:** Oak (Lead). Build verification by CI.
 
 ---
 
@@ -95,7 +95,7 @@ An integration deliverable is accepted when ALL of the following are true:
 | I5 | **Game loads in browser** | Fresh page load: asset loads, canvas renders, game starts. No console errors. |
 | I6 | **Persistent state integrity** | If feature touches localStorage/sessionStorage: save, reload, verify state survived. |
 
-**Gate owner:** Solo (Lead) for architecture. QA for regression and integration.
+**Gate owner:** Oak (Lead) for architecture. QA for regression and integration.
 
 **Performance Budget Reference (Web):**
 
@@ -131,7 +131,7 @@ A deliverable is **not done** if any of these are true, regardless of code compl
 - It creates memory leaks or listeners that aren't cleaned up
 - It creates code that isn't wired to any consumer (dead module, orphaned handler)
 - It changes difficulty but wasn't playtested for balance
-- It touches shared systems (event bus, global state, canvas) without Solo's review
+- It touches shared systems (event bus, global state, canvas) without Oak's review
 - It causes 404s or console errors in browser DevTools
 
 ---
@@ -159,18 +159,18 @@ A deliverable is **not done** if any of these are true, regardless of code compl
 | 1 | Author | Creates branch, implements change, self-tests in browser |
 | 2 | Cross-reviewer | Reads diff, traces event flow, checks gate WC1-WC8 (or TS1-TS5 for TypeScript) |
 | 3 | QA | Runs smoke test + regression checklist, verifies no console errors/404s |
-| 4 | Solo (if shared systems) | Architecture review for event bus, global state, canvas changes |
+| 4 | Oak (if shared systems) | Architecture review for event bus, global state, canvas changes |
 | 5 | Merge | Only after all required approvals |
 
 ### Cross-Review Assignments
 
 | Author | Reviewer | Scope |
 |--------|----------|-------|
-| Flora (TypeScript) | Solo (Lead) | TypeScript code, module structure, build |
-| ComeRosquillas (Vanilla JS) | Solo (Lead) | Canvas rendering, event handling, input systems |
-| Frontend/UI | Solo (Lead) | DOM/responsive layout, event listeners, cleanup |
-| Game Logic | Solo (Lead) | Game loop, collision, difficulty, playtesting |
-| Solo (Lead) | Flora + ComeRosquillas leads | Architecture, event bus, cross-game patterns |
+| Flora (TypeScript) | Oak (Lead) | TypeScript code, module structure, build |
+| ComeRosquillas (Vanilla JS) | Oak (Lead) | Canvas rendering, event handling, input systems |
+| Frontend/UI | Oak (Lead) | DOM/responsive layout, event listeners, cleanup |
+| Game Logic | Oak (Lead) | Game loop, collision, difficulty, playtesting |
+| Oak (Lead) | Flora + ComeRosquillas leads | Architecture, event bus, cross-game patterns |
 
 **Principle:** No code merges without a second pair of eyes. The author's blind spot is the reviewer's opportunity.
 
@@ -212,4 +212,4 @@ A deliverable is **not done** if any of these are true, regardless of code compl
 
 *This document is a living standard. Update as the team learns. Every bug that slips through is a signal to strengthen a gate.*
 
-*— Solo, Lead / Chief Architect, First Frame Studios*
+*— Oak, Lead / Chief Architect, First Frame Studios*

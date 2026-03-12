@@ -1,0 +1,36 @@
+{
+  "universe_usage_history": [
+    {
+      "universe": "Star Wars",
+      "first_used": "2026-03-11",
+      "last_used": "2026-03-12",
+      "status": "replaced"
+    },
+    {
+      "universe": "Pokémon",
+      "first_used": "2026-03-12",
+      "last_used": "2026-03-12",
+      "status": "active"
+    }
+  ],
+  "assignment_cast_snapshots": {
+    "pokemon-flora-2026-03-12": {
+      "assignment_id": "pokemon-flora-2026-03-12",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "agents": {
+        "oak": "Lead / Chief Architect",
+        "brock": "Web Engine Dev",
+        "erika": "Systems Dev",
+        "misty": "Web UI Dev",
+        "sabrina": "Procedural Art Director",
+        "meowth": "Ambient Sound Designer",
+        "surge": "Procedural Content Dev",
+        "blaine": "QA / Playtester",
+        "lance": "Game Designer / Vision Keeper",
+        "giovanni": "DevOps / Build Engineer",
+        "cynthia": "Producer"
+      }
+    }
+  }
+}

@@ -1,0 +1,102 @@
+{
+  "agents": {
+    "oak": {
+      "persistent_name": "Oak",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "brock": {
+      "persistent_name": "Brock",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "erika": {
+      "persistent_name": "Erika",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "misty": {
+      "persistent_name": "Misty",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "sabrina": {
+      "persistent_name": "Sabrina",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "meowth": {
+      "persistent_name": "Meowth",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "surge": {
+      "persistent_name": "Surge",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "blaine": {
+      "persistent_name": "Blaine",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "lance": {
+      "persistent_name": "Lance",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "giovanni": {
+      "persistent_name": "Giovanni",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "cynthia": {
+      "persistent_name": "Cynthia",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "active"
+    },
+    "agatha": {
+      "persistent_name": "Agatha",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "retired"
+    },
+    "lorelei": {
+      "persistent_name": "Lorelei",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "retired"
+    },
+    "bruno": {
+      "persistent_name": "Bruno",
+      "universe": "Pokémon",
+      "created_at": "2026-03-12T10:54:00Z",
+      "legacy_named": false,
+      "status": "retired"
+    }
+  }
+}

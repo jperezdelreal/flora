@@ -7,8 +7,8 @@
 | **Trigger** | auto |
 | **When** | after |
 | **Condition** | sprint declared complete |
-| **Facilitator** | Ackbar |
-| **Participants** | Ackbar |
+| **Facilitator** | Blaine |
+| **Participants** | Blaine |
 | **Enabled** | yes |
 
 **Checklist:**

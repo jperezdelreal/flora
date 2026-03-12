@@ -21,15 +21,15 @@ FLORA project bootstrapped. Vite + TypeScript + PixiJS v8 scaffolded. Squad infr
 ## Key Decisions
 - **Hybrid Architecture (Option C)** — FLORA is a subsquad of FirstFrameStudios studio hub
 - **Stack:** Vite + TypeScript + PixiJS v8 + bitECS
-- **11 agents active**, 3 hibernated (Leia, Bossk, Nien — not needed for procedural game)
+- **11 agents active**, 3 hibernated (Agatha, Lorelei, Bruno — not needed for procedural game)
 - **TLDR convention** — all comments start with **TLDR:**
 
 ## Next Actions
 1. Sprint 0 planning — define milestones and issue breakdown
-2. Game loop + ECS foundation (Chewie)
-3. L-system prototype (Lando + Boba)
-4. GDD / core loop design (Yoda)
-5. CI/CD pipeline (Jango)
+2. Game loop + ECS foundation (Brock)
+3. L-system prototype (Erika + Sabrina)
+4. GDD / core loop design (Lance)
+5. CI/CD pipeline (Giovanni)
 
 ## Upstream
 - **Studio Hub:** jperezdelreal/FirstFrameStudios
@@ -37,4 +37,4 @@ FLORA project bootstrapped. Vite + TypeScript + PixiJS v8 scaffolded. Squad infr
 
 ---
 
-**Updated by Solo (Chief Architect) on 2026-03-11 after squad infrastructure setup.**
+**Updated by Oak (Chief Architect) on 2026-03-11 after squad infrastructure setup.**
