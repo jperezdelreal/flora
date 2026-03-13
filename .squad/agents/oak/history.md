@@ -12,3 +12,19 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **UI barrel export**: src/ui/index.ts re-exports all UI components. New components must be added here.
 - **DaySummary fade**: Uses raw requestAnimationFrame, bypassing game loop/pause. DiscoveryPopup uses update(deltaMs) pattern — prefer that.
 - **Bonus scope**: PR delivered DiscoveryPopup, Encyclopedia, HazardUI beyond issue scope. Good initiative but monitor scope creep in future sprints.
+
+### Strategic Roadmap Definition (2026-03-11)
+- **Context:** Sprint 0 complete. User requested powerful strategic roadmap (not just incremental tasks). Current game playable but lacks replayability, strategic depth, progression clarity.
+- **Strategic thesis:** Players return when runs feel *different* (variety), *challenging* (decision-making), *rewarding* (visible progress).
+- **Roadmap structure:** 8 items ordered by strategic impact: (1) Seasonal Themes [DONE], (2) Audio, (3) Unlocks, (4) Randomized Seeds, (5) Run Scoring, (6) Enhanced Hazards, (7) Synergies, (8) Save System.
+- **Key architectural decisions:**
+  - **Deterministic run seeding:** All randomness tied to seed value (enables reproducibility, future daily challenge mode, sharing runs).
+  - **Event-driven scoring:** ScoringSystem subscribes to EventBus events (`plant:harvested`, `hazard:overcome`, `synergy:activated`). Decoupled from individual systems.
+  - **Save schema versioning:** SaveData includes version field; migration functions handle v1→v2, etc. Graceful fallback to reset on failure.
+  - **Hazard system split:** Current monolithic HazardSystem will split into PestSystem + WeatherSystem for clarity.
+  - **Synergy system as new layer:** SynergySystem checks adjacency graph after PlantSystem update, applies bonuses, emits events. No negative interactions in MVP.
+- **Parallelization strategy:** Phase 1 (Items 2-4 parallel), Phase 2 (Items 5-7 parallel), Phase 3 (Item 8 serial, requires schemas).
+- **Deferred features:** Garden expansion, advanced tools, cosmetics, mobile optimization, cloud sync — out of scope until core loop is compelling.
+- **Issue triage:** #32 (Audio) → squad:brock, #33 (Unlocks) → squad:misty, #37/#38 (roadmap) → closed.
+- **Files involved:** roadmap.md (updated), .squad/decisions/inbox/oak-roadmap-strategy.md (created).
+- **Success criteria:** 3+ distinct runs, 2x score gap (skill expression), 40+ min sessions, no frustration feedback.
