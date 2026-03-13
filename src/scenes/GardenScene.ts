@@ -15,6 +15,8 @@ import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getPlantsBySeason } from '../config/plants';
+import { eventBus } from '../core/EventBus';
+import { audioManager } from '../systems';
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -326,6 +328,9 @@ export class GardenScene implements Scene {
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
+
+    // Setup audio event listeners
+    this.setupAudioListeners();
 
     // Setup click handler for harvesting (via gridSystem callback)
     this.gridSystem.onTileClick((row, col) => {
@@ -698,7 +703,49 @@ export class GardenScene implements Scene {
     }
   }
 
+  private setupAudioListeners(): void {
+    // TLDR: Start ambient audio when scene initializes
+    audioManager.startAmbient();
+
+    // TLDR: Plant lifecycle sounds
+    eventBus.on('plant:created', () => {
+      audioManager.playSFX('PLANT');
+    });
+
+    eventBus.on('plant:watered', () => {
+      audioManager.playSFX('WATER');
+    });
+
+    eventBus.on('plant:harvested', () => {
+      audioManager.playSFX('HARVEST');
+    });
+
+    eventBus.on('plant:died', () => {
+      audioManager.playSFX('WILT');
+    });
+
+    // TLDR: Pest sounds
+    eventBus.on('pest:spawned', () => {
+      audioManager.playSFX('PEST_APPEAR');
+    });
+
+    eventBus.on('pest:removed', () => {
+      audioManager.playSFX('PEST_APPEAR');
+    });
+
+    // TLDR: Discovery chime
+    eventBus.on('discovery:new', () => {
+      audioManager.playSFX('HARVEST');
+    });
+
+    // TLDR: Day advancement chime
+    eventBus.on('day:advanced', () => {
+      audioManager.playSFX('PLANT');
+    });
+  }
+
   destroy(): void {
+    audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
     this.gridSystem.destroy();
     this.playerSystem.destroy();

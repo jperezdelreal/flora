@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { audioManager } from '../systems';
 
 export interface PauseMenuCallbacks {
   onResume?: () => void;
@@ -19,6 +20,8 @@ export class PauseMenu {
   private container: Container;
   private callbacks: PauseMenuCallbacks;
   private menuItems: { text: Text; button: Graphics; action: string }[] = [];
+  private muteButton!: Graphics;
+  private muteText!: Text;
 
   constructor(callbacks: PauseMenuCallbacks = {}) {
     this.container = new Container();
@@ -33,7 +36,7 @@ export class PauseMenu {
 
     // Menu panel
     const panel = new Graphics();
-    panel.roundRect(250, 150, 300, 300, 16);
+    panel.roundRect(250, 130, 300, 340, 16);
     panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
     panel.stroke({ color: 0x4caf50, width: 3 });
     this.container.addChild(panel);
@@ -63,10 +66,12 @@ export class PauseMenu {
     ];
 
     menuOptions.forEach((option, index) => {
-      const y = 250 + index * 60;
+      const y = 230 + index * 60;
       const item = this.createMenuItem(option.label, option.action, y);
       this.menuItems.push(item);
     });
+
+    this.createMuteToggle();
   }
 
   private createMenuItem(label: string, action: string, y: number): { text: Text; button: Graphics; action: string } {
@@ -144,6 +149,65 @@ export class PauseMenu {
         }
         break;
     }
+  }
+
+  private createMuteToggle(): void {
+    const y = 440;
+    
+    this.muteButton = new Graphics();
+    this.muteButton.roundRect(0, 0, 260, 45, 8);
+    this.muteButton.fill({ color: 0x2a2a2a });
+    this.muteButton.stroke({ color: 0x4a4a4a, width: 2 });
+    this.muteButton.x = 270;
+    this.muteButton.y = y;
+    this.muteButton.eventMode = 'static';
+    this.muteButton.cursor = 'pointer';
+    this.container.addChild(this.muteButton);
+
+    this.muteText = new Text({
+      text: this.getMuteLabel(),
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 20,
+        fill: '#ffffff',
+        fontWeight: 'bold',
+        align: 'center',
+      },
+    });
+    this.muteText.anchor.set(0.5);
+    this.muteText.x = 400;
+    this.muteText.y = y + 22;
+    this.container.addChild(this.muteText);
+
+    this.muteButton.on('pointerover', () => {
+      this.muteButton.clear();
+      this.muteButton.roundRect(0, 0, 260, 45, 8);
+      this.muteButton.fill({ color: 0x4caf50 });
+      this.muteButton.stroke({ color: 0x66bb6a, width: 2 });
+    });
+
+    this.muteButton.on('pointerout', () => {
+      this.muteButton.clear();
+      this.muteButton.roundRect(0, 0, 260, 45, 8);
+      this.muteButton.fill({ color: 0x2a2a2a });
+      this.muteButton.stroke({ color: 0x4a4a4a, width: 2 });
+    });
+
+    this.muteButton.on('pointerdown', () => {
+      this.toggleMute();
+    });
+  }
+
+  private getMuteLabel(): string {
+    const muteState = audioManager.getMuteState();
+    return muteState.master ? '🔇 Unmute Audio' : '🔊 Mute Audio';
+  }
+
+  private toggleMute(): void {
+    const muteState = audioManager.getMuteState();
+    const newMuteState = !muteState.master;
+    audioManager.setMasterMute(newMuteState);
+    this.muteText.text = this.getMuteLabel();
   }
 
   show(): void {

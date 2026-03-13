@@ -2,6 +2,7 @@ import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader } from './core';
 import { BootScene, GardenScene } from './scenes';
 import { GAME, SCENES } from './config';
+import { audioManager } from './systems';
 
 async function main(): Promise<void> {
   const app = new Application();
@@ -13,6 +14,9 @@ async function main(): Promise<void> {
 
   document.body.appendChild(app.canvas);
 
+  // TLDR: Initialize audio system (requires user interaction to resume AudioContext)
+  audioManager.init();
+
   // Core systems
   const input = new InputManager();
   const assets = new AssetLoader();
@@ -23,6 +27,19 @@ async function main(): Promise<void> {
 
   // Boot the first scene
   await sceneManager.switchTo(SCENES.BOOT);
+
+  // TLDR: Resume audio on first user interaction
+  let audioResumed = false;
+  const resumeAudio = async () => {
+    if (!audioResumed) {
+      await audioManager.resume();
+      audioResumed = true;
+      document.removeEventListener('click', resumeAudio);
+      document.removeEventListener('keydown', resumeAudio);
+    }
+  };
+  document.addEventListener('click', resumeAudio);
+  document.addEventListener('keydown', resumeAudio);
 
   // Fixed-timestep game loop (60 FPS deterministic updates)
   const gameLoop = new GameLoop(app.ticker, GAME.TARGET_FPS);
