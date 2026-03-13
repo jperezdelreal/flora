@@ -13,7 +13,7 @@ import { WeatherSystem, WeatherEventType } from '../systems/WeatherSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
 import { SynergySystem } from '../systems/SynergySystem';
 import { SaveManager } from '../systems/SaveManager';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip } from '../ui';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
@@ -21,6 +21,7 @@ import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getPlantsBySeason } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
+import { TutorialSystem } from '../systems/TutorialSystem';
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -58,6 +59,8 @@ export class GardenScene implements Scene {
   private scoringSystem!: ScoringSystem;
   private synergySystem!: SynergySystem;
   private synergyTooltip!: SynergyTooltip;
+  private tutorialSystem!: TutorialSystem;
+  private tutorialOverlay!: TutorialOverlay;
   private isPaused = false;
   
   // TLDR: Save system integration
@@ -363,6 +366,9 @@ export class GardenScene implements Scene {
       onEncyclopedia: () => {
         this.toggleEncyclopedia();
       },
+      onHowToPlay: () => {
+        this.tutorialOverlay.showHowToPlay();
+      },
       onMainMenu: () => {
         // TODO: Navigate to main menu scene
         console.log('Main menu not implemented yet');
@@ -397,6 +403,39 @@ export class GardenScene implements Scene {
     eventBus.on('weather:warning', (data) => {
       this.handleWeatherWarning(data);
     });
+    
+    // TLDR: Initialize tutorial system and overlay
+    this.tutorialSystem = new TutorialSystem();
+    this.tutorialOverlay = new TutorialOverlay();
+    this.tutorialOverlay.setScreenSize(ctx.app.screen.width, ctx.app.screen.height);
+    this.container.addChild(this.tutorialOverlay.getContainer());
+
+    // TLDR: Wire tutorial callbacks
+    this.tutorialSystem.onStep((step, index, total) => {
+      this.tutorialOverlay.showStep(step, index, total);
+    });
+    this.tutorialSystem.onHint((hint) => {
+      this.tutorialOverlay.showHint(hint);
+    });
+    this.tutorialSystem.onComplete(() => {
+      this.tutorialOverlay.hideStep();
+      eventBus.emit('tutorial:completed', {});
+    });
+    this.tutorialOverlay.onDismiss(() => {
+      this.tutorialSystem.advanceStep();
+    });
+    this.tutorialOverlay.onSkip(() => {
+      this.tutorialSystem.skipTutorial();
+      eventBus.emit('tutorial:skipped', {});
+    });
+
+    // TLDR: Start guided tutorial on first run, otherwise enable contextual hints
+    if (this.tutorialSystem.isFirstRun()) {
+      this.tutorialSystem.startTutorial();
+      eventBus.emit('tutorial:started', {});
+    } else {
+      this.tutorialSystem.enableContextualHints();
+    }
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
@@ -715,6 +754,9 @@ export class GardenScene implements Scene {
     // Update discovery popup animation
     this.discoveryPopup.update(delta * 1000); // Convert to ms
     
+    // TLDR: Update tutorial hint animation
+    this.tutorialOverlay.update(delta * 1000);
+    
     // Update score summary animation
     this.scoreSummary.update(delta * 1000);
 
@@ -942,6 +984,8 @@ export class GardenScene implements Scene {
     this.scoreSummary.destroy();
     this.saveIndicator.destroy();
     this.synergyTooltip.destroy();
+    this.tutorialSystem.destroy();
+    this.tutorialOverlay.destroy();
     this.plants.clear();
     this.container.destroy({ children: true });
     this.container = new Container();

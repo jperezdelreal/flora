@@ -18,3 +18,5 @@ export { AudioManager, audioManager } from './AudioManager';
 export type { SFXType } from '../config/audio';
 export { SaveManager } from './SaveManager';
 export type { SaveStateCallback } from './SaveManager';
+export { TutorialSystem } from './TutorialSystem';
+export type { TutorialSaveData } from './TutorialSystem';
