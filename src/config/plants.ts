@@ -1,5 +1,6 @@
 import { PlantConfig } from '../entities/Plant';
 import { Season } from './seasons';
+import { SynergyTrait } from './synergies';
 
 /**
  * Plant type definitions for Flora MVP.
@@ -30,6 +31,7 @@ export const LETTUCE: PlantConfig = {
   rarity: 'common',
   description: 'Fast-growing leafy green. Fragile but quick to harvest.',
   availableSeasons: [Season.SPRING, Season.WINTER],
+  synergyTraits: [SynergyTrait.SHADE_LOVER],
 };
 
 export const CARROT: PlantConfig = {
@@ -67,6 +69,7 @@ export const SUNFLOWER: PlantConfig = {
   rarity: 'uncommon',
   description: 'Tall flowering plant. Takes time but yields plentiful seeds.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.SHADE_PROVIDER],
 };
 
 export const MINT: PlantConfig = {
@@ -79,6 +82,7 @@ export const MINT: PlantConfig = {
   rarity: 'uncommon',
   description: 'Fragrant herb. Needs consistent moisture but grows vigorously.',
   availableSeasons: [Season.SPRING, Season.FALL],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT],
 };
 
 export const PEPPER: PlantConfig = {
@@ -91,6 +95,7 @@ export const PEPPER: PlantConfig = {
   rarity: 'uncommon',
   description: 'Warm-season favorite. Moderate care yields colorful harvests.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.NITROGEN_FIXER],
 };
 
 export const BASIL: PlantConfig = {
@@ -103,6 +108,7 @@ export const BASIL: PlantConfig = {
   rarity: 'uncommon',
   description: 'Aromatic herb. Thrives with regular attention.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT],
 };
 
 // Rare plants (special properties, unlockable)
@@ -153,6 +159,7 @@ export const GOLDEN_MARIGOLD: PlantConfig = {
   rarity: 'heirloom',
   description: 'Legendary flower. Vibrant blooms and generous seed yield.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT],
 };
 
 /** All plant types available in the game */

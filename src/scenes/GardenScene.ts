@@ -10,8 +10,9 @@ import { PlantSystem } from '../systems/PlantSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { HazardSystem } from '../systems/HazardSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
+import { SynergySystem } from '../systems/SynergySystem';
 import { SaveManager } from '../systems/SaveManager';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator } from '../ui';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
@@ -51,6 +52,8 @@ export class GardenScene implements Scene {
   private pauseMenu!: PauseMenu;
   private scoreSummary!: ScoreSummary;
   private scoringSystem!: ScoringSystem;
+  private synergySystem!: SynergySystem;
+  private synergyTooltip!: SynergyTooltip;
   private isPaused = false;
   
   // TLDR: Save system integration
@@ -92,16 +95,21 @@ export class GardenScene implements Scene {
     // Initialize encyclopedia system (with SaveManager persistence)
     this.encyclopediaSystem = new EncyclopediaSystem(this.saveManager);
 
+    // Initialize synergy system
+    this.synergySystem = new SynergySystem();
+
     // Initialize plant system (30 seconds per in-game day for demo)
     this.plantSystem = new PlantSystem({
       framesPerDay: GAME.TARGET_FPS * 30,
       encyclopediaSystem: this.encyclopediaSystem,
+      synergySystem: this.synergySystem,
     });
 
     // Initialize hazard system with active season
     this.hazardSystem = new HazardSystem({
       seasonCount: 1,
       season: this.currentSeason,
+      synergySystem: this.synergySystem,
     });
 
     // Initialize scoring system (with SaveManager persistence)
@@ -352,6 +360,16 @@ export class GardenScene implements Scene {
     this.saveIndicator = new SaveIndicator(this.saveManager);
     this.saveIndicator.setPosition(ctx.app.screen.width - 120, 60);
     this.container.addChild(this.saveIndicator.getContainer());
+    
+    // TLDR: Initialize synergy tooltip
+    this.synergyTooltip = new SynergyTooltip();
+    this.synergyTooltip.centerHorizontally(ctx.app.screen.width);
+    this.container.addChild(this.synergyTooltip.getContainer());
+    
+    // TLDR: Listen for synergy tutorial event
+    eventBus.on('synergy:tutorial', (data) => {
+      this.synergyTooltip.showTutorial(data.synergyId);
+    });
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
@@ -651,6 +669,9 @@ export class GardenScene implements Scene {
 
     // Update plant system (advances growth)
     this.plantSystem.update(delta);
+    
+    // Update synergy system (recalculate synergies when needed)
+    this.synergySystem.update(delta);
 
     // Update hazard system
     this.hazardSystem.update(delta);
@@ -806,6 +827,7 @@ export class GardenScene implements Scene {
     this.plantSystem.destroy();
     this.hazardSystem.destroy();
     this.scoringSystem.destroy();
+    this.synergySystem.destroy();
     this.toolBar.destroy();
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();
@@ -817,6 +839,7 @@ export class GardenScene implements Scene {
     this.pauseMenu.destroy();
     this.scoreSummary.destroy();
     this.saveIndicator.destroy();
+    this.synergyTooltip.destroy();
     this.plants.clear();
     this.container.destroy({ children: true });
     this.container = new Container();

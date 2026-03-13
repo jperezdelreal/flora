@@ -26,6 +26,7 @@ export interface RunStats {
   pestsRemoved: number;
   droughtsSurvived: number;
   perfectPlants: number;
+  synergiesActivated: number;
 }
 
 /**
@@ -80,6 +81,10 @@ export class ScoringSystem implements System {
     eventBus.on('drought:ended', () => {
       this.onDroughtSurvived();
     });
+
+    eventBus.on('synergy:activated', () => {
+      this.onSynergyActivated();
+    });
   }
 
   /**
@@ -118,6 +123,13 @@ export class ScoringSystem implements System {
   private onDroughtSurvived(): void {
     this.stats.droughtsSurvived++;
     this.lastActionPoints = SCORE_CONFIG.hazards.droughtSurvived;
+  }
+
+  /**
+   * TLDR: Track synergy activation (no direct points, but counted)
+   */
+  private onSynergyActivated(): void {
+    this.stats.synergiesActivated++;
   }
 
   /**
@@ -301,6 +313,7 @@ export class ScoringSystem implements System {
       pestsRemoved: 0,
       droughtsSurvived: 0,
       perfectPlants: 0,
+      synergiesActivated: 0,
     };
   }
 

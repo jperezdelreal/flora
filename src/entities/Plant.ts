@@ -1,5 +1,6 @@
 import { Entity } from './index';
 import { Season } from '../config/seasons';
+import { SynergyTrait } from '../config/synergies';
 
 export enum GrowthStage {
   SEED = 'seed',
@@ -24,6 +25,8 @@ export interface PlantConfig {
   readonly description: string;
   /** Seasons when this plant can be grown */
   readonly availableSeasons: Season[];
+  /** Synergy traits for adjacency bonuses */
+  readonly synergyTraits?: SynergyTrait[];
 }
 
 export interface PlantState {
@@ -36,6 +39,8 @@ export interface PlantState {
   daysSinceWater: number; // tracks consecutive dry days
   isMature: boolean;
   isHarvestable: boolean;
+  activeSynergies: Set<string>; // TLDR: Active synergy bonus IDs
+  growthSpeedMultiplier: number; // TLDR: Combined growth speed multiplier from synergies
 }
 
 export class Plant implements Entity {
@@ -66,6 +71,8 @@ export class Plant implements Entity {
       daysSinceWater: 0,
       isMature: false,
       isHarvestable: false,
+      activeSynergies: new Set(),
+      growthSpeedMultiplier: 1.0,
     };
   }
 
@@ -108,9 +115,9 @@ export class Plant implements Entity {
       this.state.health = Math.max(0, this.state.health - healthLoss);
     }
 
-    // Advance growth if plant is healthy
+    // Advance growth if plant is healthy (with growth speed multiplier)
     if (this.state.health > 0 && !this.state.isMature) {
-      this.state.daysGrown++;
+      this.state.daysGrown += this.state.growthSpeedMultiplier;
       this.updateGrowthStage();
     }
 
@@ -164,5 +171,32 @@ export class Plant implements Entity {
   /** Get plant config */
   getConfig(): PlantConfig {
     return this.state.config;
+  }
+
+  /** TLDR: Apply synergy bonuses to plant */
+  applySynergyBonuses(bonuses: { growthSpeedMultiplier?: number; healthBonus?: number }, synergyId: string): void {
+    if (bonuses.growthSpeedMultiplier) {
+      this.state.growthSpeedMultiplier *= bonuses.growthSpeedMultiplier;
+    }
+    if (bonuses.healthBonus) {
+      this.state.health = Math.min(100, this.state.health + bonuses.healthBonus);
+    }
+    this.state.activeSynergies.add(synergyId);
+  }
+
+  /** TLDR: Clear all synergy bonuses */
+  clearSynergies(): void {
+    this.state.activeSynergies.clear();
+    this.state.growthSpeedMultiplier = 1.0;
+  }
+
+  /** TLDR: Get active synergies */
+  getActiveSynergies(): Set<string> {
+    return new Set(this.state.activeSynergies);
+  }
+
+  /** TLDR: Get growth speed multiplier */
+  getGrowthSpeedMultiplier(): number {
+    return this.state.growthSpeedMultiplier;
   }
 }

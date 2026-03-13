@@ -11,6 +11,7 @@ import {
   DroughtConfig,
 } from '../config/hazards';
 import { Season, SEASON_CONFIG } from '../config/seasons';
+import type { SynergySystem } from './SynergySystem';
 
 export interface HazardSystemConfig {
   /** Current season number (for difficulty scaling) */
@@ -21,6 +22,8 @@ export interface HazardSystemConfig {
   enablePests?: boolean;
   /** Enable/disable drought events (overridden by season if not set explicitly) */
   enableDrought?: boolean;
+  /** Optional synergy system for pest deterrent checks */
+  synergySystem?: SynergySystem;
 }
 
 /**
@@ -109,7 +112,14 @@ export class HazardSystem implements System {
    * Season's pestSpawnMultiplier scales the effective resistance chance.
    * Returns true if pest was spawned, false if resisted.
    */
-  trySpawnPestOnPlant(plant: Plant): boolean {
+  trySpawnPestOnPlant(plant: Plant, allPlants?: Plant[]): boolean {
+    // TLDR: Check pest deterrent synergy first
+    if (this.config.synergySystem && allPlants) {
+      if (this.config.synergySystem.isPestDeterrentActive(plant.x, plant.y, allPlants)) {
+        return false; // Protected by deterrent
+      }
+    }
+
     // Season multiplier: lower values mean pests are less likely to stick
     if (Math.random() > this.pestSpawnMultiplier) {
       return false; // Season suppresses pest (e.g. winter)
