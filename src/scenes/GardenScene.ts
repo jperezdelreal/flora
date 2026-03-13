@@ -3,7 +3,7 @@ import type { Scene, SceneContext } from '../core';
 import { GardenGrid } from '../entities/GardenGrid';
 import { TileState, Tile } from '../entities/Tile';
 import { Player } from '../entities/Player';
-import { Plant } from '../entities/Plant';
+import { Plant, GrowthStage } from '../entities/Plant';
 import { GridSystem } from '../systems/GridSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { PlantSystem } from '../systems/PlantSystem';
@@ -13,14 +13,17 @@ import { WeatherSystem, WeatherEventType } from '../systems/WeatherSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
 import { SynergySystem } from '../systems/SynergySystem';
 import { SaveManager } from '../systems/SaveManager';
+import { AnimationSystem, Easing } from '../systems/AnimationSystem';
+import { ParticleSystem } from '../systems/ParticleSystem';
 import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
-import { getPlantsBySeason } from '../config/plants';
+import { getPlantsBySeason, PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
+import { ANIMATION, PLANT_STAGE_COLORS, RARITY_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -78,6 +81,20 @@ export class GardenScene implements Scene {
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private frameCounter = 0;
 
+  // TLDR: Visual polish systems — animations, particles, plant visuals
+  private animationSystem!: AnimationSystem;
+  private particleSystem!: ParticleSystem;
+  private plantVisualLayer!: Container;
+  private plantVisuals: Map<string, Container> = new Map();
+  private swayPhases: Map<string, number> = new Map();
+  private shakeContainer!: Container;
+  private shakeElapsed = 0;
+  private shakeDuration = 0;
+  private previousSkyColor = 0;
+  private targetSkyColor = 0;
+  private skyLerpElapsed = 0;
+  private skyLerpDuration = 0;
+
   constructor(saveManager: SaveManager) {
     this.saveManager = saveManager;
   }
@@ -87,7 +104,10 @@ export class GardenScene implements Scene {
     this.input = input;
     this._ctx = ctx;
 
-    ctx.sceneManager.stage.addChild(this.container);
+    // TLDR: Shake container wraps scene content for harvest screen shake
+    this.shakeContainer = new Container();
+    ctx.sceneManager.stage.addChild(this.shakeContainer);
+    this.shakeContainer.addChild(this.container);
 
     // Pick a random season for this run
     this.currentSeason = getRandomSeason();
@@ -398,6 +418,15 @@ export class GardenScene implements Scene {
       this.handleWeatherWarning(data);
     });
     
+    // TLDR: Initialize visual polish systems
+    this.animationSystem = new AnimationSystem();
+    this.particleSystem = new ParticleSystem();
+    this.plantVisualLayer = new Container();
+    this.gridSystem.getContainer().addChild(this.plantVisualLayer);
+    this.container.addChild(this.particleSystem.getContainer());
+    this.rebuildPlantVisuals();
+    this.setupVisualListeners();
+
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
 
@@ -509,6 +538,9 @@ export class GardenScene implements Scene {
     // Plant demo plants for next season
     this.plantDemoPlants();
     this.gridSystem.update();
+    
+    // TLDR: Rebuild plant visual layer for new season's plants
+    this.rebuildPlantVisuals();
   }
   
   /** Apply seasonal visuals and hazard configuration to all systems */
@@ -816,6 +848,9 @@ export class GardenScene implements Scene {
       this.plantInfoPanel.hide();
     }
     
+    // TLDR: Per-frame visual polish updates (sway, shake, sky lerp, particles)
+    this.updateVisuals(delta);
+
     // Check for season end (day 12 reached)
     if (day >= 12 && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
       this.showScoreSummary();
@@ -918,9 +953,369 @@ export class GardenScene implements Scene {
     return `${eventName} in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`;
   }
 
+  // ─── Visual Polish Methods ──────────────────────────────────────────
+
+  /**
+   * TLDR: Subscribe to EventBus for visual effects — growth, harvest, water, synergy
+   */
+  private setupVisualListeners(): void {
+    eventBus.on('plant:created', (data) => {
+      this.createPlantVisual(data.plantId, data.x, data.y);
+    });
+
+    eventBus.on('plant:grew', (data) => {
+      this.animatePlantGrowth(data.plantId, data.stage);
+    });
+
+    eventBus.on('plant:watered', (data) => {
+      this.triggerWaterRipple(data.x, data.y);
+    });
+
+    eventBus.on('plant:harvested', (data) => {
+      this.triggerHarvestBurst(data.plantId);
+      this.triggerScreenShake();
+    });
+
+    eventBus.on('plant:died', (data) => {
+      this.removePlantVisual(data.plantId);
+    });
+
+    eventBus.on('synergy:activated', (data) => {
+      this.triggerSynergyGlow(data.x, data.y, data.synergyId);
+    });
+
+    eventBus.on('day:advanced', () => {
+      this.triggerDaySkyLerp();
+    });
+  }
+
+  /**
+   * TLDR: Create an animated visual container for a plant at grid position
+   */
+  private createPlantVisual(plantId: string, col: number, row: number): void {
+    const plant = this.plantSystem.getPlant(plantId);
+    if (!plant) return;
+
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+
+    const visual = new Container();
+    visual.x = tilePos.x + tileSize / 2;
+    visual.y = tilePos.y + tileSize / 2;
+    visual.scale.set(0.01);
+
+    const gfx = new Graphics();
+    this.drawPlantShape(gfx, GrowthStage.SEED, plant.getConfig().rarity);
+    visual.addChild(gfx);
+
+    this.plantVisualLayer.addChild(visual);
+    this.plantVisuals.set(plantId, visual);
+
+    // TLDR: Random sway phase so plants don't oscillate in unison
+    this.swayPhases.set(plantId, Math.random() * Math.PI * 2);
+
+    // TLDR: Pop-in animation on creation
+    this.animationSystem.tween(
+      visual.scale as unknown as Record<string, unknown>,
+      { x: 1, y: 1 },
+      ANIMATION.GROWTH_SCALE_DURATION,
+      { easing: Easing.backOut },
+    );
+  }
+
+  /**
+   * TLDR: Draw plant shape per growth stage — bigger and greener as it grows
+   */
+  private drawPlantShape(gfx: Graphics, stage: GrowthStage, rarity: string): void {
+    gfx.clear();
+
+    const sizeMap: Record<string, number> = {
+      [GrowthStage.SEED]: ANIMATION.PLANT_SIZE_SEED,
+      [GrowthStage.SPROUT]: ANIMATION.PLANT_SIZE_SPROUT,
+      [GrowthStage.GROWING]: ANIMATION.PLANT_SIZE_GROWING,
+      [GrowthStage.MATURE]: ANIMATION.PLANT_SIZE_MATURE,
+    };
+    const radius = sizeMap[stage] ?? ANIMATION.PLANT_SIZE_SEED;
+    const colors = PLANT_STAGE_COLORS[stage] ?? PLANT_STAGE_COLORS.seed;
+    const accentColors = RARITY_COLORS[rarity] ?? RARITY_COLORS.common;
+
+    // TLDR: Outer glow ring for uncommon+ rarity
+    if (rarity !== 'common' && stage === GrowthStage.MATURE) {
+      gfx.circle(0, 0, radius + 4);
+      gfx.fill({ color: accentColors[0], alpha: 0.3 });
+    }
+
+    gfx.circle(0, 0, radius);
+    gfx.fill({ color: colors[0] });
+
+    // TLDR: Inner highlight for depth
+    if (radius > 5) {
+      gfx.circle(-radius * 0.2, -radius * 0.2, radius * 0.4);
+      gfx.fill({ color: colors[1], alpha: 0.5 });
+    }
+  }
+
+  /**
+   * TLDR: Animate plant visual when growth stage changes — scale pop + redraw
+   */
+  private animatePlantGrowth(plantId: string, stage: GrowthStage): void {
+    const visual = this.plantVisuals.get(plantId);
+    if (!visual) return;
+
+    const plant = this.plantSystem.getPlant(plantId);
+    if (!plant) return;
+
+    // TLDR: Redraw at new stage size
+    const gfx = visual.children[0] as Graphics;
+    if (gfx) {
+      this.drawPlantShape(gfx, stage, plant.getConfig().rarity);
+    }
+
+    // TLDR: Scale overshoot then settle — juicy growth feedback
+    visual.scale.set(ANIMATION.GROWTH_SCALE_OVERSHOOT);
+    this.animationSystem.tween(
+      visual.scale as unknown as Record<string, unknown>,
+      { x: 1, y: 1 },
+      ANIMATION.GROWTH_SCALE_DURATION,
+      { easing: Easing.elasticOut },
+    );
+  }
+
+  /**
+   * TLDR: Particle burst on harvest — colored by plant rarity
+   */
+  private triggerHarvestBurst(plantConfigId: string): void {
+    const config = PLANT_BY_ID[plantConfigId];
+    const rarity = config?.rarity ?? 'common';
+    const colors = RARITY_COLORS[rarity] ?? RARITY_COLORS.common;
+
+    // TLDR: Find position from any plant visual that no longer has a backing plant
+    let burstX = this._ctx.app.screen.width / 2;
+    let burstY = this._ctx.app.screen.height / 2;
+
+    for (const [pid, visual] of this.plantVisuals) {
+      const p = this.plantSystem.getPlant(pid);
+      if (!p) {
+        const gridPos = this.gridSystem.getContainer().position;
+        burstX = gridPos.x + visual.x;
+        burstY = gridPos.y + visual.y;
+        this.removePlantVisual(pid);
+        break;
+      }
+    }
+
+    this.particleSystem.burst({
+      x: burstX,
+      y: burstY,
+      count: ANIMATION.HARVEST_PARTICLE_COUNT,
+      speed: ANIMATION.HARVEST_PARTICLE_SPEED,
+      lifetime: ANIMATION.HARVEST_PARTICLE_LIFETIME,
+      colors,
+      size: ANIMATION.HARVEST_PARTICLE_SIZE,
+    });
+  }
+
+  /**
+   * TLDR: Brief screen shake on harvest for tactile feedback
+   */
+  private triggerScreenShake(): void {
+    this.shakeElapsed = 0;
+    this.shakeDuration = ANIMATION.HARVEST_SHAKE_DURATION;
+  }
+
+  /**
+   * TLDR: Concentric water ripple at tile position
+   */
+  private triggerWaterRipple(col: number, row: number): void {
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+    const gridPos = this.gridSystem.getContainer().position;
+
+    this.particleSystem.ripple({
+      x: gridPos.x + tilePos.x + tileSize / 2,
+      y: gridPos.y + tilePos.y + tileSize / 2,
+      rings: ANIMATION.WATER_RIPPLE_RINGS,
+      maxRadius: ANIMATION.WATER_RIPPLE_MAX_RADIUS,
+      duration: ANIMATION.WATER_RIPPLE_DURATION,
+      color: ANIMATION.WATER_RIPPLE_COLOR,
+    });
+  }
+
+  /**
+   * TLDR: Pulsing glow on synergy-bonused plant
+   */
+  private triggerSynergyGlow(col: number, row: number, synergyId: string): void {
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+    const gridPos = this.gridSystem.getContainer().position;
+    const color = SYNERGY_GLOW_COLORS[synergyId] ?? 0xffffff;
+
+    this.particleSystem.glow({
+      x: gridPos.x + tilePos.x + tileSize / 2,
+      y: gridPos.y + tilePos.y + tileSize / 2,
+      radius: ANIMATION.SYNERGY_GLOW_RADIUS,
+      color,
+      pulseSpeed: ANIMATION.SYNERGY_GLOW_PULSE_SPEED,
+      minAlpha: ANIMATION.SYNERGY_GLOW_MIN_ALPHA,
+      maxAlpha: ANIMATION.SYNERGY_GLOW_MAX_ALPHA,
+      duration: ANIMATION.SYNERGY_GLOW_DURATION,
+    });
+  }
+
+  /**
+   * TLDR: Smooth sky color transition on day advance
+   */
+  private triggerDaySkyLerp(): void {
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+    const day = this.player.getCurrentDay();
+
+    // TLDR: Shift background slightly darker/lighter based on time of day
+    const dayFactor = (day % 12) / 12;
+    const darken = 1.0 - 0.15 * Math.sin(dayFactor * Math.PI);
+
+    const baseColor = seasonCfg.backgroundColor;
+    const r = Math.round(((baseColor >> 16) & 0xff) * darken);
+    const g = Math.round(((baseColor >> 8) & 0xff) * darken);
+    const b = Math.round((baseColor & 0xff) * darken);
+
+    this.previousSkyColor = seasonCfg.backgroundColor;
+    this.targetSkyColor = (r << 16) | (g << 8) | b;
+    this.skyLerpElapsed = 0;
+    this.skyLerpDuration = ANIMATION.DAY_SKY_LERP_DURATION;
+  }
+
+  /**
+   * TLDR: Remove plant visual container on death/harvest
+   */
+  private removePlantVisual(plantId: string): void {
+    const visual = this.plantVisuals.get(plantId);
+    if (visual) {
+      visual.destroy({ children: true });
+      this.plantVisuals.delete(plantId);
+      this.swayPhases.delete(plantId);
+    }
+  }
+
+  /**
+   * TLDR: Rebuild all plant visuals (after season change / restart)
+   */
+  private rebuildPlantVisuals(): void {
+    for (const [, visual] of this.plantVisuals) {
+      visual.destroy({ children: true });
+    }
+    this.plantVisuals.clear();
+    this.swayPhases.clear();
+
+    const activePlants = this.plantSystem.getActivePlants();
+    for (const plant of activePlants) {
+      this.createPlantVisual(plant.id, plant.x, plant.y);
+      const visual = this.plantVisuals.get(plant.id);
+      if (visual) {
+        visual.scale.set(1);
+        const gfx = visual.children[0] as Graphics;
+        if (gfx) {
+          this.drawPlantShape(gfx, plant.getGrowthStage(), plant.getConfig().rarity);
+        }
+      }
+    }
+  }
+
+  /**
+   * TLDR: Per-frame visual updates — idle sway, screen shake, sky lerp, pest crawl
+   */
+  private updateVisuals(delta: number): void {
+    const dt = delta / 60;
+    const time = performance.now() / 1000;
+
+    this.animationSystem.update(delta);
+    this.particleSystem.update(delta);
+
+    // TLDR: Idle sway — gentle sine rotation on each plant visual
+    for (const [plantId, visual] of this.plantVisuals) {
+      const phase = this.swayPhases.get(plantId) ?? 0;
+      visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) * ANIMATION.SWAY_AMPLITUDE;
+    }
+
+    // TLDR: Screen shake decay
+    if (this.shakeDuration > 0) {
+      this.shakeElapsed += dt;
+      if (this.shakeElapsed < this.shakeDuration) {
+        const intensity = ANIMATION.HARVEST_SHAKE_INTENSITY * (1 - this.shakeElapsed / this.shakeDuration);
+        this.shakeContainer.x = (Math.random() - 0.5) * intensity * 2;
+        this.shakeContainer.y = (Math.random() - 0.5) * intensity * 2;
+      } else {
+        this.shakeContainer.x = 0;
+        this.shakeContainer.y = 0;
+        this.shakeDuration = 0;
+      }
+    }
+
+    // TLDR: Sky color lerp
+    if (this.skyLerpDuration > 0) {
+      this.skyLerpElapsed += dt;
+      const t = Math.min(this.skyLerpElapsed / this.skyLerpDuration, 1);
+      const eased = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+      const fromR = (this.previousSkyColor >> 16) & 0xff;
+      const fromG = (this.previousSkyColor >> 8) & 0xff;
+      const fromB = this.previousSkyColor & 0xff;
+      const toR = (this.targetSkyColor >> 16) & 0xff;
+      const toG = (this.targetSkyColor >> 8) & 0xff;
+      const toB = this.targetSkyColor & 0xff;
+
+      const r = Math.round(fromR + (toR - fromR) * eased);
+      const g = Math.round(fromG + (toG - fromG) * eased);
+      const b = Math.round(fromB + (toB - fromB) * eased);
+
+      this._ctx.app.renderer.background.color = (r << 16) | (g << 8) | b;
+
+      if (t >= 1) {
+        this.skyLerpDuration = 0;
+      }
+    }
+
+    // TLDR: Pest crawl wobble
+    this.updatePestCrawl(time);
+
+    // TLDR: Clean up visuals for plants that no longer exist
+    for (const [plantId] of this.plantVisuals) {
+      if (!this.plantSystem.getPlant(plantId)) {
+        this.removePlantVisual(plantId);
+      }
+    }
+  }
+
+  /**
+   * TLDR: Wobble pest markers on affected tiles for crawl animation
+   */
+  private updatePestCrawl(time: number): void {
+    const gridContainer = this.gridSystem.getContainer();
+    const tiles = this.grid.getAllTiles();
+    for (const tile of tiles) {
+      if (tile.hasPest()) {
+        const tilePos = this.grid.getTilePosition(tile.row, tile.col);
+        for (const child of gridContainer.children) {
+          if (child instanceof Graphics && Math.abs(child.x - tilePos.x) < 1 && Math.abs(child.y - tilePos.y) < 1) {
+            const wobbleX = Math.sin(time * ANIMATION.PEST_CRAWL_SPEED * Math.PI * 2 + tile.row) * ANIMATION.PEST_CRAWL_AMPLITUDE;
+            const wobbleY = Math.cos(time * ANIMATION.PEST_CRAWL_SPEED * Math.PI * 2 + tile.col) * ANIMATION.PEST_CRAWL_AMPLITUDE;
+            child.pivot.set(-wobbleX, -wobbleY);
+            break;
+          }
+        }
+      }
+    }
+  }
+
   destroy(): void {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
+    this.animationSystem.destroy();
+    this.particleSystem.destroy();
+    for (const [, visual] of this.plantVisuals) {
+      visual.destroy({ children: true });
+    }
+    this.plantVisuals.clear();
+    this.swayPhases.clear();
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();
@@ -943,7 +1338,7 @@ export class GardenScene implements Scene {
     this.saveIndicator.destroy();
     this.synergyTooltip.destroy();
     this.plants.clear();
-    this.container.destroy({ children: true });
+    this.shakeContainer.destroy({ children: true });
     this.container = new Container();
   }
 }
