@@ -17,3 +17,4 @@ This ensures proper cleanup and prevents ghost handlers on scene transitions.
 
 ### PR Review Feedback Loop (PR #25)
 Oak's architecture review caught the listener leak during code review before merge. The fix was applied immediately, demonstrating the value of peer review in catching runtime issues that TypeScript cannot detect. Always verify that event listeners, timers, and other side effects have corresponding cleanup in destroy/unmount methods.
+
