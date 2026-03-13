@@ -185,3 +185,60 @@ Previous roadmap decision (2026-03-11: Strategic Roadmap for Post-Sprint 0 Devel
 - Tutorial state stored in `flora_tutorial` localStorage key (separate from SaveManager)
 - All hint messages follow cozy-friendly tone guideline
 - Event-driven progression means zero polling overhead in game loop
+
+---
+
+## 2026-03-13T23:37Z: Garden Expansion & Structures Delivery (Issue #90)
+
+**By:** Erika (Systems Dev)  
+**Status:** Implemented (PR #103)  
+**Merged:** 2026-03-13T23:37Z
+
+### Context
+
+Issue #90 requested unlockable grid sizes (10×10 at 10 runs, 12×12 at 20 runs) and three utility structures (Greenhouse, Compost Bin, Rain Barrel) that occupy planting space for strategic depth.
+
+### Key Decisions
+
+1. **Run-Count Milestone Type**: Added `runs_completed` to MilestoneType rather than reusing `plants_harvested` for grid expansion.
+   - Rationale: GDD §7 specifies runs as the progression axis for grid expansion, distinct from harvest-based tool unlocks.
+
+2. **Config-Driven Grid Tiers**: `GRID_EXPANSION.TIERS` array in config/index.ts defines `{ runsRequired, rows, cols }` tuples.
+   - Rationale: Easy to add future tiers (e.g., 14×14) without code changes. Follows project convention of config-driven thresholds.
+
+3. **GridSystem Owns Structures**: Structures tracked in GridSystem (not a separate StructureSystem).
+   - Rationale: Structures are inherently grid-level entities. GridSystem already manages tile rendering and interaction. Avoids a new system for 3 entity types.
+
+4. **TileState.STRUCTURE**: New enum value blocks plant placement on structure tiles.
+   - Rationale: Enforces the "utility vs. grow" trade-off at the tile level. Clean integration with existing occupied/empty/pest checks.
+
+5. **Greenhouse Extends maxSeasonDays**: Season length is a variable (default 12), increased by GREENHOUSE_BONUS_DAYS when placed.
+   - Rationale: Simpler than modifying the day advancement system. HUD already accepts maxDays as a parameter.
+
+6. **Structure Effects Are Positional**: Rain Barrel and Compost Bin affect orthogonally adjacent tiles only.
+   - Rationale: Creates meaningful placement decisions. Players must choose where to sacrifice planting space for maximum benefit.
+
+### Deliverables
+
+- ✅ Dynamic grid expansion: 8×8 → 10×10 (at 10 runs) → 12×12 (at 20 runs)
+- ✅ Three structures implemented: Greenhouse, Compost Bin, Rain Barrel
+- ✅ Structure placement UI with tile selection and effect feedback
+- ✅ SaveManager schema extended for structure persistence
+- ✅ Structure removal mechanic deferred (keyboard shortcut 1/2/3 pending)
+- ✅ Visual sprites deferred (currently rendered as coloured rounded rects)
+
+### Files Created
+- `src/config/structures.ts` — Structure type enum, configs, effect constants
+- `src/entities/Structure.ts` — Structure entity with serialisation
+
+### Files Modified
+- config/index.ts, config/unlocks.ts, config/saveSchema.ts, core/EventBus.ts
+- entities/Tile.ts, entities/index.ts
+- systems/GridSystem.ts, systems/UnlockSystem.ts, systems/SaveManager.ts
+- scenes/GardenScene.ts, ui/HUD.ts
+
+### Team Notes
+- Phase 2 progress: 3/4 items delivered (#88, #91, #90)
+- Grid expansion enables high-run-count progression endpoint
+- Structure placement creates meaningful strategic trade-offs
+- Architecture maintains decoupling; no cross-system tight coupling
