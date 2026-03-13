@@ -2,6 +2,7 @@ export enum TileState {
   EMPTY = 'empty',
   OCCUPIED = 'occupied',
   PEST = 'pest',
+  STRUCTURE = 'structure',
 }
 
 export interface TileData {
@@ -41,6 +42,10 @@ export class Tile {
 
   hasPest(): boolean {
     return this.state === TileState.PEST;
+  }
+
+  hasStructure(): boolean {
+    return this.state === TileState.STRUCTURE;
   }
 
   setSoilQuality(quality: number): void {

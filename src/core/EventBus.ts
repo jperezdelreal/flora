@@ -4,6 +4,7 @@
  */
 
 import type { GrowthStage } from '../entities/Plant';
+import type { StructureType } from '../config/structures';
 
 export interface EventMap {
   'scene:transition': { from: string; to: string };
@@ -45,6 +46,11 @@ export interface EventMap {
   'tutorial:completed': Record<string, never>;
   'tutorial:skipped': Record<string, never>;
   'tutorial:step': { stepId: string; stepIndex: number };
+  // Structure events
+  'structure:placed': { structureId: string; type: StructureType; row: number; col: number };
+  'structure:removed': { structureId: string; type: StructureType };
+  // Grid expansion events
+  'grid:expanded': { rows: number; cols: number };
 }
 
 type EventName = keyof EventMap & string;

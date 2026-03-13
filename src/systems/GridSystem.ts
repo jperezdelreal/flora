@@ -1,7 +1,10 @@
 import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { GardenGrid } from '../entities/GardenGrid';
 import { Tile, TileState } from '../entities/Tile';
+import { Structure } from '../entities/Structure';
+import { StructureType, STRUCTURE_CONFIGS } from '../config/structures';
 import { Season, SEASON_CONFIG } from '../config/seasons';
+import { eventBus } from '../core/EventBus';
 
 export class GridSystem {
   private container: Container;
@@ -11,6 +14,8 @@ export class GridSystem {
   private selectionHighlight: Graphics;
   private tileClickCallbacks: Array<(row: number, col: number) => void> = [];
   private onTileClickCallback?: (tile: Tile) => void;
+  private structures: Map<string, Structure> = new Map();
+  private structureGraphics: Map<string, Graphics> = new Map();
 
   constructor(grid: GardenGrid) {
     this.grid = grid;
@@ -53,7 +58,12 @@ export class GridSystem {
     graphics.stroke({ color: 0x1a3a1a, width: 1 });
 
     // State-specific rendering
-    if (tile.isOccupied()) {
+    if (tile.hasStructure()) {
+      const structure = this.getStructureAt(tile.row, tile.col);
+      if (structure) {
+        this.renderStructureMarker(graphics, size, padding, structure.type);
+      }
+    } else if (tile.isOccupied()) {
       this.renderOccupiedMarker(graphics, size, padding);
     } else if (tile.hasPest()) {
       this.renderPestMarker(graphics, size, padding);
@@ -97,6 +107,19 @@ export class GridSystem {
 
     graphics.circle(centerX, centerY, radius);
     graphics.fill({ color: 0xff5252 });
+  }
+
+  /** TLDR: Draw a structure icon on the tile */
+  private renderStructureMarker(graphics: Graphics, size: number, padding: number, structureType: StructureType): void {
+    const centerX = size / 2;
+    const centerY = size / 2;
+    const half = (size - padding * 4) / 3;
+    const config = STRUCTURE_CONFIGS[structureType];
+
+    graphics.roundRect(centerX - half, centerY - half, half * 2, half * 2, 4);
+    graphics.fill({ color: config.color });
+    graphics.roundRect(centerX - half, centerY - half, half * 2, half * 2, 4);
+    graphics.stroke({ color: 0xffffff, width: 1.5 });
   }
 
   private setupInteraction(): void {
@@ -203,8 +226,106 @@ export class GridSystem {
     this.container.tint = SEASON_CONFIG[season].gridTint;
   }
 
+  /**
+   * TLDR: Rebuild grid for a new GardenGrid (used after grid expansion)
+   */
+  public resize(newGrid: GardenGrid): void {
+    // TLDR: Tear down old tile graphics
+    for (const [, gfx] of this.tileGraphics) {
+      gfx.destroy();
+    }
+    this.tileGraphics.clear();
+    this.selectionHighlight.clear();
+    this.selectedTile = null;
+
+    this.grid = newGrid;
+    this.initializeGrid();
+    this.setupInteraction();
+  }
+
+  /** TLDR: Get the underlying grid */
+  public getGrid(): GardenGrid {
+    return this.grid;
+  }
+
+  // ─── Structure helpers ──────────────────────────────────────────────
+
+  /** TLDR: Place a structure on the grid */
+  public placeStructure(structure: Structure): boolean {
+    const tile = this.grid.getTile(structure.row, structure.col);
+    if (!tile || !tile.isEmpty()) return false;
+
+    tile.state = TileState.STRUCTURE;
+    this.structures.set(structure.id, structure);
+
+    eventBus.emit('structure:placed', {
+      structureId: structure.id,
+      type: structure.type,
+      row: structure.row,
+      col: structure.col,
+    });
+
+    return true;
+  }
+
+  /** TLDR: Remove a structure from the grid */
+  public removeStructure(structureId: string): boolean {
+    const structure = this.structures.get(structureId);
+    if (!structure) return false;
+
+    const tile = this.grid.getTile(structure.row, structure.col);
+    if (tile) {
+      tile.state = TileState.EMPTY;
+    }
+
+    this.structures.delete(structureId);
+    const gfx = this.structureGraphics.get(structureId);
+    if (gfx) {
+      gfx.destroy();
+      this.structureGraphics.delete(structureId);
+    }
+
+    eventBus.emit('structure:removed', {
+      structureId: structure.id,
+      type: structure.type,
+    });
+
+    return true;
+  }
+
+  /** TLDR: Get structure at a specific tile */
+  public getStructureAt(row: number, col: number): Structure | undefined {
+    for (const s of this.structures.values()) {
+      if (s.row === row && s.col === col) return s;
+    }
+    return undefined;
+  }
+
+  /** TLDR: Get all placed structures */
+  public getStructures(): Structure[] {
+    return Array.from(this.structures.values());
+  }
+
+  /** TLDR: Check if a specific structure type is placed anywhere */
+  public hasStructureType(type: StructureType): boolean {
+    for (const s of this.structures.values()) {
+      if (s.type === type) return true;
+    }
+    return false;
+  }
+
+  /** TLDR: Get all structures of a specific type */
+  public getStructuresByType(type: StructureType): Structure[] {
+    return Array.from(this.structures.values()).filter((s) => s.type === type);
+  }
+
   public destroy(): void {
     this.container.destroy({ children: true });
     this.tileGraphics.clear();
+    this.structures.clear();
+    for (const [, gfx] of this.structureGraphics) {
+      gfx.destroy();
+    }
+    this.structureGraphics.clear();
   }
 }

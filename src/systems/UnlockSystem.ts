@@ -1,5 +1,6 @@
 import { System } from './index';
 import { MilestoneConfig, MilestoneType, UNLOCK_MILESTONES, getNextMilestone as getNextUnlockMilestone } from '../config/unlocks';
+import { GRID_EXPANSION } from '../config/index';
 import type { SaveManager } from './SaveManager';
 
 /**
@@ -9,6 +10,7 @@ export interface UnlockProgress {
   plantsHarvested: number;
   plantsMature: number;
   plantDiversity: number;
+  runsCompleted: number;
   unlockedMilestones: string[];
   timestamps: Record<string, number>;
 }
@@ -77,6 +79,36 @@ export class UnlockSystem implements System {
   }
 
   /**
+   * TLDR: Increment completed run count and check for unlocks
+   */
+  recordRunCompleted(): void {
+    this.progress.runsCompleted++;
+    this.checkMilestones('runs_completed', this.progress.runsCompleted);
+    this.saveToStorage();
+  }
+
+  /**
+   * TLDR: Get the largest unlocked grid size based on runs completed
+   */
+  getUnlockedGridSize(): { rows: number; cols: number } {
+    const tiers = GRID_EXPANSION.TIERS;
+    let best: { readonly runsRequired: number; readonly rows: number; readonly cols: number } = tiers[0];
+    for (const tier of tiers) {
+      if (this.progress.runsCompleted >= tier.runsRequired) {
+        best = tier;
+      }
+    }
+    return { rows: best.rows, cols: best.cols };
+  }
+
+  /**
+   * TLDR: Get total completed runs
+   */
+  getRunsCompleted(): number {
+    return this.progress.runsCompleted;
+  }
+
+  /**
    * TLDR: Check if any milestones were achieved and trigger unlock events
    */
   private checkMilestones(type: MilestoneType, currentValue: number): void {
@@ -138,6 +170,9 @@ export class UnlockSystem implements System {
       case 'plant_diversity':
         currentValue = this.progress.plantDiversity;
         break;
+      case 'runs_completed':
+        currentValue = this.progress.runsCompleted;
+        break;
     }
 
     const milestone = getNextUnlockMilestone(type, currentValue);
@@ -157,7 +192,7 @@ export class UnlockSystem implements System {
    * TLDR: Get all next milestones across all types
    */
   getAllNextMilestones(): Array<{ type: MilestoneType; milestone: MilestoneConfig; current: number; target: number }> {
-    const types: MilestoneType[] = ['plants_harvested', 'plants_matured', 'plant_diversity'];
+    const types: MilestoneType[] = ['plants_harvested', 'plants_matured', 'plant_diversity', 'runs_completed'];
     const nextMilestones: Array<{ type: MilestoneType; milestone: MilestoneConfig; current: number; target: number }> = [];
 
     for (const type of types) {
@@ -192,6 +227,7 @@ export class UnlockSystem implements System {
           plantsHarvested: data.plantsHarvested ?? 0,
           plantsMature: data.plantsMature ?? 0,
           plantDiversity: data.plantDiversity ?? 0,
+          runsCompleted: data.runsCompleted ?? 0,
           unlockedMilestones: data.unlockedMilestones ?? [],
           timestamps: data.timestamps ?? {},
         };
@@ -200,6 +236,7 @@ export class UnlockSystem implements System {
         plantsHarvested: 0,
         plantsMature: 0,
         plantDiversity: 0,
+        runsCompleted: 0,
         unlockedMilestones: [],
         timestamps: {},
       };
@@ -213,6 +250,7 @@ export class UnlockSystem implements System {
           plantsHarvested: data.plantsHarvested ?? 0,
           plantsMature: data.plantsMature ?? 0,
           plantDiversity: data.plantDiversity ?? 0,
+          runsCompleted: data.runsCompleted ?? 0,
           unlockedMilestones: data.unlockedMilestones ?? [],
           timestamps: data.timestamps ?? {},
         };
@@ -226,6 +264,7 @@ export class UnlockSystem implements System {
       plantsHarvested: 0,
       plantsMature: 0,
       plantDiversity: 0,
+      runsCompleted: 0,
       unlockedMilestones: [],
       timestamps: {},
     };
@@ -256,6 +295,7 @@ export class UnlockSystem implements System {
       plantsHarvested: 0,
       plantsMature: 0,
       plantDiversity: 0,
+      runsCompleted: 0,
       unlockedMilestones: [],
       timestamps: {},
     };

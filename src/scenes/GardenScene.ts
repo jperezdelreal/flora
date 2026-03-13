@@ -4,6 +4,7 @@ import { GardenGrid } from '../entities/GardenGrid';
 import { TileState, Tile } from '../entities/Tile';
 import { Player } from '../entities/Player';
 import { Plant, GrowthStage } from '../entities/Plant';
+import { Structure } from '../entities/Structure';
 import { GridSystem } from '../systems/GridSystem';
 import { PlayerSystem } from '../systems/PlayerSystem';
 import { PlantSystem } from '../systems/PlantSystem';
@@ -12,6 +13,7 @@ import { HazardSystem } from '../systems/HazardSystem';
 import { WeatherSystem, WeatherEventType } from '../systems/WeatherSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
 import { SynergySystem } from '../systems/SynergySystem';
+import { UnlockSystem } from '../systems/UnlockSystem';
 import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
@@ -19,6 +21,7 @@ import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardT
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
+import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getPlantsBySeason, PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
@@ -69,6 +72,13 @@ export class GardenScene implements Scene {
   // TLDR: Save system integration
   private saveManager: SaveManager;
   private saveIndicator!: SaveIndicator;
+  private unlockSystem!: UnlockSystem;
+  
+  // TLDR: Structure placement state
+  private structurePlacementMode: StructureType | null = null;
+  
+  // TLDR: Season length (may be extended by Greenhouse)
+  private maxSeasonDays = 12;
   
   // Session tracking
   private harvestedSeeds: Map<string, number> = new Map();
@@ -148,10 +158,16 @@ export class GardenScene implements Scene {
     // Initialize scoring system (with SaveManager persistence)
     this.scoringSystem = new ScoringSystem(this.saveManager);
 
-    // Initialize garden grid (8x8)
+    // TLDR: Initialize unlock system (with SaveManager persistence)
+    this.unlockSystem = new UnlockSystem(this.saveManager);
+
+    // TLDR: Determine grid size from unlock progress
+    const gridSize = this.unlockSystem.getUnlockedGridSize();
+
+    // Initialize garden grid (dynamic size based on unlocks)
     this.grid = new GardenGrid({
-      rows: 8,
-      cols: 8,
+      rows: gridSize.rows,
+      cols: gridSize.cols,
       tileSize: 64,
       padding: 4,
     });
@@ -250,8 +266,8 @@ export class GardenScene implements Scene {
     this.hazardSystem.onDayAdvance(5);
 
     // Vary soil quality across grid for visual feedback
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
+    for (let row = 0; row < gridSize.rows; row++) {
+      for (let col = 0; col < gridSize.cols; col++) {
         const tile = this.grid.getTile(row, col);
         if (tile && tile.state === TileState.EMPTY) {
           const variation = ((row + col) % 3) * 15;
@@ -465,6 +481,14 @@ export class GardenScene implements Scene {
     } else {
       this.tutorialSystem.enableContextualHints();
     }
+
+    // TLDR: Load persisted structures from save data
+    this.loadStructuresFromSave();
+
+    // TLDR: Wire structure effect events (compost bin converts dead plants to soil boost)
+    eventBus.on('plant:died', (data) => {
+      this.applyCompostEffect(data.plantId);
+    });
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
@@ -475,6 +499,12 @@ export class GardenScene implements Scene {
     // Setup click handler for harvesting (via gridSystem callback)
     this.gridSystem.onTileClick((row, col) => {
       if (this.isPaused) return; // Ignore clicks when paused
+
+      // TLDR: Handle structure placement mode first
+      if (this.structurePlacementMode) {
+        this.tryPlaceStructure(row, col);
+        return;
+      }
       
       // Let player system handle clicks first if player is moving or needs to interact
       const playerPos = this.player.getGridPosition();
@@ -542,6 +572,9 @@ export class GardenScene implements Scene {
   }
   
   private startNewSeason(): void {
+    // TLDR: Record the completed run for unlock progression
+    this.unlockSystem.recordRunCompleted();
+
     // Reset session tracking
     this.harvestedSeeds.clear();
     this.newDiscoveriesThisSeason.clear();
@@ -556,15 +589,23 @@ export class GardenScene implements Scene {
     
     // Apply new season visuals
     this.applySeason();
+
+    // TLDR: Check if grid should expand based on new run count
+    const gridSize = this.unlockSystem.getUnlockedGridSize();
+    if (gridSize.rows !== this.grid.config.rows || gridSize.cols !== this.grid.config.cols) {
+      this.expandGrid(gridSize.rows, gridSize.cols);
+    }
     
     // Reset player
-    this.player.setGridPosition(4, 4);
+    const centerRow = Math.floor(gridSize.rows / 2);
+    const centerCol = Math.floor(gridSize.cols / 2);
+    this.player.setGridPosition(centerRow, centerCol);
     
     // Clear grid and plants
-    for (let row = 0; row < 8; row++) {
-      for (let col = 0; col < 8; col++) {
+    for (let row = 0; row < this.grid.config.rows; row++) {
+      for (let col = 0; col < this.grid.config.cols; col++) {
         const tile = this.grid.getTile(row, col);
-        if (tile) {
+        if (tile && !tile.hasStructure()) {
           tile.state = TileState.EMPTY;
         }
       }
@@ -573,6 +614,9 @@ export class GardenScene implements Scene {
     
     // Reset hazard system for the new season
     this.hazardSystem.reset(undefined, this.currentSeason);
+
+    // TLDR: Recalculate season length (Greenhouse extends by 2 days)
+    this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
     
     // Plant demo plants for next season
     this.plantDemoPlants();
@@ -580,6 +624,9 @@ export class GardenScene implements Scene {
     
     // TLDR: Rebuild plant visual layer for new season's plants
     this.rebuildPlantVisuals();
+
+    // TLDR: Persist garden state after season start
+    this.saveGardenState();
   }
   
   /** Apply seasonal visuals and hazard configuration to all systems */
@@ -633,6 +680,9 @@ export class GardenScene implements Scene {
 
     // TLDR: Notify weather system of day advance (triggers weather events & warnings)
     this.weatherSystem.onDayAdvance(day);
+
+    // TLDR: Apply Rain Barrel auto-watering effect
+    this.applyRainBarrelEffect();
 
     // Seasonal pest spawning: attempt to infest a random active plant
     const activePlants = Array.from(this.plants.values()).filter(p => p.active);
@@ -826,7 +876,7 @@ export class GardenScene implements Scene {
     const day = this.player.getCurrentDay();
     const actions = this.player.getActionsRemaining();
     const maxActions = this.player.getState().maxActions;
-    this.hud.update(day, 12, dayProgress, actions, maxActions);
+    this.hud.update(day, this.maxSeasonDays, dayProgress, actions, maxActions);
     
     // Update score display in HUD
     const scoreBreakdown = this.scoringSystem.getScoreBreakdown();
@@ -893,8 +943,15 @@ export class GardenScene implements Scene {
     // TLDR: Per-frame visual polish updates (sway, shake, sky lerp, particles)
     this.updateVisuals(delta);
 
-    // Check for season end (day 12 reached)
-    if (day >= 12 && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
+    // TLDR: Update HUD with grid info (size + structure count)
+    this.hud.updateGridInfo(
+      this.grid.config.rows,
+      this.grid.config.cols,
+      this.gridSystem.getStructures().length,
+    );
+
+    // Check for season end (maxSeasonDays reached)
+    if (day >= this.maxSeasonDays && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
       this.showScoreSummary();
     }
   }
@@ -993,6 +1050,159 @@ export class GardenScene implements Scene {
   private getWeatherWarningText(type: WeatherEventType, daysUntil: number): string {
     const eventName = type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
     return `${eventName} in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`;
+  }
+
+  // ─── Structure & Grid Expansion Methods ─────────────────────────────
+
+  /**
+   * TLDR: Expand the grid to a new size, preserving placed structures
+   */
+  private expandGrid(rows: number, cols: number): void {
+    const oldStructures = this.gridSystem.getStructures().map((s) => s.toState());
+
+    const newGrid = new GardenGrid({ rows, cols, tileSize: 64, padding: 4 });
+    this.gridSystem.resize(newGrid);
+    this.grid = newGrid;
+    this.gridSystem.centerInViewport(this._ctx.app.screen.width, this._ctx.app.screen.height);
+    this.gridSystem.setSeason(this.currentSeason);
+
+    // TLDR: Re-place structures that still fit on the new grid
+    for (const state of oldStructures) {
+      if (state.row < rows && state.col < cols) {
+        const structure = Structure.fromState(state);
+        this.gridSystem.placeStructure(structure);
+      }
+    }
+
+    eventBus.emit('grid:expanded', { rows, cols });
+  }
+
+  /**
+   * TLDR: Load structures from SaveManager on scene init
+   */
+  private loadStructuresFromSave(): void {
+    const gardenData = this.saveManager.loadGarden();
+    if (!gardenData?.structures) return;
+
+    for (const state of gardenData.structures) {
+      if (state.row < this.grid.config.rows && state.col < this.grid.config.cols) {
+        const structure = Structure.fromState(state);
+        this.gridSystem.placeStructure(structure);
+      }
+    }
+
+    // TLDR: Recalculate season length if Greenhouse is placed
+    this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+  }
+
+  /**
+   * TLDR: Persist current grid size and structures
+   */
+  private saveGardenState(): void {
+    this.saveManager.saveGarden({
+      gridRows: this.grid.config.rows,
+      gridCols: this.grid.config.cols,
+      structures: this.gridSystem.getStructures().map((s) => s.toState()),
+    });
+  }
+
+  /**
+   * TLDR: Place a structure on the selected tile (click-to-place)
+   */
+  private tryPlaceStructure(row: number, col: number): boolean {
+    if (!this.structurePlacementMode) return false;
+
+    const tile = this.grid.getTile(row, col);
+    if (!tile || !tile.isEmpty()) {
+      this.updateInfoText('❌ Cannot place here — tile is not empty');
+      return false;
+    }
+
+    const structureId = `struct_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
+    const structure = new Structure(structureId, this.structurePlacementMode, col, row);
+    const placed = this.gridSystem.placeStructure(structure);
+
+    if (placed) {
+      this.updateInfoText(`✅ ${STRUCTURE_CONFIGS[this.structurePlacementMode].displayName} placed!`);
+      this.structurePlacementMode = null;
+
+      // TLDR: Recalculate season length when Greenhouse placed
+      this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+
+      this.saveGardenState();
+      this.gridSystem.update();
+      return true;
+    }
+
+    return false;
+  }
+
+  /**
+   * TLDR: Enter structure placement mode (call from UI or keyboard)
+   */
+  public enterStructurePlacementMode(type: StructureType): void {
+    if (!this.unlockSystem.isUnlocked(STRUCTURE_CONFIGS[type].unlockMilestoneId)) {
+      this.updateInfoText(`🔒 ${STRUCTURE_CONFIGS[type].displayName} is locked`);
+      return;
+    }
+    this.structurePlacementMode = type;
+    this.updateInfoText(`📍 Click an empty tile to place ${STRUCTURE_CONFIGS[type].displayName}`);
+  }
+
+  /**
+   * TLDR: Rain Barrel effect — auto-water adjacent tiles each day
+   */
+  private applyRainBarrelEffect(): void {
+    const barrels = this.gridSystem.getStructuresByType(StructureType.RAIN_BARREL);
+    for (const barrel of barrels) {
+      const adjacent = this.getAdjacentPositions(barrel.row, barrel.col);
+      let watered = 0;
+      for (const pos of adjacent) {
+        if (watered >= RAIN_BARREL_WATER_COUNT) break;
+        const plant = this.plantSystem.getPlantAt(pos.col, pos.row);
+        if (plant) {
+          plant.water();
+          watered++;
+        }
+      }
+    }
+  }
+
+  /**
+   * TLDR: Compost Bin effect — boost soil quality of adjacent tiles on plant death
+   */
+  private applyCompostEffect(plantId: string): void {
+    const bins = this.gridSystem.getStructuresByType(StructureType.COMPOST_BIN);
+    if (bins.length === 0) return;
+
+    // TLDR: Find the dead plant position and check if a compost bin is adjacent
+    const activePlants = this.plantSystem.getActivePlants();
+    // Plant already removed — search all structures for adjacency to known death tiles
+    for (const bin of bins) {
+      const adjacent = this.getAdjacentPositions(bin.row, bin.col);
+      for (const pos of adjacent) {
+        const tile = this.grid.getTile(pos.row, pos.col);
+        if (tile && !tile.hasStructure()) {
+          tile.setSoilQuality(tile.soilQuality + COMPOST_SOIL_BOOST);
+        }
+      }
+    }
+  }
+
+  /**
+   * TLDR: Get orthogonally adjacent positions within grid bounds
+   */
+  private getAdjacentPositions(row: number, col: number): Array<{ row: number; col: number }> {
+    const positions: Array<{ row: number; col: number }> = [];
+    const offsets = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    for (const [dr, dc] of offsets) {
+      const r = row + dr;
+      const c = col + dc;
+      if (r >= 0 && r < this.grid.config.rows && c >= 0 && c < this.grid.config.cols) {
+        positions.push({ row: r, col: c });
+      }
+    }
+    return positions;
   }
 
   // ─── Visual Polish Methods ──────────────────────────────────────────
@@ -1365,6 +1575,7 @@ export class GardenScene implements Scene {
     this.weatherSystem.destroy();
     this.scoringSystem.destroy();
     this.synergySystem.destroy();
+    this.unlockSystem.destroy();
     this.toolBar.destroy();
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();

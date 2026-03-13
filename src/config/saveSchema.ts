@@ -10,6 +10,7 @@ export const SAVE_KEYS = {
   HIGH_SCORES: 'flora_high_scores',
   AUDIO: 'flora:audio:preferences',
   TUTORIAL: 'flora_tutorial',
+  GARDEN: 'flora_garden',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */
@@ -23,6 +24,7 @@ export interface UnlockSaveData {
   plantsHarvested: number;
   plantsMature: number;
   plantDiversity: number;
+  runsCompleted: number;
   unlockedMilestones: string[];
   timestamps: Record<string, number>;
 }
@@ -55,6 +57,15 @@ export interface AudioSaveData {
   };
 }
 
+import type { StructureState } from '../entities/Structure';
+
+/** TLDR: Persisted garden data (grid size + placed structures) */
+export interface GardenSaveData {
+  gridRows: number;
+  gridCols: number;
+  structures: StructureState[];
+}
+
 /** TLDR: Full save file shape — used for validation and migration */
 export interface SaveSchema {
   version: number;
@@ -62,4 +73,5 @@ export interface SaveSchema {
   unlocks: UnlockSaveData;
   highScores: HighScoreSaveData[];
   audio: AudioSaveData;
+  garden: GardenSaveData;
 }

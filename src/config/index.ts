@@ -27,6 +27,16 @@ export const GARDEN = {
   SOIL_COLOR: 0x5c3a1e,
 } as const;
 
+/** TLDR: Config-driven grid expansion thresholds (GDD §7) */
+export const GRID_EXPANSION = {
+  /** TLDR: Runs required → unlocked grid size */
+  TIERS: [
+    { runsRequired: 0, rows: 8, cols: 8 },
+    { runsRequired: 10, rows: 10, cols: 10 },
+    { runsRequired: 20, rows: 12, cols: 12 },
+  ],
+} as const;
+
 export const COLORS = {
   DARK_GREEN: 0x2d5a27,
   MID_GREEN: 0x3e7a38,
@@ -50,3 +60,4 @@ export { UNLOCK_MILESTONES, getAllMilestones } from './unlocks';
 export { getNextMilestone as getNextUnlockMilestone } from './unlocks';
 export * from './scoring';
 export * from './animations';
+export * from './structures';
