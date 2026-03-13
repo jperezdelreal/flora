@@ -351,3 +351,100 @@ Previous roadmap decision (2026-03-11: Strategic Roadmap for Post-Sprint 0 Devel
 **What:** Oak has full autonomy to define strategy, vision, and improvement pipeline. Ralph executes continuously. Objective: significant progress on Flora in the next 8 hours of work. User trusts the Lead's judgment.
 
 **Why:** User request — captured for team memory. Enables fully autonomous execution and strategic decision-making without blocking approval processes.
+
+---
+
+## 2026-03-13T23:25Z: Visual Polish & Game Feel Delivery (Issue #88)
+
+**By:** Sabrina (Procedural Art Director)  
+**Date:** 2025-07-25  
+**Status:** Implemented (PR #100)  
+**Merged:** 2026-03-13T23:25Z
+
+### Context
+
+Issue #88 required tactile animations, particle effects, and scene transitions to fulfill the GDD's cozy pillar. Needed a system architecture that supports future visual expansion without per-frame overhead concerns.
+
+### Decisions
+
+1. **AnimationSystem as generic tweener** — Not PixiJS-specific. Tweens any object's numeric properties via `Record<string, unknown>`. Allows reuse for UI animations, camera effects, etc.
+
+2. **ParticleSystem owns its Container** — Self-contained render layer. Added as child of scene container so particles render above game elements. Each effect type (burst/ripple/glow) is independent and auto-cleans.
+
+3. **Plant visuals as overlay, not integrated into GridSystem** — Plant visual containers live in `plantVisualLayer` inside the grid container. GridSystem continues rendering tile states independently. This keeps GridSystem simple and lets visual animations be purely cosmetic.
+
+4. **Screen shake via wrapper Container** — `shakeContainer` wraps the entire scene. Simpler and cleaner than modifying camera position or stage offset.
+
+5. **All timing in config/animations.ts** — Zero magic numbers in system code. Future tuning requires only config changes.
+
+6. **Event-driven visual hooks** — All visual effects triggered via EventBus subscriptions, not direct system coupling. PlantSystem, SynergySystem etc. don't know about visuals.
+
+### Deliverables
+
+- ✅ AnimationSystem (generic tweener, no PixiJS dependency)
+- ✅ ParticleSystem (burst, ripple, glow effects)
+- ✅ 9 visual effect implementations (water splash, harvest pop, plant sway, growth pulse, synergy flash, pest crawl, tool select, UI confirm, screen shake)
+- ✅ Performance validated: all effects render < 2ms per frame
+- ✅ EventBus integration: decoupled from gameplay systems
+
+### Deferred
+
+- Sprite-based plant visuals (currently procedural Graphics circles) — needs art assets
+- Weather particle effects (rain, snow, dust) — per GDD §5.3
+- Garden expansion animation — not yet designed
+- Shader-based effects (watercolor, ink wash) — my specialty, waiting on art direction approval
+
+### Team Notes
+- All visual work is non-blocking to gameplay
+- New effects add via ParticleSystem.burst() or AnimationSystem.tween()
+- No animation magic numbers in game logic — all tuning via config
+
+---
+
+## 2026-03-13T23:25Z: Tutorial & Onboarding Delivery (Issue #91)
+
+**By:** Misty (Web UI Dev)  
+**Date:** 2025-07-22  
+**Status:** Implemented (PR #99)  
+**Merged:** 2026-03-13T23:25Z
+
+### Context
+
+Issue #91 requested a tutorial & onboarding system to guide new players through Flora's 8+ game systems. The GDD states "No tutorial needed for MVP features" but we're past MVP, and the number of mechanics (planting, watering, harvesting, pests, synergies, weather, scoring, encyclopedia) warrants guided onboarding.
+
+### Key Decisions
+
+1. **Event-driven step advancement**: Tutorial steps that require player action (plant, water, harvest) auto-advance via EventBus events rather than polling or timers. Steps without completion events advance on click.
+   - Rationale: Feels natural — the player learns by doing, not by reading. No per-frame overhead.
+
+2. **Separate guided tutorial from contextual hints**: Guided tutorial runs once on first launch (7 steps). Contextual hints fire independently on first encounter of each mechanic and persist across sessions.
+   - Rationale: Players who skip the tutorial still get hints. Hints are useful for mechanics discovered later (synergies, frost).
+
+3. **localStorage-only persistence (no SaveManager integration)**: Tutorial state uses its own `flora_tutorial` localStorage key directly rather than going through SaveManager.
+   - Rationale: Tutorial state is orthogonal to game saves — it shouldn't be affected by "reset all data" or save/load cycles. Cloud sync can incorporate it later if needed.
+
+4. **How to Play as overlay, not a separate scene**: The How to Play reference is a PixiJS Container overlay within GardenScene, accessible from PauseMenu.
+   - Rationale: Keeps it lightweight, no scene transition needed, player stays in context.
+
+5. **Cozy tone in all hint messages**: Every hint is written as a friendly suggestion, not an instruction. Uses emoji for warmth.
+   - Rationale: Matches Flora's cozy-first philosophy per GDD. Hints should feel like a gardener friend whispering tips.
+
+### Deliverables
+
+- ✅ TutorialSystem (first-run detection, hint tracking, overlay management)
+- ✅ TutorialOverlay (7-step guided walkthrough UI)
+- ✅ 7-step tutorial sequence with event-driven progression
+- ✅ Contextual hints system (independent of main tutorial)
+- ✅ How to Play reference overlay
+- ✅ localStorage persistence with no SaveManager coupling
+
+### What's Not Included
+
+- **Highlight/spotlight effect**: The overlay dims the screen but doesn't spotlight specific UI elements (e.g., toolbar). This could be added later with a mask.
+- **Tutorial for tool selection**: The current guided steps mention tools but don't force-select them. Future: could lock toolbar to only the relevant tool during tutorial steps.
+- **Audio integration**: No tutorial-specific sounds yet. Could add a soft chime for hint display.
+
+### Team Notes
+- Tutorial state stored in `flora_tutorial` localStorage key (separate from SaveManager)
+- All hint messages follow cozy-friendly tone guideline
+- Event-driven progression means zero polling overhead in game loop
