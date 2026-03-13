@@ -1,5 +1,5 @@
 import { System } from './index';
-import { MilestoneConfig, MilestoneType, UNLOCK_MILESTONES, getNextMilestone } from '../config/unlocks';
+import { MilestoneConfig, MilestoneType, UNLOCK_MILESTONES, getNextMilestone as getNextUnlockMilestone } from '../config/unlocks';
 
 /**
  * TLDR: Player progression data persisted across sessions
@@ -137,7 +137,7 @@ export class UnlockSystem implements System {
         break;
     }
 
-    const milestone = getNextMilestone(type, currentValue);
+    const milestone = getNextUnlockMilestone(type, currentValue);
     
     if (!milestone) {
       return null;

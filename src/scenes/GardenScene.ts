@@ -9,7 +9,8 @@ import { PlayerSystem } from '../systems/PlayerSystem';
 import { PlantSystem } from '../systems/PlantSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { HazardSystem } from '../systems/HazardSystem';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu } from '../ui';
+import { ScoringSystem } from '../systems/ScoringSystem';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
@@ -47,6 +48,8 @@ export class GardenScene implements Scene {
   private plantInfoPanel!: PlantInfoPanel;
   private daySummary!: DaySummary;
   private pauseMenu!: PauseMenu;
+  private scoreSummary!: ScoreSummary;
+  private scoringSystem!: ScoringSystem;
   private isPaused = false;
   
   // Session tracking
@@ -91,6 +94,9 @@ export class GardenScene implements Scene {
       seasonCount: 1,
       season: this.currentSeason,
     });
+
+    // Initialize scoring system
+    this.scoringSystem = new ScoringSystem();
 
     // Initialize garden grid (8x8)
     this.grid = new GardenGrid({
@@ -326,6 +332,13 @@ export class GardenScene implements Scene {
     this.pauseMenu = new PauseMenu(pauseCallbacks);
     this.container.addChild(this.pauseMenu.getContainer());
     
+    // Initialize Score Summary (end-of-run)
+    this.scoreSummary = new ScoreSummary();
+    this.scoreSummary.setOnContinue(() => {
+      this.startNewSeason();
+    });
+    this.container.addChild(this.scoreSummary.getContainer());
+    
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
 
@@ -406,6 +419,9 @@ export class GardenScene implements Scene {
     this.harvestedSeeds.clear();
     this.newDiscoveriesThisSeason.clear();
     
+    // Reset scoring for new run
+    this.scoringSystem.reset();
+    
     // Pick a new season (different from current when possible)
     const seasons: Season[] = [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER];
     const otherSeasons = seasons.filter(s => s !== this.currentSeason);
@@ -449,6 +465,17 @@ export class GardenScene implements Scene {
     this.hud.setSeason(this.currentSeason);
   }
   
+  private showScoreSummary(): void {
+    // Save score and get high score data
+    const isNewRecord = this.scoringSystem.saveScore();
+    const breakdown = this.scoringSystem.getScoreBreakdown();
+    const milestone = this.scoringSystem.getCurrentMilestone();
+    const personalBest = this.scoringSystem.getPersonalBest();
+    const highScores = this.scoringSystem.getHighScores();
+    
+    this.scoreSummary.show(breakdown, milestone, personalBest, highScores, isNewRecord);
+  }
+
   private restartRun(): void {
     // Full restart: clear encyclopedia and start fresh with a new season
     this.encyclopediaSystem.reset();
@@ -619,6 +646,9 @@ export class GardenScene implements Scene {
 
     // Update discovery popup animation
     this.discoveryPopup.update(delta * 1000); // Convert to ms
+    
+    // Update score summary animation
+    this.scoreSummary.update(delta * 1000);
 
     // Update hazard UI based on drought and frost status
     const droughtInfo = this.hazardSystem.getDroughtInfo();
@@ -644,6 +674,16 @@ export class GardenScene implements Scene {
     const actions = this.player.getActionsRemaining();
     const maxActions = this.player.getState().maxActions;
     this.hud.update(day, 12, dayProgress, actions, maxActions);
+    
+    // Update score display in HUD
+    const scoreBreakdown = this.scoringSystem.getScoreBreakdown();
+    const lastActionPoints = this.scoringSystem.getLastActionPoints();
+    this.hud.updateScore(scoreBreakdown.total, lastActionPoints);
+    
+    // Clear last action points after 1 second
+    if (lastActionPoints > 0) {
+      setTimeout(() => this.scoringSystem.clearLastActionPoints(), 1000);
+    }
 
     // Update help text with stats (keep for legacy but HUD now shows this)
     const stats = this.plantSystem.getStats();
@@ -698,8 +738,8 @@ export class GardenScene implements Scene {
     }
     
     // Check for season end (day 12 reached)
-    if (day >= 12 && !this.daySummary.isVisible()) {
-      this.showDaySummary();
+    if (day >= 12 && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
+      this.showScoreSummary();
     }
   }
 
@@ -751,6 +791,7 @@ export class GardenScene implements Scene {
     this.playerSystem.destroy();
     this.plantSystem.destroy();
     this.hazardSystem.destroy();
+    this.scoringSystem.destroy();
     this.toolBar.destroy();
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();
@@ -760,6 +801,7 @@ export class GardenScene implements Scene {
     this.plantInfoPanel.destroy();
     this.daySummary.destroy();
     this.pauseMenu.destroy();
+    this.scoreSummary.destroy();
     this.plants.clear();
     this.container.destroy({ children: true });
     this.container = new Container();

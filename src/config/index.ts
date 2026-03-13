@@ -12,6 +12,7 @@ export const GAME = {
 export const SCENES = {
   BOOT: 'boot',
   MENU: 'menu',
+  SEED_SELECTION: 'seed-selection',
   GARDEN: 'garden',
   EXPLORATION: 'exploration',
   GAME_OVER: 'game-over',
@@ -43,6 +44,10 @@ export * from './seasons';
 // Export plant configurations
 export * from './plants';
 export * from './tools';
-export * from './unlocks';
 export * from './hazards';
 export * from './audio';
+// Explicitly export from unlocks and scoring to resolve ambiguity
+export type { MilestoneConfig, MilestoneType } from './unlocks';
+export { UNLOCK_MILESTONES, getAllMilestones } from './unlocks';
+export { getNextMilestone as getNextUnlockMilestone } from './unlocks';
+export * from './scoring';

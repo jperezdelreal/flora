@@ -1,8 +1,8 @@
 import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader } from './core';
-import { BootScene, GardenScene } from './scenes';
+import { BootScene, GardenScene, SeedSelectionScene } from './scenes';
 import { GAME, SCENES } from './config';
-import { audioManager } from './systems';
+import { audioManager, SeedSelectionSystem, EncyclopediaSystem } from './systems';
 
 async function main(): Promise<void> {
   const app = new Application();
@@ -22,8 +22,16 @@ async function main(): Promise<void> {
   const assets = new AssetLoader();
   const sceneManager = new SceneManager(app, input, assets);
 
+  // TLDR: Initialize systems for seed selection
+  const seedSelectionSystem = new SeedSelectionSystem();
+  const encyclopediaSystem = new EncyclopediaSystem();
+
   // Register all scenes
-  sceneManager.register(new BootScene(), new GardenScene());
+  sceneManager.register(
+    new BootScene(),
+    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem),
+    new GardenScene()
+  );
 
   // Boot the first scene
   await sceneManager.switchTo(SCENES.BOOT);

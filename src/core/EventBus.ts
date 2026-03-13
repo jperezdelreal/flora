@@ -28,6 +28,9 @@ export interface EventMap {
   'discovery:new': { plantId: string; plantName: string };
   // Unlock events
   'milestone:unlocked': { milestoneId: string; milestoneName: string };
+  // Scoring events
+  'score:updated': { total: number; lastAction: number };
+  'score:milestone': { milestone: string; score: number };
 }
 
 type EventName = keyof EventMap & string;
