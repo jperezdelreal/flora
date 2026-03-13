@@ -1,0 +1,350 @@
+name: Perpetual Motion
+
+on:
+  issues:
+    types: [closed]
+
+permissions:
+  issues: write
+  contents: write
+
+jobs:
+  perpetual-motion:
+    # Only trigger on issues with roadmap or copilot-ready label
+    if: contains(github.event.issue.labels.*.name, 'roadmap') || contains(github.event.issue.labels.*.name, 'copilot-ready')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check rate limit (semaphore)
+        id: rate-limit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: openIssues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'copilot-ready',
+              per_page: 100
+            });
+            
+            // Count open issues assigned to @copilot
+            const copilotIssues = openIssues.filter(issue => 
+              issue.assignees && issue.assignees.some(a => a.login.includes('copilot'))
+            );
+            
+            if (copilotIssues.length > 0) {
+              core.info(`Rate limit: ${copilotIssues.length} open copilot-ready issue(s) found. Skipping new issue creation.`);
+              core.setOutput('should_proceed', 'false');
+            } else {
+              core.info('Rate limit: No blocking copilot-ready issues. Proceeding.');
+              core.setOutput('should_proceed', 'true');
+            }
+
+      - name: Read and parse roadmap
+        id: parse-roadmap
+        if: steps.rate-limit.outputs.should_proceed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Check if roadmap.md exists
+            if (!fs.existsSync('roadmap.md')) {
+              core.warning('No roadmap.md found in repository root');
+              core.setOutput('roadmap_exists', 'false');
+              core.setOutput('has_next_item', 'false');
+              return;
+            }
+            
+            core.setOutput('roadmap_exists', 'true');
+            
+            const content = fs.readFileSync('roadmap.md', 'utf8');
+            const lines = content.split('\n');
+            
+            let nextItem = null;
+            let itemStartIndex = -1;
+            let itemNumber = '';
+            
+            // Parse roadmap for next unchecked item
+            for (let i = 0; i < lines.length; i++) {
+              const line = lines[i];
+              
+              // Match pattern: "1. [ ] Title" or "- [ ] Title"
+              const match = line.match(/^(\d+\.|\-)\s*\[\s*\]\s*(.+)$/);
+              if (match) {
+                itemNumber = match[1].trim();
+                const title = match[2].trim();
+                itemStartIndex = i;
+                
+                // Collect acceptance criteria (indented lines after title)
+                const criteria = [];
+                const files = [];
+                const context = [];
+                
+                for (let j = i + 1; j < lines.length; j++) {
+                  const nextLine = lines[j];
+                  
+                  // Stop at next item or empty line followed by non-indented content
+                  if (nextLine.match(/^(\d+\.|\-)\s*\[/)) break;
+                  if (!nextLine.trim()) continue;
+                  if (!nextLine.match(/^\s+/)) break;
+                  
+                  const trimmed = nextLine.trim();
+                  
+                  // Parse different line types
+                  if (trimmed.startsWith('- Files:')) {
+                    const fileList = trimmed.replace(/^-\s*Files:\s*/, '').split(',').map(f => f.trim());
+                    files.push(...fileList);
+                  } else if (trimmed.startsWith('- Context:')) {
+                    context.push(trimmed.replace(/^-\s*Context:\s*/, ''));
+                  } else if (trimmed.startsWith('-')) {
+                    criteria.push(trimmed.substring(1).trim());
+                  } else {
+                    // Continuation of previous line
+                    if (criteria.length > 0) {
+                      criteria[criteria.length - 1] += ' ' + trimmed;
+                    }
+                  }
+                }
+                
+                nextItem = {
+                  title,
+                  criteria: criteria.filter(c => c && !c.startsWith('Files:') && !c.startsWith('Context:')),
+                  files: files.filter(f => f),
+                  context: context.filter(c => c),
+                  lineIndex: itemStartIndex,
+                  itemNumber
+                };
+                
+                break; // Found first unchecked item
+              }
+            }
+            
+            if (nextItem) {
+              core.info(`Found next roadmap item: ${nextItem.title}`);
+              core.setOutput('has_next_item', 'true');
+              core.setOutput('title', nextItem.title);
+              core.setOutput('criteria', JSON.stringify(nextItem.criteria));
+              core.setOutput('files', JSON.stringify(nextItem.files));
+              core.setOutput('context', JSON.stringify(nextItem.context));
+              core.setOutput('line_index', nextItem.lineIndex.toString());
+              core.setOutput('item_number', nextItem.itemNumber);
+            } else {
+              core.info('No unchecked items found in roadmap — roadmap exhausted');
+              core.setOutput('has_next_item', 'false');
+            }
+
+      - name: Create issue from roadmap item
+        id: create-issue
+        if: steps.parse-roadmap.outputs.has_next_item == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `${{ steps.parse-roadmap.outputs.title }}`;
+            const criteria = JSON.parse(`${{ steps.parse-roadmap.outputs.criteria }}`);
+            const files = JSON.parse(`${{ steps.parse-roadmap.outputs.files }}`);
+            const context = JSON.parse(`${{ steps.parse-roadmap.outputs.context }}`);
+            
+            // Build issue body
+            let body = '## Acceptance Criteria\n\n';
+            if (criteria.length > 0) {
+              body += criteria.map(c => `- ${c}`).join('\n');
+            } else {
+              body += '_No specific criteria provided — refer to title and context._';
+            }
+            
+            if (files.length > 0) {
+              body += '\n\n## Files Involved\n\n';
+              body += files.map(f => `- \`${f}\``).join('\n');
+            }
+            
+            if (context.length > 0) {
+              body += '\n\n## Context\n\n';
+              body += context.map(c => `- ${c}`).join('\n');
+            }
+            
+            body += '\n\n---\n_Auto-generated from roadmap.md by perpetual-motion workflow_';
+            
+            // Create the issue
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['copilot-ready', 'squad:copilot', 'roadmap']
+            });
+            
+            core.info(`Created issue #${issue.number}: ${title}`);
+            core.setOutput('issue_number', issue.number.toString());
+            core.setOutput('issue_url', issue.html_url);
+
+      - name: Assign @copilot to issue
+        if: steps.parse-roadmap.outputs.has_next_item == 'true'
+        uses: actions/github-script@v7
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.COPILOT_ASSIGN_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const issue_number = parseInt(`${{ steps.create-issue.outputs.issue_number }}`);
+            
+            // Get the default branch name
+            const { data: repoData } = await github.rest.repos.get({ owner, repo });
+            const baseBranch = repoData.default_branch;
+            
+            try {
+              await github.request('POST /repos/{owner}/{repo}/issues/{issue_number}/assignees', {
+                owner,
+                repo,
+                issue_number,
+                assignees: ['copilot-swe-agent[bot]'],
+                agent_assignment: {
+                  target_repo: `${owner}/${repo}`,
+                  base_branch: baseBranch,
+                  custom_instructions: '',
+                  custom_agent: '',
+                  model: ''
+                },
+                headers: {
+                  'X-GitHub-Api-Version': '2022-11-28'
+                }
+              });
+              core.info(`Assigned @copilot to issue #${issue_number}`);
+            } catch (err) {
+              core.warning(`Assignment with agent_assignment failed: ${err.message}`);
+              // Fallback: try without agent_assignment
+              try {
+                await github.rest.issues.addAssignees({
+                  owner, repo, issue_number,
+                  assignees: ['copilot-swe-agent']
+                });
+                core.info(`Fallback assigned @copilot to issue #${issue_number}`);
+              } catch (err2) {
+                core.warning(`Fallback also failed: ${err2.message}`);
+              }
+            }
+
+      - name: Mark item as completed in roadmap
+        if: steps.parse-roadmap.outputs.has_next_item == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const lineIndex = parseInt(`${{ steps.parse-roadmap.outputs.line_index }}`);
+            
+            const content = fs.readFileSync('roadmap.md', 'utf8');
+            const lines = content.split('\n');
+            
+            // Replace [ ] with [x] on the target line
+            if (lineIndex >= 0 && lineIndex < lines.length) {
+              lines[lineIndex] = lines[lineIndex].replace(/\[\s*\]/, '[x]');
+              fs.writeFileSync('roadmap.md', lines.join('\n'));
+              core.info(`Marked roadmap item at line ${lineIndex + 1} as completed`);
+            }
+
+      - name: Commit updated roadmap
+        if: steps.parse-roadmap.outputs.has_next_item == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add roadmap.md
+          git commit -m "Mark roadmap item as completed
+
+          Completed: ${{ steps.parse-roadmap.outputs.title }}
+          Created issue: #${{ steps.create-issue.outputs.issue_number }}
+
+          Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          git push
+
+      - name: Create "Define next roadmap" issue (roadmap exhausted)
+        if: |
+          steps.rate-limit.outputs.should_proceed == 'true' &&
+          steps.parse-roadmap.outputs.roadmap_exists == 'true' &&
+          steps.parse-roadmap.outputs.has_next_item == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            
+            // Read team roster to find Lead
+            let teamFile = '.squad/team.md';
+            if (!fs.existsSync(teamFile)) {
+              teamFile = '.ai-team/team.md';
+            }
+            
+            let leadLabel = 'squad:morpheus'; // Default
+            if (fs.existsSync(teamFile)) {
+              const content = fs.readFileSync(teamFile, 'utf8');
+              const lines = content.split('\n');
+              
+              let inMembersTable = false;
+              for (const line of lines) {
+                if (line.match(/^##\s+(Members|Team Roster)/i)) {
+                  inMembersTable = true;
+                  continue;
+                }
+                if (inMembersTable && line.startsWith('## ')) break;
+                if (inMembersTable && line.startsWith('|') && !line.includes('---') && !line.includes('Name')) {
+                  const cells = line.split('|').map(c => c.trim()).filter(Boolean);
+                  const role = cells[1] || '';
+                  if (role.toLowerCase().includes('lead') || role.toLowerCase().includes('architect')) {
+                    leadLabel = `squad:${cells[0].toLowerCase()}`;
+                    break;
+                  }
+                }
+              }
+            }
+            
+            const body = [
+              '## Roadmap Exhausted',
+              '',
+              'All items in `roadmap.md` have been completed. The perpetual motion cycle has paused.',
+              '',
+              '## Required Action',
+              '',
+              'Define the next set of roadmap items to continue autonomous progress.',
+              '',
+              '**Instructions:**',
+              '1. Review completed work in `roadmap.md` (all items marked `[x]`)',
+              '2. Define 3-5 new roadmap items based on project goals',
+              '3. Add them to `roadmap.md` as unchecked items `[ ]`',
+              '4. Close this issue',
+              '',
+              'The perpetual motion workflow will automatically create the next issue once the roadmap is updated.',
+              '',
+              '---',
+              '_Auto-generated by perpetual-motion workflow when roadmap was exhausted_'
+            ].join('\n');
+            
+            const { data: issue } = await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '📋 Define next roadmap',
+              body: body,
+              labels: [leadLabel, 'roadmap']
+            });
+            
+            core.info(`Created roadmap refuel issue #${issue.number} (assigned to ${leadLabel})`);
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Perpetual Motion Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** Issue #${{ github.event.issue.number }} closed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.rate-limit.outputs.should_proceed }}" == "false" ]; then
+            echo "⏸️ **Rate limit active** — Open copilot-ready issue exists. Skipping." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.parse-roadmap.outputs.roadmap_exists }}" == "false" ]; then
+            echo "⚠️ **No roadmap.md found** — Cannot proceed." >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.parse-roadmap.outputs.has_next_item }}" == "false" ]; then
+            echo "🏁 **Roadmap exhausted** — Created 'Define next roadmap' issue." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **New issue created:** #${{ steps.create-issue.outputs.issue_number }}" >> $GITHUB_STEP_SUMMARY
+            echo "📝 **Title:** ${{ steps.parse-roadmap.outputs.title }}" >> $GITHUB_STEP_SUMMARY
+            echo "🔗 **URL:** ${{ steps.create-issue.outputs.issue_url }}" >> $GITHUB_STEP_SUMMARY
+          fi
