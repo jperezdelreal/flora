@@ -49,3 +49,4 @@ export type { MilestoneConfig, MilestoneType } from './unlocks';
 export { UNLOCK_MILESTONES, getAllMilestones } from './unlocks';
 export { getNextMilestone as getNextUnlockMilestone } from './unlocks';
 export * from './scoring';
+export * from './animations';

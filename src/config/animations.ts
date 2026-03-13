@@ -1,0 +1,80 @@
+/**
+ * TLDR: Animation timing and visual effect constants for game feel polish
+ * All values are configurable here — no magic numbers in systems.
+ */
+
+export const ANIMATION = {
+  // Plant growth scale pop
+  GROWTH_SCALE_DURATION: 0.4,
+  GROWTH_SCALE_OVERSHOOT: 1.25,
+
+  // Plant idle sway (sine wave rotation)
+  SWAY_AMPLITUDE: 0.04,
+  SWAY_FREQUENCY: 1.2,
+
+  // Harvest burst particles
+  HARVEST_PARTICLE_COUNT: 14,
+  HARVEST_PARTICLE_LIFETIME: 0.7,
+  HARVEST_PARTICLE_SPEED: 140,
+  HARVEST_PARTICLE_SIZE: 4,
+  HARVEST_SHAKE_DURATION: 0.15,
+  HARVEST_SHAKE_INTENSITY: 4,
+
+  // Water ripple
+  WATER_RIPPLE_DURATION: 0.6,
+  WATER_RIPPLE_RINGS: 3,
+  WATER_RIPPLE_MAX_RADIUS: 28,
+  WATER_RIPPLE_COLOR: 0x4fc3f7,
+
+  // Synergy glow pulse
+  SYNERGY_GLOW_PULSE_SPEED: 2.0,
+  SYNERGY_GLOW_MIN_ALPHA: 0.15,
+  SYNERGY_GLOW_MAX_ALPHA: 0.6,
+  SYNERGY_GLOW_RADIUS: 22,
+  SYNERGY_GLOW_DURATION: 4.0,
+
+  // Day advance sky lerp
+  DAY_SKY_LERP_DURATION: 1.0,
+
+  // Pest crawl wobble
+  PEST_CRAWL_AMPLITUDE: 1.5,
+  PEST_CRAWL_SPEED: 3.0,
+
+  // Button feedback
+  BUTTON_HOVER_SCALE: 1.08,
+  BUTTON_CLICK_SCALE: 0.92,
+  BUTTON_BOUNCE_DURATION: 0.12,
+
+  // Scene transitions (mirrors SceneManager defaults)
+  SCENE_FADE_DURATION: 0.4,
+
+  // Plant visual sizes per growth stage (radius)
+  PLANT_SIZE_SEED: 4,
+  PLANT_SIZE_SPROUT: 7,
+  PLANT_SIZE_GROWING: 11,
+  PLANT_SIZE_MATURE: 14,
+} as const;
+
+// TLDR: Plant color palettes per rarity for growth visuals
+export const PLANT_STAGE_COLORS: Record<string, number[]> = {
+  seed: [0x8d6e63, 0x795548],
+  sprout: [0x81c784, 0x66bb6a],
+  growing: [0x4caf50, 0x43a047],
+  mature: [0x388e3c, 0x2e7d32],
+};
+
+// TLDR: Rarity accent colors for harvest burst particles
+export const RARITY_COLORS: Record<string, number[]> = {
+  common: [0x81c784, 0xa5d6a7, 0xc8e6c9],
+  uncommon: [0x4fc3f7, 0x81d4fa, 0xb3e5fc],
+  rare: [0xba68c8, 0xce93d8, 0xe1bee7],
+  heirloom: [0xffd54f, 0xffe082, 0xfff9c4],
+};
+
+// TLDR: Synergy glow colors
+export const SYNERGY_GLOW_COLORS: Record<string, number> = {
+  shade_bonus: 0x4fc3f7,
+  nitrogen_bonus: 0x66bb6a,
+  polyculture: 0xffd54f,
+  pest_deterrent: 0xce93d8,
+};

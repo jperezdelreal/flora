@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { ToolType } from '../entities/Player';
 import { ALL_TOOLS, ToolConfig } from '../config/tools';
+import { ANIMATION } from '../config/animations';
 
 export class ToolBar {
   private container: Container;
@@ -44,12 +45,19 @@ export class ToolBar {
 
       button.on('pointerdown', () => {
         if (this.unlockedTools.has(tool.type)) {
+          // TLDR: Click scale feedback — brief squish
+          buttonContainer.scale.set(ANIMATION.BUTTON_CLICK_SCALE);
+          setTimeout(() => {
+            buttonContainer.scale.set(1);
+          }, ANIMATION.BUTTON_BOUNCE_DURATION * 1000);
           this.selectTool(tool.type);
         }
       });
 
       button.on('pointerover', () => {
         if (this.unlockedTools.has(tool.type)) {
+          // TLDR: Hover scale-up feedback
+          buttonContainer.scale.set(ANIMATION.BUTTON_HOVER_SCALE);
           button.clear();
           button.rect(0, 0, buttonWidth, buttonHeight);
           button.fill({ color: 0x3c3c3c });
@@ -58,6 +66,8 @@ export class ToolBar {
       });
 
       button.on('pointerout', () => {
+        // TLDR: Reset scale on pointer out
+        buttonContainer.scale.set(1);
         if (this.selectedTool !== tool.type) {
           this.updateButtonAppearance(tool.type);
         }
