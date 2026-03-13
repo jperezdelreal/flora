@@ -19,3 +19,5 @@ export { SeedPacketDisplay } from './SeedPacketDisplay';
 export { ScoreSummary } from './ScoreSummary';
 export { SaveIndicator } from './SaveIndicator';
 export { SynergyTooltip } from './SynergyTooltip';
+export { TutorialOverlay } from './TutorialOverlay';
+export type { OverlayDismissCallback, OverlaySkipCallback } from './TutorialOverlay';

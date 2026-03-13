@@ -40,6 +40,11 @@ export interface EventMap {
   // Synergy events
   'synergy:activated': { plantId: string; synergyId: string; x: number; y: number };
   'synergy:tutorial': { synergyId: string };
+  // Tutorial events
+  'tutorial:started': Record<string, never>;
+  'tutorial:completed': Record<string, never>;
+  'tutorial:skipped': Record<string, never>;
+  'tutorial:step': { stepId: string; stepIndex: number };
 }
 
 type EventName = keyof EventMap & string;
