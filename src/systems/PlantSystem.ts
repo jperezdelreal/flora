@@ -1,6 +1,7 @@
 import { System } from './index';
 import { Plant, PlantConfig, GrowthStage } from '../entities/Plant';
 import { PLANT_BY_ID } from '../config/plants';
+import { eventBus } from '../core/EventBus';
 import type { EncyclopediaSystem } from './EncyclopediaSystem';
 
 export interface PlantSystemConfig {
@@ -47,6 +48,10 @@ export class PlantSystem implements System {
     const plantId = `plant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
     const plant = new Plant(plantId, config, x, y);
     this.addPlant(plant);
+    
+    // TLDR: Emit plant creation event for audio
+    eventBus.emit('plant:created', { plantId, x, y });
+    
     return plant;
   }
 
@@ -75,6 +80,10 @@ export class PlantSystem implements System {
     const plant = this.getPlantAt(x, y);
     if (plant) {
       plant.water();
+      
+      // TLDR: Emit watering event for audio
+      eventBus.emit('plant:watered', { plantId: plant.id, x, y });
+      
       return true;
     }
     return false;
@@ -105,6 +114,15 @@ export class PlantSystem implements System {
 
     // Remove plant from system
     this.removePlant(plant.id);
+    
+    // TLDR: Emit harvest event for audio
+    eventBus.emit('plant:harvested', { plantId: plantConfigId, seeds, isNewDiscovery });
+    
+    // TLDR: Emit discovery event if new plant discovered
+    if (isNewDiscovery) {
+      const config = PLANT_BY_ID[plantConfigId];
+      eventBus.emit('discovery:new', { plantId: plantConfigId, plantName: config?.displayName || plantConfigId });
+    }
 
     return { success: true, seeds, plantId: plantConfigId, isNewDiscovery };
   }
@@ -144,10 +162,34 @@ export class PlantSystem implements System {
   /** Advance all plants by one in-game day */
   private advanceDay(): void {
     this.currentDay++;
+    
+    // TLDR: Emit day advancement event for audio
+    eventBus.emit('day:advanced', { day: this.currentDay });
 
     const plants = this.getActivePlants();
     for (const plant of plants) {
+      const oldStage = plant.getGrowthStage();
+      const wasActive = plant.active;
+      
       plant.advanceDay();
+      
+      const newStage = plant.getGrowthStage();
+      const isActive = plant.active;
+      
+      // TLDR: Emit growth event if stage changed
+      if (newStage !== oldStage && isActive) {
+        eventBus.emit('plant:grew', { plantId: plant.id, stage: newStage });
+      }
+      
+      // TLDR: Emit maturity event when plant reaches MATURE stage
+      if (newStage === GrowthStage.MATURE && oldStage !== GrowthStage.MATURE && isActive) {
+        eventBus.emit('plant:matured', { plantId: plant.id, plantConfigId: plant.getConfig().id });
+      }
+      
+      // TLDR: Emit death event if plant died (became inactive)
+      if (wasActive && !isActive) {
+        eventBus.emit('plant:died', { plantId: plant.id, reason: 'neglect' });
+      }
     }
 
     // Remove dead plants

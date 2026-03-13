@@ -7,6 +7,7 @@ import { Season, SEASON_CONFIG } from '../config/seasons';
  * - Season indicator
  * - Day progress bar (time within current day)
  * - Actions remaining
+ * - Next unlock progress indicator
  */
 export class HUD {
   private container: Container;
@@ -16,13 +17,16 @@ export class HUD {
   private dayProgressBar: Graphics;
   private dayProgressBarBg: Graphics;
   private dayCircle: Graphics;
+  private unlockProgressText: Text;
+  private unlockProgressBar: Graphics;
+  private unlockProgressBarBg: Graphics;
 
   constructor() {
     this.container = new Container();
 
-    // Semi-transparent background panel
+    // Semi-transparent background panel (expanded height for unlock progress)
     const bg = new Graphics();
-    bg.roundRect(0, 0, 600, 60, 8);
+    bg.roundRect(0, 0, 600, 90, 8);
     bg.fill({ color: 0x1a1a1a, alpha: 0.9 });
     bg.stroke({ color: 0x4caf50, width: 2 });
     this.container.addChild(bg);
@@ -99,6 +103,33 @@ export class HUD {
     this.actionsText.x = 460;
     this.actionsText.y = 22;
     this.container.addChild(this.actionsText);
+
+    // Unlock progress indicator (bottom section)
+    const unlockProgressX = 20;
+    const unlockProgressY = 65;
+    const unlockProgressWidth = 560;
+    const unlockProgressHeight = 16;
+
+    this.unlockProgressBarBg = new Graphics();
+    this.unlockProgressBarBg.roundRect(unlockProgressX, unlockProgressY, unlockProgressWidth, unlockProgressHeight, 4);
+    this.unlockProgressBarBg.fill({ color: 0x2a2a2a });
+    this.container.addChild(this.unlockProgressBarBg);
+
+    this.unlockProgressBar = new Graphics();
+    this.container.addChild(this.unlockProgressBar);
+
+    this.unlockProgressText = new Text({
+      text: 'Next unlock: Loading...',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 11,
+        fill: '#ffd700',
+        fontWeight: 'bold',
+      },
+    });
+    this.unlockProgressText.x = unlockProgressX + 5;
+    this.unlockProgressText.y = unlockProgressY + 2;
+    this.container.addChild(this.unlockProgressText);
   }
 
   /**
@@ -161,6 +192,36 @@ export class HUD {
       this.actionsText.style.fill = '#66bb6a'; // Green when full
     } else {
       this.actionsText.style.fill = '#ffeb3b'; // Yellow when partial
+    }
+  }
+
+  /**
+   * TLDR: Update unlock progress indicator
+   * @param milestoneText Display text for next milestone
+   * @param current Current progress value
+   * @param target Target value to unlock
+   */
+  updateUnlockProgress(milestoneText: string, current: number, target: number): void {
+    const unlockProgressX = 20;
+    const unlockProgressY = 65;
+    const unlockProgressWidth = 560;
+    const unlockProgressHeight = 16;
+
+    // Update text
+    this.unlockProgressText.text = `${milestoneText}: ${current}/${target}`;
+
+    // Update progress bar
+    const progress = Math.min(current / target, 1.0);
+    this.unlockProgressBar.clear();
+    if (progress > 0) {
+      this.unlockProgressBar.roundRect(
+        unlockProgressX,
+        unlockProgressY,
+        unlockProgressWidth * progress,
+        unlockProgressHeight,
+        4
+      );
+      this.unlockProgressBar.fill({ color: 0xffd700, alpha: 0.8 });
     }
   }
 

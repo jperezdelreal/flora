@@ -3,13 +3,31 @@
  * All event names and payload types are defined in EventMap.
  */
 
+import type { GrowthStage } from '../entities/Plant';
+
 export interface EventMap {
   'scene:transition': { from: string; to: string };
   'scene:ready': { scene: string };
   'input:action': { action: string; state: 'pressed' | 'released' };
-  // Add game events here as development progresses, e.g.:
-  // 'plant:grew': { plantId: string; stage: number };
-  // 'day:ended': { dayNumber: number };
+  // Plant lifecycle events
+  'plant:created': { plantId: string; x: number; y: number };
+  'plant:grew': { plantId: string; stage: GrowthStage };
+  'plant:watered': { plantId: string; x: number; y: number };
+  'plant:harvested': { plantId: string; seeds: number; isNewDiscovery: boolean };
+  'plant:matured': { plantId: string; plantConfigId: string };
+  'plant:died': { plantId: string; reason: string };
+  // Day/season events
+  'day:advanced': { day: number };
+  'season:ended': { season: string; day: number };
+  // Hazard events
+  'pest:spawned': { pestId: string; plantId: string };
+  'pest:removed': { pestId: string };
+  'drought:started': { duration: number };
+  'drought:ended': { duration: number };
+  // Discovery events
+  'discovery:new': { plantId: string; plantName: string };
+  // Unlock events
+  'milestone:unlocked': { milestoneId: string; milestoneName: string };
 }
 
 type EventName = keyof EventMap & string;
