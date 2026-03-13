@@ -24,6 +24,12 @@ export interface EventMap {
   'pest:removed': { pestId: string };
   'drought:started': { duration: number };
   'drought:ended': { duration: number };
+  // Weather events
+  'weather:warning': { type: string; daysUntil: number; startDay: number; data: unknown };
+  'frost:started': { damagePerDay: number };
+  'frost:ended': Record<string, never>;
+  'heavy_rain:started': Record<string, never>;
+  'heavy_rain:ended': Record<string, never>;
   // Discovery events
   'discovery:new': { plantId: string; plantName: string };
   // Unlock events

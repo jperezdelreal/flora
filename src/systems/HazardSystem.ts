@@ -1,14 +1,11 @@
 import { System } from './index';
 import { Plant } from '../entities/Plant';
-import { Hazard, HazardType, PestState, PestData, DroughtData } from '../entities/Hazard';
+import { Hazard, HazardType, PestState, PestData } from '../entities/Hazard';
 import {
   PEST_CONFIG,
-  DROUGHT_CONFIG,
   getDifficultyScaling,
   scalePestConfig,
-  scaleDroughtConfig,
   PestConfig,
-  DroughtConfig,
 } from '../config/hazards';
 import { Season, SEASON_CONFIG } from '../config/seasons';
 import type { SynergySystem } from './SynergySystem';
@@ -20,19 +17,13 @@ export interface HazardSystemConfig {
   season: Season;
   /** Enable/disable pest spawning (overridden by season if not set explicitly) */
   enablePests?: boolean;
-  /** Enable/disable drought events (overridden by season if not set explicitly) */
-  enableDrought?: boolean;
   /** Optional synergy system for pest deterrent checks */
   synergySystem?: SynergySystem;
 }
 
 /**
- * HazardSystem manages environmental challenges:
- * - Pest spawning on random plants (day 6-8)
- * - Drought weather events (day 5+, increases water needs)
- * - Frost damage in winter (day-by-day for non-frost-resistant plants)
- * - Difficulty scaling across seasons
- * 
+ * TLDR: HazardSystem manages pest spawning and damage
+ * Weather events delegated to WeatherSystem (drought, frost, heavy rain)
  * Design: Hazards are NEVER instant-fail. Players always have counterplay.
  */
 export class HazardSystem implements System {
@@ -41,34 +32,20 @@ export class HazardSystem implements System {
   private currentDay = 0;
   private config: HazardSystemConfig;
   private pestConfig: PestConfig;
-  private droughtConfig: DroughtConfig;
-  private activeDrought: Hazard | null = null;
 
-  // Derived from season config
   private enablePests: boolean;
-  private enableDrought: boolean;
-  private frostEnabled: boolean;
-  private frostDamagePerDay: number;
   private pestSpawnMultiplier: number;
 
-  // Spawn tracking
   private pestSpawnChecked = false;
-  private droughtSpawnChecked = false;
 
   constructor(config: HazardSystemConfig) {
     this.config = config;
     
-    // Apply difficulty scaling
     const scaling = getDifficultyScaling(config.seasonCount);
     this.pestConfig = scalePestConfig(PEST_CONFIG, scaling);
-    this.droughtConfig = scaleDroughtConfig(DROUGHT_CONFIG, scaling);
 
-    // Derive hazard flags from season (explicit overrides take precedence)
     const seasonCfg = SEASON_CONFIG[config.season];
     this.enablePests = config.enablePests ?? true;
-    this.enableDrought = config.enableDrought ?? seasonCfg.droughtEnabled;
-    this.frostEnabled = seasonCfg.frostEnabled;
-    this.frostDamagePerDay = seasonCfg.frostDamagePerDay;
     this.pestSpawnMultiplier = seasonCfg.pestSpawnMultiplier;
   }
 
@@ -76,7 +53,7 @@ export class HazardSystem implements System {
   onDayAdvance(day: number): void {
     this.currentDay = day;
 
-    // Check for pest spawning window
+    // TLDR: Check for pest spawning window
     if (
       this.enablePests &&
       !this.pestSpawnChecked &&
@@ -86,29 +63,15 @@ export class HazardSystem implements System {
       this.spawnPests();
       this.pestSpawnChecked = true;
     }
-
-    // Check for drought event
-    if (
-      this.enableDrought &&
-      !this.droughtSpawnChecked &&
-      day >= this.droughtConfig.warningDay
-    ) {
-      this.spawnDrought();
-      this.droughtSpawnChecked = true;
-    }
-
-    // Advance active hazards
-    this.advanceHazards();
   }
 
   /** Spawn pests on random plants */
   private spawnPests(): void {
-    // No implementation needed here - spawning happens externally
-    // This is a hook for future plant-targeting logic
+    // TLDR: No implementation needed here - spawning happens externally via trySpawnPestOnPlant
   }
 
   /**
-   * Attempt to spawn a pest on a specific plant.
+   * TLDR: Attempt to spawn a pest on a specific plant
    * Season's pestSpawnMultiplier scales the effective resistance chance.
    * Returns true if pest was spawned, false if resisted.
    */
@@ -116,19 +79,17 @@ export class HazardSystem implements System {
     // TLDR: Check pest deterrent synergy first
     if (this.config.synergySystem && allPlants) {
       if (this.config.synergySystem.isPestDeterrentActive(plant.x, plant.y, allPlants)) {
-        return false; // Protected by deterrent
+        return false;
       }
     }
 
-    // Season multiplier: lower values mean pests are less likely to stick
     if (Math.random() > this.pestSpawnMultiplier) {
-      return false; // Season suppresses pest (e.g. winter)
+      return false;
     }
 
-    // Healthy plants have resistance chance
     if (plant.getHealth() > this.pestConfig.resistanceHealthThreshold) {
       if (Math.random() < this.pestConfig.resistanceChance) {
-        return false; // Pest resisted
+        return false;
       }
     }
 
@@ -145,76 +106,7 @@ export class HazardSystem implements System {
     return true;
   }
 
-  /** Spawn drought weather event */
-  private spawnDrought(): void {
-    if (this.activeDrought) {
-      return; // Only one drought at a time
-    }
-
-    const duration =
-      this.droughtConfig.duration[0] +
-      Math.floor(
-        Math.random() * (this.droughtConfig.duration[1] - this.droughtConfig.duration[0] + 1),
-      );
-
-    const droughtId = `drought_${Date.now()}`;
-    const droughtData: DroughtData = {
-      startDay: this.currentDay,
-      duration,
-      daysRemaining: duration,
-      waterNeedMultiplier: this.droughtConfig.waterNeedMultiplier,
-      isActive: true,
-    };
-
-    const drought = new Hazard(droughtId, HazardType.DROUGHT, droughtData);
-    this.hazards.set(droughtId, drought);
-    this.activeDrought = drought;
-  }
-
-  /** Advance all active hazards by one day */
-  private advanceHazards(): void {
-    const hazards = this.getActiveHazards();
-
-    for (const hazard of hazards) {
-      if (hazard.isDrought()) {
-        hazard.advanceDrought();
-        if (!hazard.active) {
-          this.activeDrought = null;
-        }
-      }
-    }
-
-    // Clean up inactive hazards
-    this.cleanupInactiveHazards();
-  }
-
-  /** Apply frost damage to plants that are not frost-resistant (Winter season) */
-  applyFrostDamage(plants: Plant[]): void {
-    if (!this.frostEnabled || this.frostDamagePerDay <= 0) {
-      return;
-    }
-
-    for (const plant of plants) {
-      if (!plant.active) continue;
-      // Plants without WINTER in their availableSeasons are frost-susceptible
-      const config = plant.getConfig();
-      if (!config.availableSeasons.includes(Season.WINTER)) {
-        plant.takeDamage(this.frostDamagePerDay);
-      }
-    }
-  }
-
-  /** Check if frost is currently active */
-  isFrostActive(): boolean {
-    return this.frostEnabled;
-  }
-
-  /** Get frost damage per day (0 if frost not active) */
-  getFrostDamagePerDay(): number {
-    return this.frostEnabled ? this.frostDamagePerDay : 0;
-  }
-
-
+  /** Apply pest damage to plants */
   applyPestDamage(plants: Plant[]): void {
     const pests = this.getActivePests();
 
@@ -228,39 +120,9 @@ export class HazardSystem implements System {
       if (targetPlant && targetPlant.active) {
         targetPlant.takeDamage(pestData.damagePerDay);
       } else {
-        // Target plant is dead/harvested, remove pest
         pest.updatePestState(PestState.REMOVED);
       }
     }
-  }
-
-  /** Get current drought water need multiplier (1.0 if no drought) */
-  getDroughtMultiplier(): number {
-    if (this.activeDrought && this.activeDrought.active) {
-      const droughtData = this.activeDrought.getDroughtData();
-      return droughtData.waterNeedMultiplier;
-    }
-    return 1.0;
-  }
-
-  /** Check if drought is currently active */
-  isDroughtActive(): boolean {
-    return this.activeDrought !== null && this.activeDrought.active;
-  }
-
-  /** Get drought data for UI display */
-  getDroughtInfo():
-    | { active: true; daysRemaining: number; multiplier: number }
-    | { active: false } {
-    if (this.isDroughtActive() && this.activeDrought) {
-      const data = this.activeDrought.getDroughtData();
-      return {
-        active: true,
-        daysRemaining: data.daysRemaining,
-        multiplier: data.waterNeedMultiplier,
-      };
-    }
-    return { active: false };
   }
 
   /** Remove a pest (player action: click to pick off) */
@@ -308,13 +170,11 @@ export class HazardSystem implements System {
   getStats(): {
     totalHazards: number;
     activePests: number;
-    droughtActive: boolean;
     currentDay: number;
   } {
     return {
       totalHazards: this.hazards.size,
       activePests: this.getActivePests().length,
-      droughtActive: this.isDroughtActive(),
       currentDay: this.currentDay,
     };
   }
@@ -324,46 +184,32 @@ export class HazardSystem implements System {
     return this.pestConfig.spawnWindow;
   }
 
-  /** Get drought warning day for UI hints */
-  getDroughtWarningDay(): number {
-    return this.droughtConfig.warningDay;
-  }
-
   /** Reset the system for a new season */
   reset(seasonCount?: number, season?: Season): void {
     this.hazards.clear();
-    this.activeDrought = null;
     this.currentDay = 0;
     this.pestSpawnChecked = false;
-    this.droughtSpawnChecked = false;
 
     if (seasonCount !== undefined) {
       this.config.seasonCount = seasonCount;
-      // Reapply difficulty scaling
       const scaling = getDifficultyScaling(seasonCount);
       this.pestConfig = scalePestConfig(PEST_CONFIG, scaling);
-      this.droughtConfig = scaleDroughtConfig(DROUGHT_CONFIG, scaling);
     }
 
     if (season !== undefined) {
       this.config.season = season;
       const seasonCfg = SEASON_CONFIG[season];
-      this.enableDrought = this.config.enableDrought ?? seasonCfg.droughtEnabled;
-      this.frostEnabled = seasonCfg.frostEnabled;
-      this.frostDamagePerDay = seasonCfg.frostDamagePerDay;
       this.pestSpawnMultiplier = seasonCfg.pestSpawnMultiplier;
     }
   }
 
   /** Fixed-timestep update (placeholder - hazards are day-based) */
   update(delta: number): void {
-    // Hazards update on day advance, not frame-by-frame
-    // This method exists to satisfy the System interface
+    // TLDR: Hazards update on day advance, not frame-by-frame
   }
 
   /** Destroy the system (cleanup) */
   destroy(): void {
     this.hazards.clear();
-    this.activeDrought = null;
   }
 }

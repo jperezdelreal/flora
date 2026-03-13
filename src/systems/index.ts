@@ -10,6 +10,7 @@ export * from './PlayerSystem';
 export * from './EncyclopediaSystem';
 export * from './UnlockSystem';
 export * from './HazardSystem';
+export * from './WeatherSystem';
 export * from './ScoringSystem';
 export * from './SeedSelectionSystem';
 export * from './SynergySystem';
