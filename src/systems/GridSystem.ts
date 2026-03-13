@@ -1,6 +1,7 @@
 import { Container, Graphics, FederatedPointerEvent } from 'pixi.js';
 import { GardenGrid } from '../entities/GardenGrid';
 import { Tile, TileState } from '../entities/Tile';
+import { Season, SEASON_CONFIG } from '../config/seasons';
 
 export class GridSystem {
   private container: Container;
@@ -192,6 +193,14 @@ export class GridSystem {
     const dims = this.grid.getGridDimensions();
     this.container.x = (viewportWidth - dims.width) / 2;
     this.container.y = (viewportHeight - dims.height) / 2;
+  }
+
+  /**
+   * Apply a seasonal color tint to the grid.
+   * Uses the SEASON_CONFIG gridTint value (0xffffff = no tint).
+   */
+  public setSeason(season: Season): void {
+    this.container.tint = SEASON_CONFIG[season].gridTint;
   }
 
   public destroy(): void {

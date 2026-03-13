@@ -1,4 +1,5 @@
 import { Entity } from './index';
+import { Season } from '../config/seasons';
 
 export enum GrowthStage {
   SEED = 'seed',
@@ -21,6 +22,8 @@ export interface PlantConfig {
   readonly yieldSeeds: number; // seeds dropped on harvest
   readonly rarity: 'common' | 'uncommon' | 'rare' | 'heirloom';
   readonly description: string;
+  /** Seasons when this plant can be grown */
+  readonly availableSeasons: Season[];
 }
 
 export interface PlantState {

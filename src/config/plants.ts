@@ -1,4 +1,5 @@
 import { PlantConfig } from '../entities/Plant';
+import { Season } from './seasons';
 
 /**
  * Plant type definitions for Flora MVP.
@@ -16,6 +17,7 @@ export const TOMATO: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'common',
   description: 'Classic garden staple. Requires daily watering but rewards with reliable yield.',
+  availableSeasons: [Season.SPRING, Season.SUMMER],
 };
 
 export const LETTUCE: PlantConfig = {
@@ -27,6 +29,7 @@ export const LETTUCE: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'common',
   description: 'Fast-growing leafy green. Fragile but quick to harvest.',
+  availableSeasons: [Season.SPRING, Season.WINTER],
 };
 
 export const CARROT: PlantConfig = {
@@ -38,6 +41,7 @@ export const CARROT: PlantConfig = {
   yieldSeeds: 1,
   rarity: 'common',
   description: 'Hardy root crop. Slow growth but drought-tolerant.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER],
 };
 
 export const RADISH: PlantConfig = {
@@ -49,6 +53,7 @@ export const RADISH: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'common',
   description: 'Quick-growing root vegetable. Perfect for early harvests.',
+  availableSeasons: [Season.SPRING, Season.FALL, Season.WINTER],
 };
 
 // Uncommon plants (strategic choices)
@@ -61,6 +66,7 @@ export const SUNFLOWER: PlantConfig = {
   yieldSeeds: 3,
   rarity: 'uncommon',
   description: 'Tall flowering plant. Takes time but yields plentiful seeds.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 export const MINT: PlantConfig = {
@@ -72,6 +78,7 @@ export const MINT: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'uncommon',
   description: 'Fragrant herb. Needs consistent moisture but grows vigorously.',
+  availableSeasons: [Season.SPRING, Season.FALL],
 };
 
 export const PEPPER: PlantConfig = {
@@ -83,6 +90,7 @@ export const PEPPER: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'uncommon',
   description: 'Warm-season favorite. Moderate care yields colorful harvests.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 export const BASIL: PlantConfig = {
@@ -94,6 +102,7 @@ export const BASIL: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'uncommon',
   description: 'Aromatic herb. Thrives with regular attention.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 // Rare plants (special properties, unlockable)
@@ -106,6 +115,7 @@ export const FROST_WILLOW: PlantConfig = {
   yieldSeeds: 1,
   rarity: 'rare',
   description: 'Cold-resistant ornamental. Survives harsh conditions others cannot.',
+  availableSeasons: [Season.WINTER],
 };
 
 export const LAVENDER: PlantConfig = {
@@ -117,6 +127,7 @@ export const LAVENDER: PlantConfig = {
   yieldSeeds: 2,
   rarity: 'rare',
   description: 'Fragrant perennial. Slow to mature but extremely drought-tolerant.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 // Heirloom plants (premium unlocks, unique traits)
@@ -129,6 +140,7 @@ export const HEIRLOOM_SQUASH: PlantConfig = {
   yieldSeeds: 3,
   rarity: 'heirloom',
   description: 'Rare heritage variety. Long growth time rewarded with abundant seeds.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 export const GOLDEN_MARIGOLD: PlantConfig = {
@@ -140,6 +152,7 @@ export const GOLDEN_MARIGOLD: PlantConfig = {
   yieldSeeds: 3,
   rarity: 'heirloom',
   description: 'Legendary flower. Vibrant blooms and generous seed yield.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
 };
 
 /** All plant types available in the game */
@@ -174,6 +187,11 @@ export const PLANT_BY_ID: Record<string, PlantConfig> = ALL_PLANTS.reduce(
 /** Get plants by rarity tier */
 export function getPlantsByRarity(rarity: PlantConfig['rarity']): PlantConfig[] {
   return ALL_PLANTS.filter((plant) => plant.rarity === rarity);
+}
+
+/** Get plants available in the given season */
+export function getPlantsBySeason(season: Season): PlantConfig[] {
+  return ALL_PLANTS.filter((plant) => plant.availableSeasons.includes(season));
 }
 
 /** Get a random plant from the collection */

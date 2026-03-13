@@ -13,6 +13,8 @@ import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, Pl
 import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
+import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
+import { getPlantsBySeason } from '../config/plants';
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -49,6 +51,12 @@ export class GardenScene implements Scene {
   private harvestedSeeds: Map<string, number> = new Map();
   private newDiscoveriesThisSeason: Set<string> = new Set();
   
+  // Active season
+  private currentSeason: Season = Season.SPRING;
+  
+  // Stored scene context (needed for season transitions)
+  private _ctx!: SceneContext;
+  
   // Keyboard handler reference for cleanup
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private frameCounter = 0;
@@ -56,8 +64,16 @@ export class GardenScene implements Scene {
   async init(ctx: SceneContext): Promise<void> {
     const { input } = ctx;
     this.input = input;
+    this._ctx = ctx;
 
     ctx.sceneManager.stage.addChild(this.container);
+
+    // Pick a random season for this run
+    this.currentSeason = getRandomSeason();
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+
+    // Apply season background color
+    ctx.app.renderer.background.color = seasonCfg.backgroundColor;
 
     // Initialize encyclopedia system (with localStorage persistence)
     this.encyclopediaSystem = new EncyclopediaSystem();
@@ -68,11 +84,10 @@ export class GardenScene implements Scene {
       encyclopediaSystem: this.encyclopediaSystem,
     });
 
-    // Initialize hazard system
+    // Initialize hazard system with active season
     this.hazardSystem = new HazardSystem({
       seasonCount: 1,
-      enablePests: true,
-      enableDrought: true,
+      season: this.currentSeason,
     });
 
     // Initialize garden grid (8x8)
@@ -86,6 +101,7 @@ export class GardenScene implements Scene {
     // Initialize grid rendering system
     this.gridSystem = new GridSystem(this.grid);
     this.gridSystem.centerInViewport(ctx.app.screen.width, ctx.app.screen.height);
+    this.gridSystem.setSeason(this.currentSeason);
     this.container.addChild(this.gridSystem.getContainer());
 
     // Initialize player at center of grid
@@ -270,6 +286,7 @@ export class GardenScene implements Scene {
       (ctx.app.screen.width - 600) / 2,
       10
     );
+    this.hud.setSeason(this.currentSeason);
     this.container.addChild(this.hud.getContainer());
     
     // Initialize Seed Inventory (side panel)
@@ -384,6 +401,14 @@ export class GardenScene implements Scene {
     this.harvestedSeeds.clear();
     this.newDiscoveriesThisSeason.clear();
     
+    // Pick a new season (different from current when possible)
+    const seasons: Season[] = [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER];
+    const otherSeasons = seasons.filter(s => s !== this.currentSeason);
+    this.currentSeason = otherSeasons[Math.floor(Math.random() * otherSeasons.length)];
+    
+    // Apply new season visuals
+    this.applySeason();
+    
     // Reset player
     this.player.setGridPosition(4, 4);
     
@@ -398,13 +423,29 @@ export class GardenScene implements Scene {
     }
     this.plants.clear();
     
+    // Reset hazard system for the new season
+    this.hazardSystem.reset(undefined, this.currentSeason);
+    
     // Plant demo plants for next season
     this.plantDemoPlants();
     this.gridSystem.update();
   }
   
+  /** Apply seasonal visuals and hazard configuration to all systems */
+  private applySeason(): void {
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+    // Background color
+    if (this._ctx) {
+      this._ctx.app.renderer.background.color = seasonCfg.backgroundColor;
+    }
+    // Grid tint
+    this.gridSystem.setSeason(this.currentSeason);
+    // HUD season indicator
+    this.hud.setSeason(this.currentSeason);
+  }
+  
   private restartRun(): void {
-    // Full restart: clear encyclopedia and start fresh
+    // Full restart: clear encyclopedia and start fresh with a new season
     this.encyclopediaSystem.reset();
     this.startNewSeason();
     this.isPaused = false;
@@ -418,10 +459,32 @@ export class GardenScene implements Scene {
   }
 
   private onDayAdvance(): void {
-    // Advance all plants in the player's plant map
+    const day = this.player.getCurrentDay();
+
+    // Advance all plants
     for (const plant of this.plants.values()) {
       plant.advanceDay();
     }
+
+    // Notify hazard system of day advance (triggers drought/pest windows)
+    this.hazardSystem.onDayAdvance(day);
+
+    // Seasonal pest spawning: attempt to infest a random active plant
+    const activePlants = Array.from(this.plants.values()).filter(p => p.active);
+    if (activePlants.length > 0) {
+      const target = activePlants[Math.floor(Math.random() * activePlants.length)];
+      const tile = this.grid.getTile(target.y, target.x);
+      if (tile && tile.state !== TileState.PEST) {
+        const spawned = this.hazardSystem.trySpawnPestOnPlant(target);
+        if (spawned) {
+          tile.state = TileState.PEST;
+        }
+      }
+    }
+
+    // Apply frost damage (Winter only)
+    this.hazardSystem.applyFrostDamage(activePlants);
+
     this.updateStatusText();
   }
 
@@ -436,16 +499,21 @@ export class GardenScene implements Scene {
   }
 
   private plantDemoPlants(): void {
-    // Plant a variety of plants at different stages for demo
-    const demoPlants = [
-      { id: 'tomato', row: 2, col: 2 },
-      { id: 'lettuce', row: 2, col: 4 },
-      { id: 'carrot', row: 4, col: 3 },
-      { id: 'sunflower', row: 5, col: 5 },
+    // Choose demo plants that are available in the current season
+    const seasonalPlants = getPlantsBySeason(this.currentSeason);
+    
+    // Prefer a mix of rarities; fall back to first available plants
+    const demoSlots = [
+      { row: 2, col: 2 },
+      { row: 2, col: 4 },
+      { row: 4, col: 3 },
+      { row: 5, col: 5 },
     ];
 
-    for (const { id, row, col } of demoPlants) {
-      const plant = this.plantSystem.createPlant(id, col, row);
+    for (let i = 0; i < demoSlots.length && i < seasonalPlants.length; i++) {
+      const plantConfig = seasonalPlants[i % seasonalPlants.length];
+      const { row, col } = demoSlots[i];
+      const plant = this.plantSystem.createPlant(plantConfig.id, col, row);
       if (plant) {
         const tile = this.grid.getTile(row, col);
         if (tile) {
@@ -547,7 +615,7 @@ export class GardenScene implements Scene {
     // Update discovery popup animation
     this.discoveryPopup.update(delta * 1000); // Convert to ms
 
-    // Update hazard UI based on drought status
+    // Update hazard UI based on drought and frost status
     const droughtInfo = this.hazardSystem.getDroughtInfo();
     if (droughtInfo.active) {
       this.hazardUI.showDroughtWarning({
@@ -556,6 +624,14 @@ export class GardenScene implements Scene {
       });
     } else {
       this.hazardUI.hideDroughtWarning();
+    }
+
+    if (this.hazardSystem.isFrostActive()) {
+      this.hazardUI.showFrostWarning({
+        damagePerDay: this.hazardSystem.getFrostDamagePerDay(),
+      });
+    } else {
+      this.hazardUI.hideFrostWarning();
     }
     
     // Update HUD with current status
