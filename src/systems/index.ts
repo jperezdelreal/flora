@@ -12,6 +12,7 @@ export * from './PlantSystem';
 export * from './GridSystem';
 export * from './PlayerSystem';
 export * from './EncyclopediaSystem';
+export * from './UnlockSystem';
 export * from './HazardSystem';
 export { AudioManager, audioManager } from './AudioManager';
 export type { SFXType } from '../config/audio';

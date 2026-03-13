@@ -43,5 +43,6 @@ export * from './seasons';
 // Export plant configurations
 export * from './plants';
 export * from './tools';
+export * from './unlocks';
 export * from './hazards';
 export * from './audio';
