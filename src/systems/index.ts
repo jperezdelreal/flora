@@ -18,3 +18,5 @@ export * from './ScoringSystem';
 export * from './SeedSelectionSystem';
 export { AudioManager, audioManager } from './AudioManager';
 export type { SFXType } from '../config/audio';
+export { SaveManager } from './SaveManager';
+export type { SaveStateCallback } from './SaveManager';

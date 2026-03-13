@@ -1,6 +1,7 @@
 import { System } from './index';
 import { ALL_PLANTS, PLANT_BY_ID } from '../config/plants';
 import type { PlantConfig } from '../entities/Plant';
+import type { SaveManager } from './SaveManager';
 
 export interface DiscoveryEvent {
   plantId: string;
@@ -26,8 +27,10 @@ export class EncyclopediaSystem implements System {
   private discoveredPlants: Set<string> = new Set();
   private discoveryTimestamps: Map<string, number> = new Map();
   private discoveryCallbacks: Array<(event: DiscoveryEvent) => void> = [];
+  private saveManager?: SaveManager;
 
-  constructor() {
+  constructor(saveManager?: SaveManager) {
+    this.saveManager = saveManager;
     this.loadFromStorage();
   }
 
@@ -125,8 +128,20 @@ export class EncyclopediaSystem implements System {
     };
   }
 
-  /** Load discovered plants from localStorage */
+  /** Load discovered plants from localStorage or SaveManager */
   private loadFromStorage(): void {
+    // TLDR: Prefer SaveManager when available, fall back to direct localStorage
+    if (this.saveManager) {
+      const data = this.saveManager.loadEncyclopedia();
+      if (data) {
+        this.discoveredPlants = new Set(data.plants ?? []);
+        this.discoveryTimestamps = new Map(
+          Object.entries(data.timestamps ?? {}).map(([k, v]) => [k, v as number])
+        );
+      }
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -149,13 +164,20 @@ export class EncyclopediaSystem implements System {
     }
   }
 
-  /** Save discovered plants to localStorage */
+  /** Save discovered plants via SaveManager or direct localStorage */
   private saveToStorage(): void {
+    const data = {
+      plants: Array.from(this.discoveredPlants),
+      timestamps: Object.fromEntries(this.discoveryTimestamps),
+    };
+
+    // TLDR: Delegate to SaveManager when available (triggers save indicator)
+    if (this.saveManager) {
+      this.saveManager.saveEncyclopedia(data);
+      return;
+    }
+
     try {
-      const data = {
-        plants: Array.from(this.discoveredPlants),
-        timestamps: Object.fromEntries(this.discoveryTimestamps),
-      };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
     } catch (error) {
       console.warn('EncyclopediaSystem: Failed to save to storage', error);
