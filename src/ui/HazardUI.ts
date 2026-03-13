@@ -5,6 +5,10 @@ export interface DroughtWarningOptions {
   waterMultiplier: number;
 }
 
+export interface FrostWarningOptions {
+  damagePerDay: number;
+}
+
 /**
  * UI component for displaying hazard warnings
  */
@@ -12,6 +16,8 @@ export class HazardUI {
   private container: Container;
   private droughtWarning: Text | null = null;
   private droughtBg: Graphics | null = null;
+  private frostWarning: Text | null = null;
+  private frostBg: Graphics | null = null;
 
   constructor() {
     this.container = new Container();
@@ -61,6 +67,47 @@ export class HazardUI {
     }
   }
 
+  /** Show frost warning indicator */
+  showFrostWarning(options: FrostWarningOptions): void {
+    this.hideFrostWarning();
+
+    this.frostBg = new Graphics();
+    this.frostBg.rect(0, 65, 320, 55);
+    this.frostBg.fill({ color: 0x0a1a3a, alpha: 0.85 });
+    this.frostBg.stroke({ color: 0x64b5f6, width: 2 });
+
+    const warningText = `❄️ FROST ACTIVE\n${options.damagePerDay} HP/day to non-frost-resistant plants`;
+
+    this.frostWarning = new Text({
+      text: warningText,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 15,
+        fill: '#90caf9',
+        align: 'center',
+        fontWeight: 'bold',
+      },
+    });
+    this.frostWarning.anchor.set(0.5, 0.5);
+    this.frostWarning.x = 160;
+    this.frostWarning.y = 93;
+
+    this.container.addChild(this.frostBg);
+    this.container.addChild(this.frostWarning);
+  }
+
+  /** Hide frost warning */
+  hideFrostWarning(): void {
+    if (this.frostWarning) {
+      this.frostWarning.destroy();
+      this.frostWarning = null;
+    }
+    if (this.frostBg) {
+      this.frostBg.destroy();
+      this.frostBg = null;
+    }
+  }
+
   /** Position the UI relative to viewport */
   setPosition(x: number, y: number): void {
     this.container.x = x;
@@ -75,6 +122,7 @@ export class HazardUI {
   /** Destroy the UI component */
   destroy(): void {
     this.hideDroughtWarning();
+    this.hideFrostWarning();
     this.container.destroy({ children: true });
   }
 }

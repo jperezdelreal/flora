@@ -5,7 +5,7 @@ export * from './ToolBar';
 export * from './Encyclopedia';
 export * from './DiscoveryPopup';
 export { HazardUI } from './HazardUI';
-export type { DroughtWarningOptions } from './HazardUI';
+export type { DroughtWarningOptions, FrostWarningOptions } from './HazardUI';
 export { HUD } from './HUD';
 export { SeedInventory } from './SeedInventory';
 export { PlantInfoPanel } from './PlantInfoPanel';

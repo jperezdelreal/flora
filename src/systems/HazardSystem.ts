@@ -10,20 +10,24 @@ import {
   PestConfig,
   DroughtConfig,
 } from '../config/hazards';
+import { Season, SEASON_CONFIG } from '../config/seasons';
 
 export interface HazardSystemConfig {
   /** Current season number (for difficulty scaling) */
   seasonCount: number;
-  /** Enable/disable pest spawning */
-  enablePests: boolean;
-  /** Enable/disable drought events */
-  enableDrought: boolean;
+  /** Active season (drives hazard profile) */
+  season: Season;
+  /** Enable/disable pest spawning (overridden by season if not set explicitly) */
+  enablePests?: boolean;
+  /** Enable/disable drought events (overridden by season if not set explicitly) */
+  enableDrought?: boolean;
 }
 
 /**
  * HazardSystem manages environmental challenges:
  * - Pest spawning on random plants (day 6-8)
  * - Drought weather events (day 5+, increases water needs)
+ * - Frost damage in winter (day-by-day for non-frost-resistant plants)
  * - Difficulty scaling across seasons
  * 
  * Design: Hazards are NEVER instant-fail. Players always have counterplay.
@@ -37,6 +41,13 @@ export class HazardSystem implements System {
   private droughtConfig: DroughtConfig;
   private activeDrought: Hazard | null = null;
 
+  // Derived from season config
+  private enablePests: boolean;
+  private enableDrought: boolean;
+  private frostEnabled: boolean;
+  private frostDamagePerDay: number;
+  private pestSpawnMultiplier: number;
+
   // Spawn tracking
   private pestSpawnChecked = false;
   private droughtSpawnChecked = false;
@@ -48,6 +59,14 @@ export class HazardSystem implements System {
     const scaling = getDifficultyScaling(config.seasonCount);
     this.pestConfig = scalePestConfig(PEST_CONFIG, scaling);
     this.droughtConfig = scaleDroughtConfig(DROUGHT_CONFIG, scaling);
+
+    // Derive hazard flags from season (explicit overrides take precedence)
+    const seasonCfg = SEASON_CONFIG[config.season];
+    this.enablePests = config.enablePests ?? true;
+    this.enableDrought = config.enableDrought ?? seasonCfg.droughtEnabled;
+    this.frostEnabled = seasonCfg.frostEnabled;
+    this.frostDamagePerDay = seasonCfg.frostDamagePerDay;
+    this.pestSpawnMultiplier = seasonCfg.pestSpawnMultiplier;
   }
 
   /** Advance day counter (called by PlantSystem or game loop) */
@@ -56,7 +75,7 @@ export class HazardSystem implements System {
 
     // Check for pest spawning window
     if (
-      this.config.enablePests &&
+      this.enablePests &&
       !this.pestSpawnChecked &&
       day >= this.pestConfig.spawnWindow[0] &&
       day <= this.pestConfig.spawnWindow[1]
@@ -67,7 +86,7 @@ export class HazardSystem implements System {
 
     // Check for drought event
     if (
-      this.config.enableDrought &&
+      this.enableDrought &&
       !this.droughtSpawnChecked &&
       day >= this.droughtConfig.warningDay
     ) {
@@ -86,10 +105,16 @@ export class HazardSystem implements System {
   }
 
   /**
-   * Attempt to spawn a pest on a specific plant
-   * Returns true if pest was spawned, false if resisted
+   * Attempt to spawn a pest on a specific plant.
+   * Season's pestSpawnMultiplier scales the effective resistance chance.
+   * Returns true if pest was spawned, false if resisted.
    */
   trySpawnPestOnPlant(plant: Plant): boolean {
+    // Season multiplier: lower values mean pests are less likely to stick
+    if (Math.random() > this.pestSpawnMultiplier) {
+      return false; // Season suppresses pest (e.g. winter)
+    }
+
     // Healthy plants have resistance chance
     if (plant.getHealth() > this.pestConfig.resistanceHealthThreshold) {
       if (Math.random() < this.pestConfig.resistanceChance) {
@@ -153,7 +178,33 @@ export class HazardSystem implements System {
     this.cleanupInactiveHazards();
   }
 
-  /** Apply pest damage to target plants */
+  /** Apply frost damage to plants that are not frost-resistant (Winter season) */
+  applyFrostDamage(plants: Plant[]): void {
+    if (!this.frostEnabled || this.frostDamagePerDay <= 0) {
+      return;
+    }
+
+    for (const plant of plants) {
+      if (!plant.active) continue;
+      // Plants without WINTER in their availableSeasons are frost-susceptible
+      const config = plant.getConfig();
+      if (!config.availableSeasons.includes(Season.WINTER)) {
+        plant.takeDamage(this.frostDamagePerDay);
+      }
+    }
+  }
+
+  /** Check if frost is currently active */
+  isFrostActive(): boolean {
+    return this.frostEnabled;
+  }
+
+  /** Get frost damage per day (0 if frost not active) */
+  getFrostDamagePerDay(): number {
+    return this.frostEnabled ? this.frostDamagePerDay : 0;
+  }
+
+
   applyPestDamage(plants: Plant[]): void {
     const pests = this.getActivePests();
 
@@ -269,7 +320,7 @@ export class HazardSystem implements System {
   }
 
   /** Reset the system for a new season */
-  reset(seasonCount?: number): void {
+  reset(seasonCount?: number, season?: Season): void {
     this.hazards.clear();
     this.activeDrought = null;
     this.currentDay = 0;
@@ -282,6 +333,15 @@ export class HazardSystem implements System {
       const scaling = getDifficultyScaling(seasonCount);
       this.pestConfig = scalePestConfig(PEST_CONFIG, scaling);
       this.droughtConfig = scaleDroughtConfig(DROUGHT_CONFIG, scaling);
+    }
+
+    if (season !== undefined) {
+      this.config.season = season;
+      const seasonCfg = SEASON_CONFIG[season];
+      this.enableDrought = this.config.enableDrought ?? seasonCfg.droughtEnabled;
+      this.frostEnabled = seasonCfg.frostEnabled;
+      this.frostDamagePerDay = seasonCfg.frostDamagePerDay;
+      this.pestSpawnMultiplier = seasonCfg.pestSpawnMultiplier;
     }
   }
 

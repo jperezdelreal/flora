@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { Season, SEASON_CONFIG } from '../config/seasons';
 
 /**
  * HUD displays game status information at the top of the screen:
@@ -166,6 +167,24 @@ export class HUD {
   setPosition(x: number, y: number): void {
     this.container.x = x;
     this.container.y = y;
+  }
+
+  /**
+   * Update the season indicator in the HUD.
+   * Adjusts the text and text color to match the active season's palette.
+   */
+  setSeason(season: Season): void {
+    const cfg = SEASON_CONFIG[season];
+    this.seasonText.text = `${cfg.emoji} ${cfg.displayName}`;
+
+    // Map season to a pleasing text color
+    const seasonColors: Record<Season, string> = {
+      [Season.SPRING]: '#a8e6cf',  // soft mint green
+      [Season.SUMMER]: '#ffe082',  // warm yellow
+      [Season.FALL]: '#ffcc80',    // warm orange
+      [Season.WINTER]: '#b3d9ff',  // cool blue
+    };
+    this.seasonText.style.fill = seasonColors[season];
   }
 
   getContainer(): Container {

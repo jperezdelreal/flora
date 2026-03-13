@@ -38,6 +38,8 @@ export const COLORS = {
   BLACK: 0x000000,
 } as const;
 
+// Export season configurations
+export * from './seasons';
 // Export plant configurations
 export * from './plants';
 export * from './tools';
