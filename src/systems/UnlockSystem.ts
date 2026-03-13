@@ -1,5 +1,6 @@
 import { System } from './index';
 import { MilestoneConfig, MilestoneType, UNLOCK_MILESTONES, getNextMilestone as getNextUnlockMilestone } from '../config/unlocks';
+import type { SaveManager } from './SaveManager';
 
 /**
  * TLDR: Player progression data persisted across sessions
@@ -32,8 +33,10 @@ export class UnlockSystem implements System {
   readonly name = 'UnlockSystem';
   private progress: UnlockProgress;
   private unlockCallbacks: Array<(event: UnlockEvent) => void> = [];
+  private saveManager?: SaveManager;
 
-  constructor() {
+  constructor(saveManager?: SaveManager) {
+    this.saveManager = saveManager;
     this.progress = this.loadFromStorage();
   }
 
@@ -178,9 +181,30 @@ export class UnlockSystem implements System {
   }
 
   /**
-   * TLDR: Load progress from localStorage
+   * TLDR: Load progress from SaveManager or direct localStorage
    */
   private loadFromStorage(): UnlockProgress {
+    // TLDR: Prefer SaveManager when available, fall back to direct localStorage
+    if (this.saveManager) {
+      const data = this.saveManager.loadUnlocks();
+      if (data) {
+        return {
+          plantsHarvested: data.plantsHarvested ?? 0,
+          plantsMature: data.plantsMature ?? 0,
+          plantDiversity: data.plantDiversity ?? 0,
+          unlockedMilestones: data.unlockedMilestones ?? [],
+          timestamps: data.timestamps ?? {},
+        };
+      }
+      return {
+        plantsHarvested: 0,
+        plantsMature: 0,
+        plantDiversity: 0,
+        unlockedMilestones: [],
+        timestamps: {},
+      };
+    }
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -208,9 +232,15 @@ export class UnlockSystem implements System {
   }
 
   /**
-   * TLDR: Save progress to localStorage
+   * TLDR: Save progress via SaveManager or direct localStorage
    */
   private saveToStorage(): void {
+    // TLDR: Delegate to SaveManager when available (triggers save indicator)
+    if (this.saveManager) {
+      this.saveManager.saveUnlocks(this.progress);
+      return;
+    }
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.progress));
     } catch (error) {

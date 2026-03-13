@@ -16,3 +16,4 @@ export { PauseMenu } from './PauseMenu';
 export type { PauseMenuCallbacks } from './PauseMenu';
 export { SeedPacketDisplay } from './SeedPacketDisplay';
 export { ScoreSummary } from './ScoreSummary';
+export { SaveIndicator } from './SaveIndicator';

@@ -12,6 +12,7 @@
  */
 
 import { AUDIO, type SFXType } from '../config/audio';
+import type { SaveManager } from './SaveManager';
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -54,12 +55,16 @@ export class AudioManager {
   // SFX debounce tracking (50ms per type to prevent stacking)
   private lastPlayTimes: Map<SFXType, number> = new Map();
   private readonly DEBOUNCE_MS = 50;
+  private saveManager?: SaveManager;
   
   /**
    * Initialize audio context and routing graph
    */
-  init(): void {
+  init(saveManager?: SaveManager): void {
     if (this.ctx) return; // Already initialized
+    
+    // TLDR: Store SaveManager reference for delegated save/load
+    this.saveManager = saveManager;
     
     // Load saved volume preferences
     this._loadPreferences();
@@ -621,9 +626,29 @@ export class AudioManager {
   }
 
   /**
-   * Load volume preferences from localStorage
+   * Load volume preferences from SaveManager or direct localStorage
    */
   private _loadPreferences(): void {
+    // TLDR: Prefer SaveManager when available, fall back to direct localStorage
+    if (this.saveManager) {
+      const data = this.saveManager.loadAudio();
+      if (data) {
+        this.volumePreferences = {
+          master: data.master ?? AUDIO.VOLUMES.MASTER,
+          sfx: data.sfx ?? AUDIO.VOLUMES.SFX,
+          ambient: data.ambient ?? AUDIO.VOLUMES.AMBIENT,
+          music: data.music ?? AUDIO.VOLUMES.MUSIC,
+        };
+        this.muted = {
+          master: data.muted?.master ?? false,
+          sfx: data.muted?.sfx ?? false,
+          ambient: data.muted?.ambient ?? false,
+          music: data.muted?.music ?? false,
+        };
+      }
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(this.STORAGE_KEY);
       if (stored) {
@@ -650,17 +675,24 @@ export class AudioManager {
   }
 
   /**
-   * Save volume preferences to localStorage
+   * Save volume preferences via SaveManager or direct localStorage
    */
   private _savePreferences(): void {
+    const data = {
+      master: this.volumePreferences.master,
+      sfx: this.volumePreferences.sfx,
+      ambient: this.volumePreferences.ambient,
+      music: this.volumePreferences.music,
+      muted: { ...this.muted },
+    };
+
+    // TLDR: Delegate to SaveManager when available (triggers save indicator)
+    if (this.saveManager) {
+      this.saveManager.saveAudio(data);
+      return;
+    }
+
     try {
-      const data = {
-        master: this.volumePreferences.master,
-        sfx: this.volumePreferences.sfx,
-        ambient: this.volumePreferences.ambient,
-        music: this.volumePreferences.music,
-        muted: { ...this.muted },
-      };
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
     } catch (e) {
       // localStorage unavailable - fail silently

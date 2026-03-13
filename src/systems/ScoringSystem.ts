@@ -3,6 +3,7 @@ import { eventBus } from '../core/EventBus';
 import { SCORE_CONFIG, getScoreMilestone, getNextScoreMilestone } from '../config/scoring';
 import type { MilestoneThreshold } from '../config/scoring';
 import { PLANT_BY_ID } from '../config/plants';
+import type { SaveManager } from './SaveManager';
 
 /**
  * TLDR: Tracks score breakdown by category
@@ -51,8 +52,10 @@ export class ScoringSystem implements System {
   private stats: RunStats;
   private lastActionPoints = 0;
   private highScores: HighScoreEntry[] = [];
+  private saveManager?: SaveManager;
 
-  constructor() {
+  constructor(saveManager?: SaveManager) {
+    this.saveManager = saveManager;
     this.stats = this.resetStats();
     this.loadHighScores();
     this.subscribeToEvents();
@@ -233,9 +236,21 @@ export class ScoringSystem implements System {
   }
 
   /**
-   * TLDR: Load high scores from localStorage
+   * TLDR: Load high scores from SaveManager or direct localStorage
    */
   private loadHighScores(): void {
+    // TLDR: Prefer SaveManager when available, fall back to direct localStorage
+    if (this.saveManager) {
+      const data = this.saveManager.loadHighScores();
+      if (data) {
+        this.highScores = data.map((entry) => ({
+          ...entry,
+          breakdown: entry.breakdown ?? { harvests: 0, diversity: 0, perfection: 0, hazards: 0, total: entry.score },
+        }));
+      }
+      return;
+    }
+
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       if (stored) {
@@ -251,9 +266,15 @@ export class ScoringSystem implements System {
   }
 
   /**
-   * TLDR: Save high scores to localStorage
+   * TLDR: Save high scores via SaveManager or direct localStorage
    */
   private saveHighScores(): void {
+    // TLDR: Delegate to SaveManager when available (triggers save indicator)
+    if (this.saveManager) {
+      this.saveManager.saveHighScores(this.highScores);
+      return;
+    }
+
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(this.highScores));
     } catch (error) {

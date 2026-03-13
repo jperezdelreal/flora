@@ -10,7 +10,8 @@ import { PlantSystem } from '../systems/PlantSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { HazardSystem } from '../systems/HazardSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary } from '../ui';
+import { SaveManager } from '../systems/SaveManager';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
@@ -52,6 +53,10 @@ export class GardenScene implements Scene {
   private scoringSystem!: ScoringSystem;
   private isPaused = false;
   
+  // TLDR: Save system integration
+  private saveManager: SaveManager;
+  private saveIndicator!: SaveIndicator;
+  
   // Session tracking
   private harvestedSeeds: Map<string, number> = new Map();
   private newDiscoveriesThisSeason: Set<string> = new Set();
@@ -65,6 +70,10 @@ export class GardenScene implements Scene {
   // Keyboard handler reference for cleanup
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private frameCounter = 0;
+
+  constructor(saveManager: SaveManager) {
+    this.saveManager = saveManager;
+  }
 
   async init(ctx: SceneContext): Promise<void> {
     const { input } = ctx;
@@ -80,8 +89,8 @@ export class GardenScene implements Scene {
     // Apply season background color
     ctx.app.renderer.background.color = seasonCfg.backgroundColor;
 
-    // Initialize encyclopedia system (with localStorage persistence)
-    this.encyclopediaSystem = new EncyclopediaSystem();
+    // Initialize encyclopedia system (with SaveManager persistence)
+    this.encyclopediaSystem = new EncyclopediaSystem(this.saveManager);
 
     // Initialize plant system (30 seconds per in-game day for demo)
     this.plantSystem = new PlantSystem({
@@ -95,8 +104,8 @@ export class GardenScene implements Scene {
       season: this.currentSeason,
     });
 
-    // Initialize scoring system
-    this.scoringSystem = new ScoringSystem();
+    // Initialize scoring system (with SaveManager persistence)
+    this.scoringSystem = new ScoringSystem(this.saveManager);
 
     // Initialize garden grid (8x8)
     this.grid = new GardenGrid({
@@ -339,6 +348,11 @@ export class GardenScene implements Scene {
     });
     this.container.addChild(this.scoreSummary.getContainer());
     
+    // TLDR: Initialize save indicator (top-right, subscribes to SaveManager events)
+    this.saveIndicator = new SaveIndicator(this.saveManager);
+    this.saveIndicator.setPosition(ctx.app.screen.width - 120, 60);
+    this.container.addChild(this.saveIndicator.getContainer());
+    
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
 
@@ -466,7 +480,7 @@ export class GardenScene implements Scene {
   }
   
   private showScoreSummary(): void {
-    // Save score and get high score data
+    // TLDR: Trigger save on run end — score is persisted via SaveManager
     const isNewRecord = this.scoringSystem.saveScore();
     const breakdown = this.scoringSystem.getScoreBreakdown();
     const milestone = this.scoringSystem.getCurrentMilestone();
@@ -802,6 +816,7 @@ export class GardenScene implements Scene {
     this.daySummary.destroy();
     this.pauseMenu.destroy();
     this.scoreSummary.destroy();
+    this.saveIndicator.destroy();
     this.plants.clear();
     this.container.destroy({ children: true });
     this.container = new Container();
