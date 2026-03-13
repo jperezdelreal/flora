@@ -5,6 +5,7 @@ export interface PauseMenuCallbacks {
   onResume?: () => void;
   onRestart?: () => void;
   onEncyclopedia?: () => void;
+  onAchievements?: () => void;
   onHowToPlay?: () => void;
   onMainMenu?: () => void;
 }
@@ -37,7 +38,7 @@ export class PauseMenu {
 
     // Menu panel
     const panel = new Graphics();
-    panel.roundRect(250, 130, 300, 400, 16);
+    panel.roundRect(250, 130, 300, 460, 16);
     panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
     panel.stroke({ color: 0x4caf50, width: 3 });
     this.container.addChild(panel);
@@ -63,6 +64,7 @@ export class PauseMenu {
       { label: 'Resume', action: 'resume' },
       { label: 'Restart Run', action: 'restart' },
       { label: 'Encyclopedia', action: 'encyclopedia' },
+      { label: 'Achievements', action: 'achievements' },
       { label: 'How to Play', action: 'howToPlay' },
       { label: 'Main Menu', action: 'mainMenu' },
     ];
@@ -144,6 +146,11 @@ export class PauseMenu {
           this.callbacks.onEncyclopedia();
         }
         break;
+      case 'achievements':
+        if (this.callbacks.onAchievements) {
+          this.callbacks.onAchievements();
+        }
+        break;
       case 'howToPlay':
         if (this.callbacks.onHowToPlay) {
           this.callbacks.onHowToPlay();
@@ -159,7 +166,7 @@ export class PauseMenu {
   }
 
   private createMuteToggle(): void {
-    const y = 500;
+    const y = 560;
     
     this.muteButton = new Graphics();
     this.muteButton.roundRect(0, 0, 260, 45, 8);

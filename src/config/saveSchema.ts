@@ -11,6 +11,7 @@ export const SAVE_KEYS = {
   AUDIO: 'flora:audio:preferences',
   TUTORIAL: 'flora_tutorial',
   GARDEN: 'flora_garden',
+  ACHIEVEMENTS: 'flora_achievements',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */
@@ -66,6 +67,19 @@ export interface GardenSaveData {
   structures: StructureState[];
 }
 
+/** TLDR: Persisted achievement state (unlock status + cumulative counters) */
+export interface AchievementSaveData {
+  achievements: Record<string, { unlocked: boolean; unlockedAt: number | null }>;
+  counters: {
+    totalHarvests: number;
+    tomatoHarvests: number;
+    synergiesActivated: number;
+    runsCompleted: number;
+    discoveredSpecies: number;
+  };
+  cosmeticRewards: string[];
+}
+
 /** TLDR: Full save file shape — used for validation and migration */
 export interface SaveSchema {
   version: number;
@@ -74,4 +88,5 @@ export interface SaveSchema {
   highScores: HighScoreSaveData[];
   audio: AudioSaveData;
   garden: GardenSaveData;
+  achievements: AchievementSaveData;
 }
