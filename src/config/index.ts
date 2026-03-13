@@ -39,14 +39,12 @@ export const COLORS = {
   BLACK: 0x000000,
 } as const;
 
-// Export season configurations
 export * from './seasons';
-// Export plant configurations
 export * from './plants';
 export * from './tools';
 export * from './hazards';
 export * from './audio';
-// Explicitly export from unlocks and scoring to resolve ambiguity
+export * from './synergies';
 export type { MilestoneConfig, MilestoneType } from './unlocks';
 export { UNLOCK_MILESTONES, getAllMilestones } from './unlocks';
 export { getNextMilestone as getNextUnlockMilestone } from './unlocks';

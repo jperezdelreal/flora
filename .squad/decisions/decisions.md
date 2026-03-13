@@ -10,27 +10,6 @@
 
 ---
 
-## 2025-07-14: UI Components Must Clean Up Window Listeners
-
-**Author:** Oak  
-**Context:** PR #25 review (Garden UI/HUD, Issue #9)
-
-### Decision
-
-Any component or scene that calls `window.addEventListener()` MUST:
-1. Store the handler as a bound class field (e.g., `private boundOnKeyDown`)
-2. Remove it in `destroy()` via `window.removeEventListener()`
-
-### Rationale
-
-GardenScene.setupKeyboardShortcuts() used an anonymous listener that can't be removed. On scene transitions, this causes listener accumulation → double-fired events. Encyclopedia.ts already follows the correct pattern — this formalizes it as a project-wide rule.
-
-### Scope
-
-Applies to all `src/ui/` and `src/scenes/` files. Any future `window.addEventListener` usage.
-
----
-
 ## 2026-03-13: Unlock System Architecture Pattern
 
 **Agent:** Misty (Web UI Dev)  
@@ -168,3 +147,58 @@ No repo may make direct git commits to another repo's branch. ALL cross-repo com
 **What:** Permiso total en esta sesion para ejecutar cualquier trabajo y mergear PRs sin pedir confirmacion. Autonomia completa.
 
 **Why:** User request — captured for team memory. Enables Ralph to merge approved PRs and continue pipeline without pausing.
+
+---
+
+## 2026-03-13: Save System Architecture (Issue #48)
+
+**Agent:** Brock (Web Engine Dev)  
+**Status:** Implemented (PR #61)
+
+### Context
+
+Flora needed a persistent save system to retain player progress across sessions. Previously, Encyclopedia, Unlock, Scoring, and Audio systems each managed their own localStorage keys independently, creating fragmentation and making schema changes risky.
+
+### Decision
+
+Implemented a **centralized SaveManager** that coordinates all persistence operations:
+
+1. **Single source of truth**: `SaveManager` owns the unified `SaveData` schema
+2. **Versioned schema**: All saves include a version number for safe migrations
+3. **Optional injection pattern**: Systems accept optional `SaveManager` in constructor, fall back to direct localStorage if not provided (backward compatible)
+4. **Auto-save with dirty tracking**: SaveManager subscribes to EventBus, auto-saves every 60s when dirty
+5. **Safe storage utilities**: Never-throw wrappers around localStorage with fallback values
+6. **UI feedback**: `SaveIndicator` component shows save status with fade animation
+
+### Rationale
+
+- **Consolidation prevents conflicts**: Single save file eliminates key collisions, ensures atomic updates
+- **Versioning enables evolution**: Schema changes are safe; old saves migrate automatically
+- **Optional injection preserves backward compatibility**: Systems work standalone or with SaveManager
+- **Auto-save reduces data loss**: Player never has to manually save; progress persists across crashes
+- **Corruption handling**: Validates structure on load, repairs broken saves, never crashes
+
+### Alternatives Considered
+
+1. **Keep scattered localStorage keys** — Rejected: fragile, hard to version, no atomicity
+2. **Require SaveManager everywhere** — Rejected: breaks existing tests, not backward compatible
+3. **IndexedDB instead of localStorage** — Deferred: localStorage sufficient for MVP, IndexedDB for cloud sync later
+
+### Consequences
+
+#### Positive
+- Unified save format across all systems
+- Easy to add export/import features later
+- Safe schema evolution via versioning
+- Clear UI feedback on save status
+
+#### Negative
+- Slightly more complex initialization (wire SaveManager to all systems)
+- Systems now have dual save paths (SaveManager vs direct localStorage)
+
+### Implementation Notes
+
+- SaveManager updates are batched via dirty flag + 60s timer
+- Systems call `saveManager.updateX()` methods, not `saveManager.save()` directly
+- Manual saves triggered at run end, not per-action
+- SaveIndicator positioned bottom-right, fades after 1s display

@@ -31,6 +31,9 @@ export interface EventMap {
   // Scoring events
   'score:updated': { total: number; lastAction: number };
   'score:milestone': { milestone: string; score: number };
+  // Synergy events
+  'synergy:activated': { plantId: string; synergyId: string; x: number; y: number };
+  'synergy:tutorial': { synergyId: string };
 }
 
 type EventName = keyof EventMap & string;

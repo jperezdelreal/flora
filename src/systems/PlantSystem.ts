@@ -3,12 +3,15 @@ import { Plant, PlantConfig, GrowthStage } from '../entities/Plant';
 import { PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 import type { EncyclopediaSystem } from './EncyclopediaSystem';
+import type { SynergySystem } from './SynergySystem';
 
 export interface PlantSystemConfig {
   /** Frames per in-game day (60fps * seconds) */
   framesPerDay: number;
   /** Optional encyclopedia system for discovery tracking */
   encyclopediaSystem?: EncyclopediaSystem;
+  /** Optional synergy system for bonus calculation */
+  synergySystem?: SynergySystem;
 }
 
 /**
@@ -165,6 +168,11 @@ export class PlantSystem implements System {
     
     // TLDR: Emit day advancement event for audio
     eventBus.emit('day:advanced', { day: this.currentDay });
+
+    // TLDR: Recalculate synergies before advancing day
+    if (this.config.synergySystem) {
+      this.config.synergySystem.calculateSynergies(this.getActivePlants());
+    }
 
     const plants = this.getActivePlants();
     for (const plant of plants) {
