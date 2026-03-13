@@ -18,13 +18,15 @@ export interface MilestoneConfig {
 export type MilestoneType = 
   | 'plants_harvested'    // Total plants harvested across all runs
   | 'plants_matured'      // Plants successfully grown to maturity
-  | 'plant_diversity';    // Unique plant species discovered
+  | 'plant_diversity'     // Unique plant species discovered
+  | 'runs_completed';     // Total garden runs completed
 
 /**
  * TLDR: Milestone definitions organized by progression type
  * Tier 1: 5 plants (basic tools)
  * Tier 2: 15 plants (advanced tools)
  * Tier 3: 30 plants (garden expansions)
+ * Runs milestones: grid expansion at 10 & 20 runs, structure unlocks at 5 & 10 runs
  */
 export const UNLOCK_MILESTONES: Record<MilestoneType, MilestoneConfig[]> = {
   plants_harvested: [
@@ -102,6 +104,35 @@ export const UNLOCK_MILESTONES: Record<MilestoneType, MilestoneConfig[]> = {
       threshold: 10,
       rewardType: 'ability',
       rewardValue: 'all_plants_unlocked',
+      icon: '🏆',
+    },
+  ],
+  runs_completed: [
+    {
+      id: 'runs_5',
+      displayName: 'Seasoned Gardener',
+      description: 'Complete 5 runs to unlock the Rain Barrel',
+      threshold: 5,
+      rewardType: 'ability',
+      rewardValue: 'rain_barrel',
+      icon: '🛢️',
+    },
+    {
+      id: 'runs_10',
+      displayName: 'Garden Expansion I',
+      description: 'Complete 10 runs to expand your garden to 10×10',
+      threshold: 10,
+      rewardType: 'grid_expansion',
+      rewardValue: '10x10',
+      icon: '🌟',
+    },
+    {
+      id: 'runs_20',
+      displayName: 'Garden Expansion II',
+      description: 'Complete 20 runs to expand your garden to 12×12',
+      threshold: 20,
+      rewardType: 'grid_expansion',
+      rewardValue: '12x12',
       icon: '🏆',
     },
   ],

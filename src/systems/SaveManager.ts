@@ -6,6 +6,7 @@ import type {
   UnlockSaveData,
   HighScoreSaveData,
   AudioSaveData,
+  GardenSaveData,
 } from '../config/saveSchema';
 import { loadJSON, saveJSON, isStorageAvailable } from '../utils/storage';
 
@@ -85,6 +86,16 @@ export class SaveManager {
   /** TLDR: Load audio preferences */
   loadAudio(): AudioSaveData | null {
     return this.load<AudioSaveData>(SAVE_KEYS.AUDIO);
+  }
+
+  /** TLDR: Save garden expansion data (grid size + structures) */
+  saveGarden(data: GardenSaveData): boolean {
+    return this.save(SAVE_KEYS.GARDEN, data);
+  }
+
+  /** TLDR: Load garden expansion data */
+  loadGarden(): GardenSaveData | null {
+    return this.load<GardenSaveData>(SAVE_KEYS.GARDEN);
   }
 
   // ------ Save-state notifications ------

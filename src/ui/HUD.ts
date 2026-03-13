@@ -23,6 +23,7 @@ export class HUD {
   private scoreText: Text;
   private lastActionPointsText: Text;
   private weatherWarningText: Text;
+  private gridInfoText: Text;
 
   constructor() {
     this.container = new Container();
@@ -175,6 +176,21 @@ export class HUD {
     this.weatherWarningText.y = 112;
     this.weatherWarningText.visible = false;
     this.container.addChild(this.weatherWarningText);
+
+    // TLDR: Grid size & structures indicator (right side of weather row)
+    this.gridInfoText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 13,
+        fill: '#a5d6a7',
+        fontWeight: 'bold',
+      },
+    });
+    this.gridInfoText.x = 400;
+    this.gridInfoText.y = 112;
+    this.gridInfoText.visible = false;
+    this.container.addChild(this.gridInfoText);
   }
 
   /**
@@ -320,6 +336,21 @@ export class HUD {
     } else {
       this.weatherWarningText.visible = false;
     }
+  }
+
+  /**
+   * TLDR: Update grid info display (grid size + structure count)
+   * @param rows Current grid rows
+   * @param cols Current grid cols
+   * @param structureCount Number of placed structures
+   */
+  updateGridInfo(rows: number, cols: number, structureCount: number): void {
+    const parts: string[] = [`🌿 ${cols}×${rows}`];
+    if (structureCount > 0) {
+      parts.push(`🏗️ ${structureCount}`);
+    }
+    this.gridInfoText.text = parts.join('  ');
+    this.gridInfoText.visible = true;
   }
 
   getContainer(): Container {
