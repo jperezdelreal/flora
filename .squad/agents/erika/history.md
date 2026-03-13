@@ -35,3 +35,22 @@ Implemented seed synergies and polyculture bonuses for issue #51. Key architectu
 
 **Build Status**: Zero TypeScript errors. All systems integrated cleanly via dependency injection in GardenScene.init().
 
+### Weather System Architecture (PR #74)
+Completed issue #49 — split weather events from HazardSystem into dedicated WeatherSystem with 2-day telegraph warnings. Key architectural decisions:
+
+1. **System Separation**: Weather logic (drought, frost, heavy rain) moved from HazardSystem to WeatherSystem. HazardSystem now focused solely on pests. This follows single-responsibility principle and makes weather mechanics more extensible.
+
+2. **2-Day Telegraph Pattern**: All weather events schedule a warning 2 days before activation. WeatherSystem.scheduleWeatherEvents() creates both warning day and start day triggers. Pattern: `warningDay = startDay - 2`.
+
+3. **Event-Driven Warnings**: WeatherSystem emits `weather:warning` event with threat/mitigation data. HazardWarning UI subscribes to display visual banner. This decouples warning UI from system logic.
+
+4. **EventBus Extensions**: Added weather:warning, frost:started/ended, heavy_rain:started/ended events. Ensures all systems can react to weather changes without tight coupling.
+
+5. **UI Layering**: HazardWarning (full-screen telegraphs) → HazardUI (active status banners) → HUD (compact warnings). Three layers of visibility ensure players never miss threats.
+
+6. **Weather Mechanics**: Drought increases water need multiplier (1.5x) and soil drying rate (2x). Frost applies damage to non-frost-resistant plants daily. Heavy Rain locks soil moisture at 100%. All mechanics query WeatherSystem state rather than modifying plant/grid state directly.
+
+7. **Integration Pattern**: GardenScene.onDayAdvance calls both hazardSystem.onDayAdvance (pests) and weatherSystem.onDayAdvance (weather). Frost damage applied via weatherSystem.applyFrostDamage. Clean separation of concerns.
+
+**Build Status**: Zero TypeScript errors. All files follow TLDR comment convention.
+

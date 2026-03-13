@@ -9,11 +9,12 @@ import { PlayerSystem } from '../systems/PlayerSystem';
 import { PlantSystem } from '../systems/PlantSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { HazardSystem } from '../systems/HazardSystem';
+import { WeatherSystem, WeatherEventType } from '../systems/WeatherSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
 import { SynergySystem } from '../systems/SynergySystem';
 import { SaveManager } from '../systems/SaveManager';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip } from '../ui';
-import type { DaySummaryData, PauseMenuCallbacks } from '../ui';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip } from '../ui';
+import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
@@ -42,7 +43,10 @@ export class GardenScene implements Scene {
   private encyclopediaVisible = false;
   private input!: InputManager;
   private hazardSystem!: HazardSystem;
+  private weatherSystem!: WeatherSystem;
   private hazardUI!: HazardUI;
+  private hazardWarning!: HazardWarning;
+  private hazardTooltip!: HazardTooltip;
   
   // New UI components
   private hud!: HUD;
@@ -112,6 +116,12 @@ export class GardenScene implements Scene {
       synergySystem: this.synergySystem,
     });
 
+    // TLDR: Initialize weather system for weather events
+    this.weatherSystem = new WeatherSystem({
+      seasonCount: 1,
+      season: this.currentSeason,
+    });
+
     // Initialize scoring system (with SaveManager persistence)
     this.scoringSystem = new ScoringSystem(this.saveManager);
 
@@ -174,6 +184,18 @@ export class GardenScene implements Scene {
       ctx.app.screen.height - 80
     );
     this.container.addChild(this.hazardUI.getContainer());
+
+    // TLDR: Initialize hazard warning UI (2-day advance warnings)
+    this.hazardWarning = new HazardWarning();
+    this.hazardWarning.setPosition(
+      (ctx.app.screen.width - 500) / 2,
+      150
+    );
+    this.container.addChild(this.hazardWarning.getContainer());
+
+    // TLDR: Initialize hazard tooltip (hover details)
+    this.hazardTooltip = new HazardTooltip();
+    this.container.addChild(this.hazardTooltip.getContainer());
 
     // Demo: Plant some starter plants for testing
     this.plantDemoPlants();
@@ -370,6 +392,11 @@ export class GardenScene implements Scene {
     eventBus.on('synergy:tutorial', (data) => {
       this.synergyTooltip.showTutorial(data.synergyId);
     });
+
+    // TLDR: Listen for weather warning events
+    eventBus.on('weather:warning', (data) => {
+      this.handleWeatherWarning(data);
+    });
     
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
@@ -530,8 +557,11 @@ export class GardenScene implements Scene {
       plant.advanceDay();
     }
 
-    // Notify hazard system of day advance (triggers drought/pest windows)
+    // TLDR: Notify hazard system of day advance (triggers pest windows)
     this.hazardSystem.onDayAdvance(day);
+
+    // TLDR: Notify weather system of day advance (triggers weather events & warnings)
+    this.weatherSystem.onDayAdvance(day);
 
     // Seasonal pest spawning: attempt to infest a random active plant
     const activePlants = Array.from(this.plants.values()).filter(p => p.active);
@@ -546,8 +576,8 @@ export class GardenScene implements Scene {
       }
     }
 
-    // Apply frost damage (Winter only)
-    this.hazardSystem.applyFrostDamage(activePlants);
+    // TLDR: Apply frost damage from WeatherSystem
+    this.weatherSystem.applyFrostDamage(activePlants);
 
     this.updateStatusText();
   }
@@ -676,6 +706,9 @@ export class GardenScene implements Scene {
     // Update hazard system
     this.hazardSystem.update(delta);
 
+    // TLDR: Update weather system
+    this.weatherSystem.update(delta);
+
     // Update grid system (re-renders if state changed)
     this.gridSystem.update();
 
@@ -685,8 +718,8 @@ export class GardenScene implements Scene {
     // Update score summary animation
     this.scoreSummary.update(delta * 1000);
 
-    // Update hazard UI based on drought and frost status
-    const droughtInfo = this.hazardSystem.getDroughtInfo();
+    // TLDR: Update hazard UI based on weather system status
+    const droughtInfo = this.weatherSystem.getDroughtInfo();
     if (droughtInfo.active) {
       this.hazardUI.showDroughtWarning({
         daysRemaining: droughtInfo.daysRemaining,
@@ -696,12 +729,23 @@ export class GardenScene implements Scene {
       this.hazardUI.hideDroughtWarning();
     }
 
-    if (this.hazardSystem.isFrostActive()) {
+    const frostInfo = this.weatherSystem.getFrostInfo();
+    if (frostInfo.active) {
       this.hazardUI.showFrostWarning({
-        damagePerDay: this.hazardSystem.getFrostDamagePerDay(),
+        damagePerDay: frostInfo.damagePerDay,
       });
     } else {
       this.hazardUI.hideFrostWarning();
+    }
+    
+    // TLDR: Update HUD weather warning (show active weather upcoming warnings)
+    const upcomingWarnings = this.weatherSystem.getUpcomingWarnings();
+    if (upcomingWarnings.length > 0) {
+      const warning = upcomingWarnings[0];
+      const warningText = this.getWeatherWarningText(warning.type, warning.daysUntil);
+      this.hud.updateWeatherWarning(warningText);
+    } else {
+      this.hud.updateWeatherWarning('');
     }
     
     // Update HUD with current status
@@ -819,6 +863,61 @@ export class GardenScene implements Scene {
     });
   }
 
+  /**
+   * TLDR: Handle weather warning event (2-day telegraph)
+   */
+  private handleWeatherWarning(data: { type: string; daysUntil: number; startDay: number; data: unknown }): void {
+    const type = data.type as WeatherEventType;
+    const warningData: HazardWarningData = {
+      type,
+      daysUntil: data.daysUntil,
+      startDay: data.startDay,
+      description: this.getWeatherDescription(type),
+      mitigation: this.getWeatherMitigation(type),
+    };
+    this.hazardWarning.showWarning(warningData);
+  }
+
+  /**
+   * TLDR: Get weather event description
+   */
+  private getWeatherDescription(type: WeatherEventType): string {
+    switch (type) {
+      case WeatherEventType.DROUGHT:
+        return 'Soil dries 2x faster, water needs increased by 50%';
+      case WeatherEventType.FROST:
+        return 'Non-frost-resistant plants take damage each day';
+      case WeatherEventType.HEAVY_RAIN:
+        return 'Soil moisture locked at 100%, overwatering risk';
+      default:
+        return 'Unknown weather event';
+    }
+  }
+
+  /**
+   * TLDR: Get weather event mitigation advice
+   */
+  private getWeatherMitigation(type: WeatherEventType): string {
+    switch (type) {
+      case WeatherEventType.DROUGHT:
+        return 'Water plants frequently to maintain soil moisture';
+      case WeatherEventType.FROST:
+        return 'Harvest vulnerable plants or protect with covers';
+      case WeatherEventType.HEAVY_RAIN:
+        return 'Avoid watering, ensure proper drainage';
+      default:
+        return 'Prepare accordingly';
+    }
+  }
+
+  /**
+   * TLDR: Get weather warning text for HUD
+   */
+  private getWeatherWarningText(type: WeatherEventType, daysUntil: number): string {
+    const eventName = type.charAt(0).toUpperCase() + type.slice(1).replace('_', ' ');
+    return `${eventName} in ${daysUntil} day${daysUntil > 1 ? 's' : ''}`;
+  }
+
   destroy(): void {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
@@ -826,12 +925,15 @@ export class GardenScene implements Scene {
     this.playerSystem.destroy();
     this.plantSystem.destroy();
     this.hazardSystem.destroy();
+    this.weatherSystem.destroy();
     this.scoringSystem.destroy();
     this.synergySystem.destroy();
     this.toolBar.destroy();
     this.encyclopedia.destroy();
     this.discoveryPopup.destroy();
     this.hazardUI.destroy();
+    this.hazardWarning.destroy();
+    this.hazardTooltip.destroy();
     this.hud.destroy();
     this.seedInventory.destroy();
     this.plantInfoPanel.destroy();

@@ -22,13 +22,14 @@ export class HUD {
   private unlockProgressBarBg: Graphics;
   private scoreText: Text;
   private lastActionPointsText: Text;
+  private weatherWarningText: Text;
 
   constructor() {
     this.container = new Container();
 
-    // Semi-transparent background panel (expanded height for unlock progress + score)
+    // Semi-transparent background panel (expanded height for unlock progress + score + weather warning)
     const bg = new Graphics();
-    bg.roundRect(0, 0, 600, 110, 8);
+    bg.roundRect(0, 0, 600, 135, 8);
     bg.fill({ color: 0x1a1a1a, alpha: 0.9 });
     bg.stroke({ color: 0x4caf50, width: 2 });
     this.container.addChild(bg);
@@ -159,6 +160,21 @@ export class HUD {
     this.lastActionPointsText.x = 150;
     this.lastActionPointsText.y = 89;
     this.container.addChild(this.lastActionPointsText);
+
+    // TLDR: Weather warning indicator (bottom section)
+    this.weatherWarningText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 13,
+        fill: '#ff9800',
+        fontWeight: 'bold',
+      },
+    });
+    this.weatherWarningText.x = 20;
+    this.weatherWarningText.y = 112;
+    this.weatherWarningText.visible = false;
+    this.container.addChild(this.weatherWarningText);
   }
 
   /**
@@ -291,6 +307,19 @@ export class HUD {
       [Season.WINTER]: '#b3d9ff',  // cool blue
     };
     this.seasonText.style.fill = seasonColors[season];
+  }
+
+  /**
+   * TLDR: Update weather warning display
+   * @param warningText Warning text to display (empty to hide)
+   */
+  updateWeatherWarning(warningText: string): void {
+    if (warningText) {
+      this.weatherWarningText.text = `⚠️ ${warningText}`;
+      this.weatherWarningText.visible = true;
+    } else {
+      this.weatherWarningText.visible = false;
+    }
   }
 
   getContainer(): Container {
