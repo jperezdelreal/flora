@@ -28,3 +28,17 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Issue triage:** #32 (Audio) → squad:brock, #33 (Unlocks) → squad:misty, #37/#38 (roadmap) → closed.
 - **Files involved:** roadmap.md (updated), .squad/decisions/inbox/oak-roadmap-strategy.md (created).
 - **Success criteria:** 3+ distinct runs, 2x score gap (skill expression), 40+ min sessions, no frustration feedback.
+
+### Phase 2 Roadmap Definition (2025-07-25)
+- **Context:** Phase 1 fully delivered (all 8 items complete). Flora has complete roguelite core: seasonal themes, audio, unlocks, randomized seeds, scoring, hazards, synergies, saves. Game is mechanically sound but lacks tactile polish and accessibility.
+- **Strategic thesis:** Phase 1 proved "mechanically interesting." Phase 2 must prove "feels cozy and invites return." The GDD's Pillar 1 demands satisfying tactile feedback — currently absent.
+- **Roadmap structure:** 4 items (broader scope than Phase 1's 8): (1) Visual Polish & Game Feel, (2) Tutorial & Onboarding, (3) Garden Expansion & Structures, (4) Achievements & Cosmetic Rewards.
+- **Key architectural decisions:**
+  - **ParticleSystem + AnimationSystem:** New reusable systems for all visual effects. Performance budget: no drops below 55 FPS.
+  - **TutorialSystem as observer:** Reads game state but never mutates it. First-run detection via SaveManager.
+  - **AchievementSystem follows ScoringSystem pattern:** EventBus subscriber, decoupled from game logic.
+  - **Dynamic garden grid:** GARDEN config currently `as const` — expansion requires runtime override for grid dimensions.
+- **Mobile optimization deferred again:** Polish and content depth > cross-platform reach at this stage.
+- **Parallelization:** Items 1+2 parallel (no shared new files). Items 3+4 share SaveManager schema extension — coordinate.
+- **Files involved:** roadmap.md (rewritten), .squad/decisions/inbox/oak-next-roadmap.md (created).
+- **Issue:** #73 closed.
