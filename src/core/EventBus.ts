@@ -51,6 +51,8 @@ export interface EventMap {
   'structure:removed': { structureId: string; type: StructureType };
   // Grid expansion events
   'grid:expanded': { rows: number; cols: number };
+  // Achievement events
+  'achievement:unlocked': { achievementId: string; achievementName: string };
 }
 
 type EventName = keyof EventMap & string;

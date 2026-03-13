@@ -24,3 +24,5 @@ export { SaveManager } from './SaveManager';
 export type { SaveStateCallback } from './SaveManager';
 export { TutorialSystem } from './TutorialSystem';
 export type { TutorialSaveData } from './TutorialSystem';
+export { AchievementSystem } from './AchievementSystem';
+export type { AchievementSaveState, AchievementState, AchievementUnlockCallback } from './AchievementSystem';

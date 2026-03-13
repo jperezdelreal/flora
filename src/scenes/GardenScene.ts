@@ -17,7 +17,8 @@ import { UnlockSystem } from '../systems/UnlockSystem';
 import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay } from '../ui';
+import { AchievementSystem } from '../systems/AchievementSystem';
+import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { GAME } from '../config';
@@ -68,6 +69,11 @@ export class GardenScene implements Scene {
   private tutorialSystem!: TutorialSystem;
   private tutorialOverlay!: TutorialOverlay;
   private isPaused = false;
+  
+  // TLDR: Achievement system integration
+  private achievementSystem!: AchievementSystem;
+  private achievementNotification!: AchievementNotification;
+  private achievementGallery!: AchievementGallery;
   
   // TLDR: Save system integration
   private saveManager: SaveManager;
@@ -402,6 +408,9 @@ export class GardenScene implements Scene {
       onEncyclopedia: () => {
         this.toggleEncyclopedia();
       },
+      onAchievements: () => {
+        this.toggleAchievementGallery();
+      },
       onHowToPlay: () => {
         this.tutorialOverlay.showHowToPlay();
       },
@@ -481,6 +490,28 @@ export class GardenScene implements Scene {
     } else {
       this.tutorialSystem.enableContextualHints();
     }
+
+    // TLDR: Initialize achievement system (with SaveManager persistence)
+    this.achievementSystem = new AchievementSystem(this.saveManager);
+    this.achievementSystem.setSeason(this.currentSeason);
+
+    // TLDR: Achievement notification popup (on unlock)
+    this.achievementNotification = new AchievementNotification();
+    this.achievementNotification.setPosition(ctx.app.screen.width, ctx.app.screen.height);
+    this.container.addChild(this.achievementNotification.getContainer());
+
+    this.achievementSystem.onUnlock((config) => {
+      this.achievementNotification.show(config);
+    });
+
+    // TLDR: Achievement gallery (accessed from pause menu)
+    this.achievementGallery = new AchievementGallery();
+    this.achievementGallery.setPosition(
+      (ctx.app.screen.width - 800) / 2,
+      (ctx.app.screen.height - 600) / 2,
+    );
+    this.achievementGallery.hide();
+    this.container.addChild(this.achievementGallery.getContainer());
 
     // TLDR: Load persisted structures from save data
     this.loadStructuresFromSave();
@@ -575,6 +606,9 @@ export class GardenScene implements Scene {
     // TLDR: Record the completed run for unlock progression
     this.unlockSystem.recordRunCompleted();
 
+    // TLDR: Finalize achievement tracking for the ending run
+    this.achievementSystem.onRunEnd();
+
     // Reset session tracking
     this.harvestedSeeds.clear();
     this.newDiscoveriesThisSeason.clear();
@@ -589,6 +623,10 @@ export class GardenScene implements Scene {
     
     // Apply new season visuals
     this.applySeason();
+
+    // TLDR: Reset achievement run trackers and set new season
+    this.achievementSystem.resetRun();
+    this.achievementSystem.setSeason(this.currentSeason);
 
     // TLDR: Check if grid should expand based on new run count
     const gridSize = this.unlockSystem.getUnlockedGridSize();
@@ -770,6 +808,16 @@ export class GardenScene implements Scene {
     this.encyclopedia.setEntries(entries);
   }
 
+  /** TLDR: Toggle achievement gallery — updates entries from AchievementSystem */
+  private toggleAchievementGallery(): void {
+    if (this.achievementGallery.isVisible()) {
+      this.achievementGallery.hide();
+    } else {
+      this.achievementGallery.setEntries(this.achievementSystem.getAllStates());
+      this.achievementGallery.show();
+    }
+  }
+
   private updateInfoText(message: string): void {
     this.infoText.text = message;
     // Reset after 2 seconds
@@ -841,6 +889,9 @@ export class GardenScene implements Scene {
     
     // Update score summary animation
     this.scoreSummary.update(delta * 1000);
+
+    // TLDR: Update achievement notification animation
+    this.achievementNotification.update(delta * 1000);
 
     // TLDR: Update hazard UI based on weather system status
     const droughtInfo = this.weatherSystem.getDroughtInfo();
@@ -1592,6 +1643,9 @@ export class GardenScene implements Scene {
     this.synergyTooltip.destroy();
     this.tutorialSystem.destroy();
     this.tutorialOverlay.destroy();
+    this.achievementSystem.destroy();
+    this.achievementNotification.destroy();
+    this.achievementGallery.destroy();
     this.plants.clear();
     this.shakeContainer.destroy({ children: true });
     this.container = new Container();

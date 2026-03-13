@@ -7,6 +7,7 @@ import type {
   HighScoreSaveData,
   AudioSaveData,
   GardenSaveData,
+  AchievementSaveData,
 } from '../config/saveSchema';
 import { loadJSON, saveJSON, isStorageAvailable } from '../utils/storage';
 
@@ -96,6 +97,16 @@ export class SaveManager {
   /** TLDR: Load garden expansion data */
   loadGarden(): GardenSaveData | null {
     return this.load<GardenSaveData>(SAVE_KEYS.GARDEN);
+  }
+
+  /** TLDR: Save achievement state */
+  saveAchievements(data: AchievementSaveData): boolean {
+    return this.save(SAVE_KEYS.ACHIEVEMENTS, data);
+  }
+
+  /** TLDR: Load achievement state */
+  loadAchievements(): AchievementSaveData | null {
+    return this.load<AchievementSaveData>(SAVE_KEYS.ACHIEVEMENTS);
   }
 
   // ------ Save-state notifications ------
