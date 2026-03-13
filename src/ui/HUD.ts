@@ -20,13 +20,15 @@ export class HUD {
   private unlockProgressText: Text;
   private unlockProgressBar: Graphics;
   private unlockProgressBarBg: Graphics;
+  private scoreText: Text;
+  private lastActionPointsText: Text;
 
   constructor() {
     this.container = new Container();
 
-    // Semi-transparent background panel (expanded height for unlock progress)
+    // Semi-transparent background panel (expanded height for unlock progress + score)
     const bg = new Graphics();
-    bg.roundRect(0, 0, 600, 90, 8);
+    bg.roundRect(0, 0, 600, 110, 8);
     bg.fill({ color: 0x1a1a1a, alpha: 0.9 });
     bg.stroke({ color: 0x4caf50, width: 2 });
     this.container.addChild(bg);
@@ -130,6 +132,33 @@ export class HUD {
     this.unlockProgressText.x = unlockProgressX + 5;
     this.unlockProgressText.y = unlockProgressY + 2;
     this.container.addChild(this.unlockProgressText);
+
+    // Score display (bottom-right section)
+    this.scoreText = new Text({
+      text: 'Score: 0',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: '#ffd700',
+        fontWeight: 'bold',
+      },
+    });
+    this.scoreText.x = 20;
+    this.scoreText.y = 87;
+    this.container.addChild(this.scoreText);
+
+    this.lastActionPointsText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 14,
+        fill: '#66bb6a',
+        fontWeight: 'bold',
+      },
+    });
+    this.lastActionPointsText.x = 150;
+    this.lastActionPointsText.y = 89;
+    this.container.addChild(this.lastActionPointsText);
   }
 
   /**
@@ -192,6 +221,22 @@ export class HUD {
       this.actionsText.style.fill = '#66bb6a'; // Green when full
     } else {
       this.actionsText.style.fill = '#ffeb3b'; // Yellow when partial
+    }
+  }
+
+  /**
+   * TLDR: Update score display
+   * @param totalScore Current total score
+   * @param lastActionPoints Points from last action (0 to hide)
+   */
+  updateScore(totalScore: number, lastActionPoints: number = 0): void {
+    this.scoreText.text = `Score: ${totalScore}`;
+
+    if (lastActionPoints > 0) {
+      this.lastActionPointsText.text = `+${lastActionPoints}`;
+      this.lastActionPointsText.visible = true;
+    } else {
+      this.lastActionPointsText.visible = false;
     }
   }
 

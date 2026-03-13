@@ -14,3 +14,5 @@ export { DaySummary } from './DaySummary';
 export type { DaySummaryData } from './DaySummary';
 export { PauseMenu } from './PauseMenu';
 export type { PauseMenuCallbacks } from './PauseMenu';
+export { SeedPacketDisplay } from './SeedPacketDisplay';
+export { ScoreSummary } from './ScoreSummary';
