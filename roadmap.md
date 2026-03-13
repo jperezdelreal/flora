@@ -3,7 +3,7 @@
 Ordered work items for autonomous execution via perpetual-motion.yml.
 Each item becomes a GitHub issue assigned to @copilot.
 
-## 1. [ ] Seasonal Themes System
+## 1. [x] Seasonal Themes System
    - Implement 4 seasons (Spring, Summer, Fall, Winter) with unique mechanics
    - Spring: all plants available, low pest spawn, mild watering needs
    - Summer: drought hazard activated, golden palette, heat-tolerant plants visible
@@ -14,7 +14,7 @@ Each item becomes a GitHub issue assigned to @copilot.
    - 2+ runs feel visually distinct with smooth palette transitions
    - Files: src/config/index.ts, src/config/plants.ts, src/systems/HazardSystem.ts, src/systems/GridSystem.ts, src/scenes/GardenScene.ts, src/ui/HUD.ts
 
-## 2. [ ] Audio System Implementation
+## 2. [x] Audio System Implementation
    - Implement ambient looping music with 6 seasonal variants
    - Action SFX: water pour, harvest chime, pest squish, plant wilt, day chime, discovery chime
    - Volume mixing: ambient 30%, SFX 50%, music 40%
@@ -26,7 +26,7 @@ Each item becomes a GitHub issue assigned to @copilot.
    - No sound glitches or audio mixing issues
    - Files: src/systems/AudioManager.ts, src/scenes/GardenScene.ts, src/systems/PlantSystem.ts, src/systems/HazardSystem.ts, src/ui/PauseMenu.ts, src/config/audio.ts
 
-## 3. [ ] Unlock System & Meta-Progression UI
+## 3. [x] Unlock System & Meta-Progression UI
    - Track milestones: harvest plant, grow to maturity, plant diversity
    - Display next unlock target in HUD with progress indicator
    - Tool bar updates with animation when new tool unlocks
