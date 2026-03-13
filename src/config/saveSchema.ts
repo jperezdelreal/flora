@@ -9,6 +9,7 @@ export const SAVE_KEYS = {
   UNLOCKS: 'flora_unlock_progress',
   HIGH_SCORES: 'flora_high_scores',
   AUDIO: 'flora:audio:preferences',
+  TUTORIAL: 'flora_tutorial',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */

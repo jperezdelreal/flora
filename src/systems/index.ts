@@ -22,3 +22,5 @@ export { ParticleSystem } from './ParticleSystem';
 export type { BurstConfig, RippleConfig, GlowConfig } from './ParticleSystem';
 export { SaveManager } from './SaveManager';
 export type { SaveStateCallback } from './SaveManager';
+export { TutorialSystem } from './TutorialSystem';
+export type { TutorialSaveData } from './TutorialSystem';
