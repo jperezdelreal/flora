@@ -54,3 +54,22 @@ Completed issue #49 — split weather events from HazardSystem into dedicated We
 
 **Build Status**: Zero TypeScript errors. All files follow TLDR comment convention.
 
+### Tool Progression System (PR #233)
+Implemented issue #218 — tool progression with tiers and advanced tools. Key decisions:
+
+1. **Data-Driven Tier System**: `ProgressiveToolConfig` defines each tool's tiers with `affectedTiles` offsets and `effectParams`. ToolSystem reads these configs at runtime.
+
+2. **ToolSystem as Central Coordinator**: Subscribes to EventBus (`milestone:unlocked`, `plant:harvested`) and rechecks unlock/upgrade conditions against UnlockSystem progress. Emits `tool:unlocked` and `tool:upgraded`.
+
+3. **Watering Can Tiers**: Basic (1 tile), Improved (cross 5 at 15 harvests), Advanced (3×3 at 40 harvests). Defined as `affectedTiles` offset arrays in config.
+
+4. **New Tools**: Pest Spray (area removal, 10 runs), Soil Tester (reveals soil data, 25 harvests), Trellis (climbing plant +25%, 15 runs). Follow existing validate/execute pattern.
+
+5. **Climbing Trait**: Added `SynergyTrait.CLIMBING` — Pea and Cucumber marked as climbing for trellis interaction.
+
+6. **ToolBar Enhancements**: Locked tools grayed with unlock hints. Tier indicators (★/★★/★★★). Tool selection persists via ToolSystem.
+
+7. **Persistence**: `ToolProgressionSaveData` in save schema. SaveManager extended with `saveTools`/`loadTools`.
+
+**Build Status**: Zero TypeScript errors. Clean Vite production build.
+

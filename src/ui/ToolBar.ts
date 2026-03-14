@@ -1,7 +1,8 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { ToolType } from '../entities/Player';
-import { ALL_TOOLS, ToolConfig } from '../config/tools';
+import { ALL_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier } from '../config/tools';
 import { ANIMATION } from '../config/animations';
+import type { ToolSystem } from '../systems/ToolSystem';
 
 export class ToolBar {
   private container: Container;
@@ -9,19 +10,34 @@ export class ToolBar {
   private toolTexts: Map<ToolType, Text>;
   private toolIcons: Map<ToolType, Text>;
   private toolLockIcons: Map<ToolType, Text>;
+  private toolTierTexts: Map<ToolType, Text>;
+  private toolHintTexts: Map<ToolType, Text>;
   private selectedTool: ToolType | null = null;
   private unlockedTools: Set<ToolType> = new Set();
   private onToolSelect?: (tool: ToolType | null) => void;
+  private toolSystem?: ToolSystem;
 
-  constructor() {
+  constructor(toolSystem?: ToolSystem) {
     this.container = new Container();
     this.toolButtons = new Map();
     this.toolTexts = new Map();
     this.toolIcons = new Map();
     this.toolLockIcons = new Map();
-    
-    // TLDR: All tools start unlocked by default (MVP behavior)
-    ALL_TOOLS.forEach((tool) => this.unlockedTools.add(tool.type));
+    this.toolTierTexts = new Map();
+    this.toolHintTexts = new Map();
+    this.toolSystem = toolSystem;
+
+    if (toolSystem) {
+      // TLDR: Determine unlocked tools from ToolSystem
+      for (const tool of ALL_TOOLS) {
+        if (toolSystem.isToolUnlocked(tool.type)) {
+          this.unlockedTools.add(tool.type);
+        }
+      }
+    } else {
+      // TLDR: Fallback — all tools start unlocked (MVP behavior)
+      ALL_TOOLS.forEach((tool) => this.unlockedTools.add(tool.type));
+    }
     
     this.initializeToolBar();
   }
@@ -63,6 +79,11 @@ export class ToolBar {
           button.fill({ color: 0x3c3c3c });
           button.stroke({ color: 0x6a6a6a, width: 2 });
         }
+        // TLDR: Show unlock hint on hover for locked tools
+        const hintText = this.toolHintTexts.get(tool.type);
+        if (hintText && !this.unlockedTools.has(tool.type)) {
+          hintText.visible = true;
+        }
       });
 
       button.on('pointerout', () => {
@@ -70,6 +91,11 @@ export class ToolBar {
         buttonContainer.scale.set(1);
         if (this.selectedTool !== tool.type) {
           this.updateButtonAppearance(tool.type);
+        }
+        // TLDR: Hide unlock hint
+        const hintText = this.toolHintTexts.get(tool.type);
+        if (hintText) {
+          hintText.visible = false;
         }
       });
 
@@ -86,7 +112,7 @@ export class ToolBar {
       });
       iconText.anchor.set(0.5);
       iconText.x = buttonWidth / 2;
-      iconText.y = buttonHeight / 2 - 10;
+      iconText.y = buttonHeight / 2 - 14;
       buttonContainer.addChild(iconText);
       this.toolIcons.set(tool.type, iconText);
 
@@ -100,10 +126,22 @@ export class ToolBar {
       });
       lockIcon.anchor.set(0.5);
       lockIcon.x = buttonWidth / 2;
-      lockIcon.y = buttonHeight / 2 - 10;
+      lockIcon.y = buttonHeight / 2 - 14;
       lockIcon.visible = false;
       buttonContainer.addChild(lockIcon);
       this.toolLockIcons.set(tool.type, lockIcon);
+
+      // TLDR: Tier indicator (stars) — top-right corner
+      const tierText = new Text({
+        text: '',
+        style: { fontSize: 10, fill: '#ffd700', align: 'right' },
+      });
+      tierText.anchor.set(1, 0);
+      tierText.x = buttonWidth - 4;
+      tierText.y = 2;
+      tierText.visible = false;
+      buttonContainer.addChild(tierText);
+      this.toolTierTexts.set(tool.type, tierText);
 
       // Tool name
       const nameText = new Text({
@@ -120,9 +158,28 @@ export class ToolBar {
       buttonContainer.addChild(nameText);
       this.toolTexts.set(tool.type, nameText);
 
+      // TLDR: Unlock hint text (shown on hover for locked tools)
+      const progressiveConfig = PROGRESSIVE_TOOL_BY_TYPE[tool.type];
+      const hintStr = progressiveConfig?.unlockHint ?? '';
+      const hintText = new Text({
+        text: hintStr,
+        style: { fontSize: 10, fill: '#aaaaaa', align: 'center', wordWrap: true, wordWrapWidth: 100 },
+      });
+      hintText.anchor.set(0.5, 1);
+      hintText.x = buttonWidth / 2;
+      hintText.y = -4;
+      hintText.visible = false;
+      buttonContainer.addChild(hintText);
+      this.toolHintTexts.set(tool.type, hintText);
+
       buttonContainer.x = x;
       this.container.addChild(buttonContainer);
     });
+
+    // TLDR: Apply initial appearance for all tools
+    for (const tool of ALL_TOOLS) {
+      this.updateButtonAppearance(tool.type);
+    }
   }
 
   /**
@@ -133,6 +190,7 @@ export class ToolBar {
     const icon = this.toolIcons.get(tool);
     const lockIcon = this.toolLockIcons.get(tool);
     const nameText = this.toolTexts.get(tool);
+    const tierText = this.toolTierTexts.get(tool);
     
     if (!button || !icon || !lockIcon || !nameText) return;
 
@@ -142,12 +200,13 @@ export class ToolBar {
     button.rect(0, 0, 80, 80);
     
     if (isLocked) {
-      // Locked appearance
+      // Locked appearance — grayed out
       button.fill({ color: 0x1a1a1a, alpha: 0.5 });
       button.stroke({ color: 0x3a3a3a, width: 2 });
       icon.visible = false;
       lockIcon.visible = true;
       nameText.style.fill = '#666666';
+      if (tierText) tierText.visible = false;
     } else {
       // Unlocked appearance
       button.fill({ color: 0x2c2c2c });
@@ -155,6 +214,18 @@ export class ToolBar {
       icon.visible = true;
       lockIcon.visible = false;
       nameText.style.fill = '#ffffff';
+
+      // TLDR: Show tier stars if tool has multiple tiers
+      if (tierText && this.toolSystem) {
+        const hasMultipleTiers = this.toolSystem.hasMultipleTiers(tool);
+        if (hasMultipleTiers) {
+          const currentTier = this.toolSystem.getToolTier(tool);
+          tierText.text = TIER_STARS[currentTier];
+          tierText.visible = true;
+        } else {
+          tierText.visible = false;
+        }
+      }
     }
   }
 
@@ -186,6 +257,11 @@ export class ToolBar {
       }
     }
 
+    // TLDR: Persist selection in ToolSystem
+    if (this.toolSystem) {
+      this.toolSystem.setSelectedTool(this.selectedTool);
+    }
+
     if (this.onToolSelect) {
       this.onToolSelect(this.selectedTool);
     }
@@ -202,6 +278,18 @@ export class ToolBar {
     this.unlockedTools.add(tool);
     this.updateButtonAppearance(tool);
     this.playUnlockAnimation(tool);
+  }
+
+  /**
+   * TLDR: Update tier display for a tool (called after tier upgrade)
+   */
+  updateToolTier(tool: ToolType, tier: ToolTier): void {
+    const tierText = this.toolTierTexts.get(tool);
+    if (tierText) {
+      tierText.text = TIER_STARS[tier];
+      tierText.visible = true;
+    }
+    this.playUpgradeAnimation(tool);
   }
 
   /**
@@ -253,6 +341,54 @@ export class ToolBar {
     this.onToolSelect = callback;
   }
 
+  /** TLDR: Refresh unlocked state from ToolSystem (call after loading save) */
+  refreshFromToolSystem(): void {
+    if (!this.toolSystem) return;
+
+    for (const tool of ALL_TOOLS) {
+      const wasUnlocked = this.unlockedTools.has(tool.type);
+      const isNowUnlocked = this.toolSystem.isToolUnlocked(tool.type);
+      if (!wasUnlocked && isNowUnlocked) {
+        this.unlockedTools.add(tool.type);
+      }
+      this.updateButtonAppearance(tool.type);
+    }
+
+    // TLDR: Restore persisted tool selection
+    const savedTool = this.toolSystem.getSelectedTool();
+    if (savedTool && this.unlockedTools.has(savedTool)) {
+      this.selectTool(savedTool);
+    }
+  }
+
+  /**
+   * TLDR: Play upgrade animation when tool tier increases
+   */
+  private playUpgradeAnimation(tool: ToolType): void {
+    const button = this.toolButtons.get(tool);
+    if (!button) return;
+
+    let pulseCount = 0;
+    const pulseInterval = 250;
+    const maxPulses = 4;
+
+    const pulseTimer = setInterval(() => {
+      pulseCount++;
+      if (pulseCount % 2 === 0) {
+        button.clear();
+        button.rect(0, 0, 80, 80);
+        button.fill({ color: 0xffd700 });
+        button.stroke({ color: 0xffeb3b, width: 3 });
+      } else {
+        this.updateButtonAppearance(tool);
+      }
+      if (pulseCount >= maxPulses) {
+        clearInterval(pulseTimer);
+        this.updateButtonAppearance(tool);
+      }
+    }, pulseInterval);
+  }
+
   position(x: number, y: number): void {
     this.container.x = x;
     this.container.y = y;
@@ -268,6 +404,8 @@ export class ToolBar {
     this.toolTexts.clear();
     this.toolIcons.clear();
     this.toolLockIcons.clear();
+    this.toolTierTexts.clear();
+    this.toolHintTexts.clear();
     this.unlockedTools.clear();
   }
 }
