@@ -69,7 +69,7 @@ export const PEA: PlantConfig = {
   rarity: 'common',
   description: 'Spring staple legume. Fixes nitrogen in soil, boosting nearby plants.',
   availableSeasons: [Season.SPRING],
-  synergyTraits: [SynergyTrait.NITROGEN_FIXER],
+  synergyTraits: [SynergyTrait.NITROGEN_FIXER, SynergyTrait.CLIMBING],
 };
 
 // Uncommon plants (strategic choices)
@@ -137,7 +137,7 @@ export const CUCUMBER: PlantConfig = {
   rarity: 'uncommon',
   description: 'Vigorous vine that drinks heavily. Competes for water with neighbors.',
   availableSeasons: [Season.SPRING, Season.SUMMER],
-  synergyTraits: [SynergyTrait.WATER_COMPETITOR],
+  synergyTraits: [SynergyTrait.WATER_COMPETITOR, SynergyTrait.CLIMBING],
 };
 
 // TLDR: New uncommon plant — Blueberry (Fall exclusive, allelopathic acidifier)

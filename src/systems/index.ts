@@ -32,3 +32,5 @@ export { DailyChallengeSystem } from './DailyChallengeSystem';
 export type { DailyChallenge, LeaderboardEntry, RunHistoryEntry } from './DailyChallengeSystem';
 export { WeedSystem } from './WeedSystem';
 export type { WeedSystemConfig } from './WeedSystem';
+export { TileRenderer } from './TileRenderer';
+export type { TileRendererConfig } from './TileRenderer';
