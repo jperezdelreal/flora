@@ -18,6 +18,7 @@ import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { AchievementSystem } from '../systems/AchievementSystem';
+import { PlantRenderer } from '../systems/PlantRenderer';
 import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
@@ -29,14 +30,9 @@ import { getPlantsBySeason } from '../config/plants';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
-import { ANIMATION, PLANT_STAGE_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
+import { ANIMATION, SYNERGY_GLOW_COLORS } from '../config/animations';
 import {
   getPlantVisual,
-  getStageKeyframe,
-  adjustColorForHealth,
-  adjustColorForAccessibility,
-  getShapeData,
-  type PlantVisualDef,
 } from '../config/plantVisuals';
 import { TutorialSystem } from '../systems/TutorialSystem';
 import { WeedSystem } from '../systems/WeedSystem';
@@ -122,11 +118,7 @@ export class GardenScene implements Scene {
   // TLDR: Visual polish systems — animations, particles, plant visuals
   private animationSystem!: AnimationSystem;
   private particleSystem!: ParticleSystem;
-  private plantVisualLayer!: Container;
-  private plantVisuals: Map<string, Container> = new Map();
-  private swayPhases: Map<string, number> = new Map();
-  private plantBaseX: Map<string, number> = new Map();
-  private plantHealthCache: Map<string, number> = new Map();
+  private plantRenderer!: PlantRenderer;
   private shakeContainer!: Container;
   private shakeElapsed = 0;
   private shakeDuration = 0;
@@ -489,10 +481,14 @@ export class GardenScene implements Scene {
     // TLDR: Initialize visual polish systems
     this.animationSystem = new AnimationSystem();
     this.particleSystem = new ParticleSystem();
-    this.plantVisualLayer = new Container();
-    this.gridSystem.getContainer().addChild(this.plantVisualLayer);
+    this.plantRenderer = new PlantRenderer({
+      animationSystem: this.animationSystem,
+      plantSystem: this.plantSystem,
+      grid: this.grid,
+    });
+    this.gridSystem.getContainer().addChild(this.plantRenderer.getContainer());
     this.container.addChild(this.particleSystem.getContainer());
-    this.rebuildPlantVisuals();
+    this.plantRenderer.rebuildAllVisuals();
     this.setupVisualListeners();
 
     // TLDR: Initialize tutorial system and overlay
@@ -836,7 +832,8 @@ export class GardenScene implements Scene {
     this.gridSystem.update();
     
     // TLDR: Rebuild plant visual layer for new season's plants
-    this.rebuildPlantVisuals();
+    this.plantRenderer.setSeason(this.currentSeason);
+    this.plantRenderer.rebuildAllVisuals();
 
     // TLDR: Persist garden state after season start
     this.saveGardenState();
@@ -1479,11 +1476,11 @@ export class GardenScene implements Scene {
    */
   private setupVisualListeners(): void {
     eventBus.on('plant:created', (data) => {
-      this.createPlantVisual(data.plantId, data.x, data.y);
+      this.plantRenderer.createPlantVisual(data.plantId, data.x, data.y);
     });
 
     eventBus.on('plant:grew', (data) => {
-      this.animatePlantGrowth(data.plantId, data.stage);
+      this.plantRenderer.animatePlantGrowth(data.plantId, data.stage);
     });
 
     eventBus.on('plant:watered', (data) => {
@@ -1498,7 +1495,7 @@ export class GardenScene implements Scene {
     });
 
     eventBus.on('plant:died', (data) => {
-      this.removePlantVisual(data.plantId);
+      this.plantRenderer.removePlantVisual(data.plantId);
     });
     
     eventBus.on('score:updated', (data) => {
@@ -1519,463 +1516,6 @@ export class GardenScene implements Scene {
   }
 
   /**
-   * TLDR: Create an animated visual container for a plant at grid position
-   */
-  private createPlantVisual(plantId: string, col: number, row: number): void {
-    const plant = this.plantSystem.getPlant(plantId);
-    if (!plant) return;
-
-    const tilePos = this.grid.getTilePosition(row, col);
-    const tileSize = this.grid.config.tileSize;
-
-    const visual = new Container();
-    visual.x = tilePos.x + tileSize / 2;
-    visual.y = tilePos.y + tileSize / 2;
-    visual.scale.set(0.01);
-
-    const gfx = new Graphics();
-    const configId = plant.getConfig().id;
-    this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth());
-    visual.addChild(gfx);
-
-    this.plantVisualLayer.addChild(visual);
-    this.plantVisuals.set(plantId, visual);
-
-    const visualDef = getPlantVisual(configId);
-    const keyframe = getStageKeyframe(configId, GrowthStage.SEED);
-    
-    this.swayPhases.set(plantId, Math.random() * Math.PI * 2);
-    this.plantBaseX.set(plantId, visual.x);
-
-    this.animationSystem.tween(
-      visual.scale as unknown as Record<string, unknown>,
-      { x: keyframe.scale, y: keyframe.scale },
-      ANIMATION.GROWTH_SCALE_DURATION,
-      { easing: Easing.backOut },
-    );
-    
-    this.animationSystem.tween(
-      visual as unknown as Record<string, unknown>,
-      { alpha: keyframe.alpha },
-      ANIMATION.GROWTH_SCALE_DURATION * 0.5,
-    );
-  }
-
-  /**
-   * TLDR: Draw plant shape per growth stage — unique visual identity per plant
-   * Seed: brown dot. Sprout: stem+leaves. Growing: developing form. Mature: full shape. Wilting: drooping.
-   */
-  private drawPlantShape(gfx: Graphics, plantId: string, stage: GrowthStage, health: number): void {
-    gfx.clear();
-
-    const visualDef = getPlantVisual(plantId);
-    if (!visualDef) {
-      this.drawFallbackShape(gfx, stage);
-      return;
-    }
-
-    const keyframe = getStageKeyframe(plantId, stage);
-    const baseSize = ANIMATION.PLANT_SIZE_MATURE;
-    const shapeData = getShapeData(visualDef, stage, baseSize);
-    
-    const baseColor = adjustColorForAccessibility(visualDef.baseColor);
-    const accentColor = adjustColorForAccessibility(visualDef.accentColor);
-    const detailColor = visualDef.detailColor ? adjustColorForAccessibility(visualDef.detailColor) : accentColor;
-    
-    const mainColor = adjustColorForHealth(baseColor, health);
-    const accColor = adjustColorForHealth(accentColor, health);
-    const detColor = adjustColorForHealth(detailColor, health);
-
-    const alpha = keyframe.alpha * (health > 50 ? 1.0 : 0.7);
-
-    // Glow aura on mature plants with high health
-    if (visualDef.glowOnMature && stage === GrowthStage.MATURE && health > 70) {
-      gfx.circle(0, keyframe.yOffset, shapeData.mainRadius + 6);
-      gfx.fill({ color: accColor, alpha: 0.4 });
-    }
-
-    switch (stage) {
-      case GrowthStage.SEED:
-        this.drawSeedShape(gfx, shapeData, mainColor, accColor, alpha);
-        break;
-      case GrowthStage.SPROUT:
-        this.drawSproutShape(gfx, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
-        break;
-      case GrowthStage.GROWING:
-        this.drawGrowingShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
-        break;
-      case GrowthStage.MATURE:
-        this.drawMatureShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
-        break;
-      case GrowthStage.WILTING:
-        this.drawWiltingShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
-        break;
-    }
-  }
-
-  private drawFallbackShape(gfx: Graphics, stage: GrowthStage): void {
-    const sizeMap: Record<string, number> = {
-      [GrowthStage.SEED]: ANIMATION.PLANT_SIZE_SEED,
-      [GrowthStage.SPROUT]: ANIMATION.PLANT_SIZE_SPROUT,
-      [GrowthStage.GROWING]: ANIMATION.PLANT_SIZE_GROWING,
-      [GrowthStage.MATURE]: ANIMATION.PLANT_SIZE_MATURE,
-      [GrowthStage.WILTING]: ANIMATION.PLANT_SIZE_WILTING,
-    };
-    const radius = sizeMap[stage] ?? ANIMATION.PLANT_SIZE_SEED;
-    const colors = PLANT_STAGE_COLORS[stage] ?? PLANT_STAGE_COLORS.seed;
-
-    gfx.circle(0, 0, radius);
-    gfx.fill({ color: colors[0] });
-
-    if (radius > 5) {
-      gfx.circle(-radius * 0.2, -radius * 0.2, radius * 0.4);
-      gfx.fill({ color: colors[1], alpha: 0.5 });
-    }
-  }
-
-  private drawEllipse(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    gfx.ellipse(0, yOffset, shape.mainRadius, shape.mainRadius / shape.aspectRatio);
-    gfx.fill({ color: mainColor, alpha });
-
-    if (shape.mainRadius > 5) {
-      const highlightSize = shape.mainRadius * 0.35;
-      gfx.ellipse(
-        -shape.mainRadius * 0.2,
-        yOffset - shape.mainRadius * 0.2,
-        highlightSize,
-        highlightSize / shape.aspectRatio,
-      );
-      gfx.fill({ color: accentColor, alpha: alpha * 0.6 });
-    }
-  }
-
-  private drawFlower(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    detailColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const petalCount = shape.petals ?? 6;
-    const petalRadius = shape.mainRadius * 0.5;
-    const centerRadius = shape.secondaryRadius ?? shape.mainRadius * 0.3;
-
-    for (let i = 0; i < petalCount; i++) {
-      const angle = (i / petalCount) * Math.PI * 2;
-      const x = Math.cos(angle) * shape.mainRadius * 0.6;
-      const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.6;
-      gfx.circle(x, y, petalRadius);
-      gfx.fill({ color: mainColor, alpha });
-    }
-
-    gfx.circle(0, yOffset, centerRadius);
-    gfx.fill({ color: detailColor, alpha });
-  }
-
-  private drawStar(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const points = shape.petals ?? 5;
-    const outerRadius = shape.mainRadius;
-    const innerRadius = shape.secondaryRadius ?? shape.mainRadius * 0.5;
-
-    gfx.moveTo(0, yOffset - outerRadius);
-    
-    for (let i = 0; i <= points * 2; i++) {
-      const radius = i % 2 === 0 ? outerRadius : innerRadius;
-      const angle = (i * Math.PI) / points - Math.PI / 2;
-      const x = Math.cos(angle) * radius;
-      const y = yOffset + Math.sin(angle) * radius;
-      gfx.lineTo(x, y);
-    }
-    
-    gfx.fill({ color: mainColor, alpha });
-
-    gfx.circle(0, yOffset, innerRadius * 0.5);
-    gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
-  }
-
-  private drawBush(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const clusters = 5;
-    for (let i = 0; i < clusters; i++) {
-      const angle = (i / clusters) * Math.PI * 2;
-      const offset = shape.mainRadius * 0.4;
-      const x = Math.cos(angle) * offset;
-      const y = yOffset + Math.sin(angle) * offset;
-      const clusterSize = shape.secondaryRadius ?? shape.mainRadius * 0.7;
-      
-      gfx.circle(x, y, clusterSize);
-      gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha });
-    }
-
-    gfx.circle(0, yOffset, shape.mainRadius * 0.6);
-    gfx.fill({ color: mainColor, alpha });
-  }
-
-  private drawRoot(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    gfx.ellipse(0, yOffset + shape.mainRadius * 0.3, shape.mainRadius, shape.mainRadius * 0.6);
-    gfx.fill({ color: mainColor, alpha });
-
-    const frondCount = 3;
-    for (let i = 0; i < frondCount; i++) {
-      const xOffset = (i - 1) * shape.mainRadius * 0.4;
-      gfx.ellipse(xOffset, yOffset - shape.mainRadius * 0.5, shape.mainRadius * 0.3, shape.mainRadius * 0.8);
-      gfx.fill({ color: accentColor, alpha });
-    }
-  }
-
-  /** Seed stage: small brown circle on soil */
-  private drawSeedShape(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    _accentColor: number,
-    alpha: number,
-  ): void {
-    const seedSize = Math.max(shape.mainRadius, 3);
-    // Soil mound
-    gfx.ellipse(0, 2, seedSize * 1.4, seedSize * 0.5);
-    gfx.fill({ color: 0x795548, alpha: alpha * 0.5 });
-    // Seed dot — tinted toward plant's base color
-    gfx.circle(0, 0, seedSize);
-    gfx.fill({ color: 0x8d6e63, alpha });
-    // Tiny color hint from the plant's identity
-    gfx.circle(0, -seedSize * 0.15, seedSize * 0.45);
-    gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
-  }
-
-  /** Sprout stage: tiny green stem with 2 leaf nubs */
-  private drawSproutShape(
-    gfx: Graphics,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    _detailColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const stemHeight = shape.mainRadius * 1.6;
-    const stemWidth = Math.max(shape.mainRadius * 0.2, 1.5);
-    // Stem
-    gfx.rect(-stemWidth / 2, yOffset, stemWidth, stemHeight);
-    gfx.fill({ color: accentColor, alpha });
-    // Left leaf nub
-    gfx.ellipse(-shape.mainRadius * 0.4, yOffset + stemHeight * 0.3, shape.mainRadius * 0.4, shape.mainRadius * 0.2);
-    gfx.fill({ color: mainColor, alpha });
-    // Right leaf nub
-    gfx.ellipse(shape.mainRadius * 0.4, yOffset + stemHeight * 0.15, shape.mainRadius * 0.35, shape.mainRadius * 0.18);
-    gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
-    // Tiny growing tip
-    gfx.circle(0, yOffset - shape.mainRadius * 0.15, shape.mainRadius * 0.25);
-    gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
-  }
-
-  /** Growing stage: intermediate form — developing toward mature shape */
-  private drawGrowingShape(
-    gfx: Graphics,
-    visualDef: PlantVisualDef,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    detailColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const stemHeight = shape.mainRadius * 1.2;
-    const stemWidth = Math.max(shape.mainRadius * 0.18, 1.5);
-    // Stem visible on all growing plants
-    gfx.rect(-stemWidth / 2, yOffset + shape.mainRadius * 0.3, stemWidth, stemHeight);
-    gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
-
-    // Developing shape based on mature form (partially formed)
-    if (visualDef.matureShape === 'flower') {
-      const petalCount = Math.max(3, (shape.petals ?? 6) - 2);
-      const petalRadius = shape.mainRadius * 0.35;
-      for (let i = 0; i < petalCount; i++) {
-        const angle = (i / petalCount) * Math.PI * 2;
-        const x = Math.cos(angle) * shape.mainRadius * 0.4;
-        const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.4;
-        gfx.circle(x, y, petalRadius);
-        gfx.fill({ color: mainColor, alpha: alpha * 0.8 });
-      }
-      gfx.circle(0, yOffset, shape.mainRadius * 0.25);
-      gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
-    } else if (visualDef.matureShape === 'bush') {
-      const clusters = 3;
-      for (let i = 0; i < clusters; i++) {
-        const angle = (i / clusters) * Math.PI * 2;
-        const x = Math.cos(angle) * shape.mainRadius * 0.3;
-        const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.3;
-        gfx.circle(x, y, shape.mainRadius * 0.5);
-        gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha: alpha * 0.85 });
-      }
-    } else if (visualDef.matureShape === 'root') {
-      this.drawRoot(gfx, shape, mainColor, accentColor, alpha, yOffset);
-    } else if (visualDef.matureShape === 'star') {
-      gfx.circle(0, yOffset, shape.mainRadius * 0.6);
-      gfx.fill({ color: mainColor, alpha });
-      gfx.circle(0, yOffset, shape.mainRadius * 0.3);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
-    } else {
-      // Developing leaf canopy (circle/oval/tall/wide)
-      gfx.ellipse(0, yOffset, shape.mainRadius * 0.8, shape.mainRadius * 0.7 / shape.aspectRatio);
-      gfx.fill({ color: mainColor, alpha });
-      gfx.ellipse(-shape.mainRadius * 0.35, yOffset - shape.mainRadius * 0.1, shape.mainRadius * 0.35, shape.mainRadius * 0.25);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
-      gfx.ellipse(shape.mainRadius * 0.35, yOffset + shape.mainRadius * 0.05, shape.mainRadius * 0.3, shape.mainRadius * 0.22);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.65 });
-    }
-  }
-
-  /** Mature stage: full unique shape per plant type */
-  private drawMatureShape(
-    gfx: Graphics,
-    visualDef: PlantVisualDef,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    detailColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    switch (visualDef.matureShape) {
-      case 'flower':
-        this.drawFlower(gfx, shape, mainColor, accentColor, detailColor, alpha, yOffset);
-        break;
-      case 'star':
-        this.drawStar(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        break;
-      case 'bush':
-        this.drawBush(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        break;
-      case 'root':
-        this.drawRoot(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        break;
-      default:
-        this.drawEllipse(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        break;
-    }
-  }
-
-  /** Wilting stage: desaturated colors, drooping posture */
-  private drawWiltingShape(
-    gfx: Graphics,
-    visualDef: PlantVisualDef,
-    shape: ReturnType<typeof getShapeData>,
-    mainColor: number,
-    accentColor: number,
-    detailColor: number,
-    alpha: number,
-    yOffset: number,
-  ): void {
-    const gray = 0x808080;
-    const wiltMain = this.lerpColor(mainColor, gray, 0.5);
-    const wiltAccent = this.lerpColor(accentColor, gray, 0.5);
-    const wiltDetail = this.lerpColor(detailColor, gray, 0.5);
-    const wiltAlpha = alpha * 0.7;
-
-    // Drooping stem
-    const stemHeight = shape.mainRadius * 0.8;
-    const stemWidth = Math.max(shape.mainRadius * 0.15, 1.5);
-    gfx.rect(-stemWidth / 2, yOffset + 2, stemWidth, stemHeight);
-    gfx.fill({ color: wiltAccent, alpha: wiltAlpha * 0.6 });
-
-    const droopOffset = yOffset + 3;
-    switch (visualDef.matureShape) {
-      case 'flower':
-        this.drawFlower(gfx, shape, wiltMain, wiltAccent, wiltDetail, wiltAlpha, droopOffset);
-        break;
-      case 'star':
-        this.drawStar(gfx, shape, wiltMain, wiltAccent, wiltAlpha, droopOffset);
-        break;
-      case 'bush':
-        this.drawBush(gfx, shape, wiltMain, wiltAccent, wiltAlpha, droopOffset);
-        break;
-      case 'root':
-        this.drawRoot(gfx, shape, wiltMain, wiltAccent, wiltAlpha, droopOffset);
-        break;
-      default:
-        this.drawEllipse(gfx, shape, wiltMain, wiltAccent, wiltAlpha, droopOffset);
-        break;
-    }
-  }
-
-  /** Linearly interpolate between two hex colors */
-  private lerpColor(from: number, to: number, t: number): number {
-    const fr = (from >> 16) & 0xff, fg = (from >> 8) & 0xff, fb = from & 0xff;
-    const tr = (to >> 16) & 0xff, tg = (to >> 8) & 0xff, tb = to & 0xff;
-    const r = Math.round(fr + (tr - fr) * t);
-    const g = Math.round(fg + (tg - fg) * t);
-    const b = Math.round(fb + (tb - fb) * t);
-    return (r << 16) | (g << 8) | b;
-  }
-
-  /**
-   * TLDR: Animate plant visual when growth stage changes — scale pop + redraw
-   */
-  private animatePlantGrowth(plantId: string, stage: GrowthStage): void {
-    const visual = this.plantVisuals.get(plantId);
-    if (!visual) return;
-
-    const plant = this.plantSystem.getPlant(plantId);
-    if (!plant) return;
-
-    const configId = plant.getConfig().id;
-    const keyframe = getStageKeyframe(configId, stage);
-    const visualDef = getPlantVisual(configId);
-
-    const gfx = visual.children[0] as Graphics;
-    if (gfx) {
-      this.drawPlantShape(gfx, configId, stage, plant.getHealth());
-    }
-
-    const swayIntensity = visualDef?.swayIntensity ?? 1.0;
-    const targetScale = keyframe.scale * (1 + 0.15 * swayIntensity);
-
-    visual.scale.set(targetScale);
-    this.animationSystem.tween(
-      visual.scale as unknown as Record<string, unknown>,
-      { x: keyframe.scale, y: keyframe.scale },
-      ANIMATION.GROWTH_SCALE_DURATION,
-      { easing: Easing.elasticOut },
-    );
-
-    this.animationSystem.tween(
-      visual as unknown as Record<string, unknown>,
-      { alpha: keyframe.alpha },
-      ANIMATION.GROWTH_SCALE_DURATION * 0.5,
-    );
-  }
-
-  /**
    * TLDR: Particle burst on harvest — colored by plant base color, with seed drops and floating text
    */
   private triggerHarvestBurst(plantConfigId: string, seeds: number): void {
@@ -1988,15 +1528,12 @@ export class GardenScene implements Scene {
     let burstX = this._ctx.app.screen.width / 2;
     let burstY = this._ctx.app.screen.height / 2;
 
-    for (const [pid, v] of this.plantVisuals) {
-      const p = this.plantSystem.getPlant(pid);
-      if (!p) {
-        const gridPos = this.gridSystem.getContainer().position;
-        burstX = gridPos.x + v.x;
-        burstY = gridPos.y + v.y;
-        this.removePlantVisual(pid);
-        break;
-      }
+    const orphan = this.plantRenderer.findOrphanedPlantPosition();
+    if (orphan) {
+      const gridPos = this.gridSystem.getContainer().position;
+      burstX = gridPos.x + orphan.x;
+      burstY = gridPos.y + orphan.y;
+      this.plantRenderer.removePlantVisual(orphan.plantId);
     }
 
     // Main color burst
@@ -2039,26 +1576,8 @@ export class GardenScene implements Scene {
   /**
    * TLDR: Quick shrink-to-nothing animation on plant removal (100ms)
    */
-  private triggerPlantRemovalAnimation(plantConfigId: string): void {
-    // Find the plant visual that matches this config ID
-    for (const [pid, visual] of this.plantVisuals) {
-      const plant = this.plantSystem.getPlant(pid);
-      if (!plant && visual) {
-        // This is the plant being removed - animate it shrinking
-        this.animationSystem.tween(
-          visual.scale as unknown as Record<string, unknown>,
-          { x: 0, y: 0 },
-          0.1,
-          {
-            easing: Easing.easeIn,
-            onComplete: () => {
-              this.removePlantVisual(pid);
-            },
-          },
-        );
-        break;
-      }
-    }
+  private triggerPlantRemovalAnimation(_plantConfigId: string): void {
+    this.plantRenderer.animateOrphanedRemoval();
   }
 
   /**
@@ -2069,14 +1588,11 @@ export class GardenScene implements Scene {
     let textX = this._ctx.app.screen.width / 2;
     let textY = this._ctx.app.screen.height / 2;
 
-    for (const [pid, v] of this.plantVisuals) {
-      const p = this.plantSystem.getPlant(pid);
-      if (!p) {
-        const gridPos = this.gridSystem.getContainer().position;
-        textX = gridPos.x + v.x + 20;
-        textY = gridPos.y + v.y - 35;
-        break;
-      }
+    const orphanPos = this.plantRenderer.findOrphanedPlantPosition();
+    if (orphanPos) {
+      const gridPos = this.gridSystem.getContainer().position;
+      textX = gridPos.x + orphanPos.x + 20;
+      textY = gridPos.y + orphanPos.y - 35;
     }
 
     this.particleSystem.floatingText({
@@ -2180,7 +1696,7 @@ export class GardenScene implements Scene {
     // Brief brightness pulse on the plant visual
     const plant = this.plantSystem.getPlantAt(col, row);
     if (plant) {
-      const pVisual = this.plantVisuals.get(plant.id);
+      const pVisual = this.plantRenderer.getPlantVisual(plant.id);
       if (pVisual) {
         const originalScale = pVisual.scale.x;
         
@@ -2340,57 +1856,11 @@ export class GardenScene implements Scene {
     }
   }
 
-  /**
-   * TLDR: Remove plant visual container on death/harvest
-   */
-  private removePlantVisual(plantId: string): void {
-    const visual = this.plantVisuals.get(plantId);
-    if (visual) {
-      visual.destroy({ children: true });
-      this.plantVisuals.delete(plantId);
-      this.swayPhases.delete(plantId);
-      this.plantBaseX.delete(plantId);
-    }
-  }
 
-  /**
-   * TLDR: Rebuild all plant visuals (after season change / restart)
-   */
-  private rebuildPlantVisuals(): void {
-    for (const [, visual] of this.plantVisuals) {
-      visual.destroy({ children: true });
-    }
-    this.plantVisuals.clear();
-    this.swayPhases.clear();
 
-    const activePlants = this.plantSystem.getActivePlants();
-    for (const plant of activePlants) {
-      this.createPlantVisual(plant.id, plant.x, plant.y);
-      const visual = this.plantVisuals.get(plant.id);
-      if (visual) {
-        const keyframe = getStageKeyframe(plant.getConfig().id, plant.getGrowthStage());
-        visual.scale.set(keyframe.scale);
-        const gfx = visual.children[0] as Graphics;
-        if (gfx) {
-          this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
-        }
-      }
-    }
-  }
 
-  /**
-   * TLDR: Refresh a single plant's visual (for health changes / wilting)
-   */
-  private refreshPlantVisual(plantId: string): void {
-    const visual = this.plantVisuals.get(plantId);
-    const plant = this.plantSystem.getPlant(plantId);
-    if (!visual || !plant) return;
 
-    const gfx = visual.children[0] as Graphics;
-    if (gfx) {
-      this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
-    }
-  }
+
 
   /**
    * TLDR: Per-frame visual updates — idle sway, screen shake, sky lerp, pest crawl
@@ -2401,6 +1871,7 @@ export class GardenScene implements Scene {
 
     this.animationSystem.update(delta);
     this.particleSystem.update(delta);
+    this.plantRenderer.update(delta);
 
     // TLDR: Smooth seasonal color transition (2s crossfade)
     if (this.seasonTransitionFrom && this.seasonTransitionTarget) {
@@ -2422,43 +1893,6 @@ export class GardenScene implements Scene {
       if (t >= 1) {
         this.seasonTransitionFrom = null;
         this.seasonTransitionTarget = null;
-      }
-    }
-
-    // TLDR: Idle sway — rotation + x-offset on mature plants (per-plant intensity)
-    for (const [plantId, visual] of this.plantVisuals) {
-      const plant = this.plantSystem.getPlant(plantId);
-      if (!plant) continue;
-      
-      const visualDef = getPlantVisual(plant.getConfig().id);
-      const swayIntensity = visualDef?.swayIntensity ?? 1.0;
-      const phase = this.swayPhases.get(plantId) ?? 0;
-      const stage = plant.getGrowthStage();
-      const isMatureOrGrowing = stage === GrowthStage.MATURE || stage === GrowthStage.GROWING;
-      
-      // Rotation sway on all non-seed stages
-      if (stage !== GrowthStage.SEED) {
-        const rotationScale = stage === GrowthStage.SPROUT ? 0.4 : 1.0;
-        visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) * 
-                          ANIMATION.SWAY_AMPLITUDE * swayIntensity * rotationScale;
-      } else {
-        visual.rotation = 0;
-      }
-      
-      // X-offset sway only on mature/growing plants (the signature idle motion)
-      if (isMatureOrGrowing) {
-        const baseX = this.plantBaseX.get(plantId) ?? visual.x;
-        const xSway = Math.sin(time * ANIMATION.SWAY_X_FREQUENCY * Math.PI * 2 + phase * 1.5) *
-                       ANIMATION.SWAY_X_AMPLITUDE * swayIntensity;
-        visual.x = baseX + xSway;
-      }
-      
-      const currentHealth = plant.getHealth();
-      const cachedHealth = this.plantHealthCache.get(plantId);
-      
-      if (cachedHealth === undefined || Math.abs(currentHealth - cachedHealth) > 5) {
-        this.plantHealthCache.set(plantId, currentHealth);
-        this.refreshPlantVisual(plantId);
       }
     }
 
@@ -2503,12 +1937,7 @@ export class GardenScene implements Scene {
     // TLDR: Pest crawl wobble
     this.updatePestCrawl(time);
 
-    // TLDR: Clean up visuals for plants that no longer exist
-    for (const [plantId] of this.plantVisuals) {
-      if (!this.plantSystem.getPlant(plantId)) {
-        this.removePlantVisual(plantId);
-      }
-    }
+
   }
 
   /**
@@ -2540,12 +1969,7 @@ export class GardenScene implements Scene {
     this.hideOrientationHint();
     this.animationSystem.destroy();
     this.particleSystem.destroy();
-    for (const [, visual] of this.plantVisuals) {
-      visual.destroy({ children: true });
-    }
-    this.plantVisuals.clear();
-    this.swayPhases.clear();
-    this.plantBaseX.clear();
+    this.plantRenderer.destroy();
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();
