@@ -156,7 +156,7 @@ export class ParticleSystem implements System {
   }
 
   update(delta: number): void {
-    const dt = delta / 60;
+    const dt = delta;
 
     // TLDR: Update particles — physics, fade, shrink
     const deadParticles: number[] = [];

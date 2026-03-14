@@ -104,8 +104,8 @@ export class AnimationSystem implements System {
   }
 
   update(delta: number): void {
-    // TLDR: delta is frame-based (1.0 = one frame at 60fps)
-    const dt = delta / 60;
+    // TLDR: delta is in seconds
+    const dt = delta;
     const completed: string[] = [];
 
     for (const [id, tween] of this.tweens) {

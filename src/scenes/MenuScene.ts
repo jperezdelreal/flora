@@ -639,7 +639,7 @@ export class MenuScene implements Scene {
   private handlePointerUp(): void { this.draggingSlider = null; }
 
   update(dt: number, _ctx: SceneContext): void {
-    const dtSeconds = dt / 60;
+    const dtSeconds = dt;
     this.elapsed += dtSeconds;
     this.animationSystem.update(dt);
     this.particleSystem.update(dt);

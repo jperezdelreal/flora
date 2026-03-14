@@ -1676,7 +1676,7 @@ export class GardenScene implements Scene {
    * TLDR: Per-frame visual updates — idle sway, screen shake, sky lerp, pest crawl
    */
   private updateVisuals(delta: number): void {
-    const dt = delta / 60;
+    const dt = delta;
     const time = performance.now() / 1000;
 
     this.animationSystem.update(delta);
