@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader, FPSMonitor } from './core';
-import { BootScene, GardenScene, MenuScene, SeedSelectionScene } from './scenes';
+import { BootScene, GardenScene, MenuScene, SeedSelectionScene, EncyclopediaScene } from './scenes';
 import { GAME, SCENES } from './config';
 import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem } from './systems';
 import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';
@@ -41,6 +41,7 @@ async function main(): Promise<void> {
   sceneManager.register(
     new BootScene(),
     new MenuScene(saveManager),
+    new EncyclopediaScene(encyclopediaSystem),
     new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem),
     new GardenScene(saveManager)
   );

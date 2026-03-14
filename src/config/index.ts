@@ -14,6 +14,7 @@ export const SCENES = {
   MENU: 'menu',
   SEED_SELECTION: 'seed-selection',
   GARDEN: 'garden',
+  ENCYCLOPEDIA: 'encyclopedia',
   EXPLORATION: 'exploration',
   GAME_OVER: 'game-over',
 } as const;

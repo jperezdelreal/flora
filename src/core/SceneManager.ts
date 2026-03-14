@@ -69,6 +69,11 @@ export class SceneManager {
     }
   }
 
+  /** TLDR: Retrieve a registered scene by name (for cross-scene communication) */
+  getScene(name: string): Scene | undefined {
+    return this.scenes.get(name);
+  }
+
   /** Switch scene without transition */
   async switchTo(name: string): Promise<void> {
     if (this.current) {
