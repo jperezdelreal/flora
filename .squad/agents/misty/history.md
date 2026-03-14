@@ -122,3 +122,19 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Bug fix**: Added missing `GrowthStage.WILTING` keyframe to `plantVisuals.ts` (scale 0.9, alpha 0.7, saturation 0.3)
 - **Conventions applied**: All comments "TLDR:", Ticker cleanup in destroy(), container lifecycle
 
+### HUD Information Hierarchy Redesign (Issue #239, PR #256)
+- **Architecture**: 3-tier visual hierarchy replacing flat 8-element panel
+- **Pattern**: Responsive panel width with `resize(viewportWidth)` / `getPanelWidth()` API, event-driven tertiary visibility with auto-hide timer
+- **Key file updated**:
+  - `src/ui/HUD.ts` — Complete redesign: 3 tiers (Primary 20px, Secondary 14px, Tertiary 12px), responsive width (280-700px), warm cozy palette
+  - `src/scenes/GardenScene.ts` — Updated HUD initialization and resize to use responsive `resize()`/`getPanelWidth()` instead of hardcoded 600px
+- **Primary tier** (always visible): Day counter, Season name (centered), Actions remaining (right-aligned with anchor)
+- **Secondary tier** (present, subdued): Score + last action points (left), Day progress bar (right)
+- **Tertiary tier** (event-driven, auto-hides after 4s): Weather warning, Unlock progress bar, Grid info — hidden by default in a separate Container
+- **Phase indicator** (preserved from #241): Phase bar below main panel, contextual hint below phase bar, flash animation on phase change
+- **Color palette**: Parchment background (0x2a2520), earthy border (0x6b5b4e), warm text (#f5e6d3, #d4a574, #8a7a6a)
+- **Responsive layout**: `layoutPanel(width)` redraws all backgrounds and repositions all elements for any panel width
+- **Timer cleanup**: `tertiaryHideTimer` cleared in `destroy()` to prevent memory leaks
+- **Conventions applied**: All comments "TLDR:", timer cleanup in destroy(), container lifecycle, no hardcoded dimensions
+- **Concurrent development note**: Had to rebase onto main mid-task to pick up #241/#243 changes; phase indicator methods added to maintain compatibility
+

@@ -322,8 +322,9 @@ export class GardenScene implements Scene {
     
     // Initialize HUD
     this.hud = new HUD();
+    this.hud.resize(ctx.app.screen.width);
     this.hud.setPosition(
-      (ctx.app.screen.width - 600) / 2,
+      Math.max(10, (ctx.app.screen.width - this.hud.getPanelWidth()) / 2),
       10
     );
     this.hud.setSeason(this.currentSeason);
@@ -615,8 +616,9 @@ export class GardenScene implements Scene {
     gardenContainer.x = gridInfo.offsetX;
     gardenContainer.y = gridInfo.offsetY;
 
-    // TLDR: Re-position HUD
-    this.hud.setPosition(Math.max(10, (w - 600) / 2), 10);
+    // TLDR: Re-position HUD (responsive width)
+    this.hud.resize(w);
+    this.hud.setPosition(Math.max(10, (w - this.hud.getPanelWidth()) / 2), 10);
 
     // TLDR: Re-position toolbar centered at bottom
     this.toolBar.position(w / 2 - 135, h - 100);

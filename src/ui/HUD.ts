@@ -1,7 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Season, SEASON_CONFIG } from '../config/seasons';
 
-/** Game phase for the phase indicator */
 export type GamePhase = 'planting' | 'tending' | 'harvest' | 'day_end';
 
 const PHASE_CONFIG: Record<GamePhase, { emoji: string; label: string; color: string }> = {
@@ -13,31 +12,43 @@ const PHASE_CONFIG: Record<GamePhase, { emoji: string; label: string; color: str
 
 const PHASE_ORDER: GamePhase[] = ['planting', 'tending', 'harvest', 'day_end'];
 
+// TLDR: Duration tertiary elements stay visible after event trigger
+const TERTIARY_DISPLAY_MS = 4000;
+
 /**
- * HUD displays game status information at the top of the screen:
- * - Day counter (Day X / 12) with circular progress
- * - Season indicator
- * - Day progress bar (time within current day)
- * - Actions remaining
- * - Next unlock progress indicator
- * - Phase indicator (Planting → Tending → Harvest → Day End)
- * - Contextual "what to do" hints
+ * HUD with 3-tier information hierarchy:
+ * - Primary (always visible): Day counter, Season, Actions remaining
+ * - Secondary (smaller, present): Score, Day progress bar
+ * - Tertiary (event-driven): Weather warning, Unlock progress, Grid info
  */
 export class HUD {
   private container: Container;
+  private bg: Graphics;
+  private panelWidth: number = 400;
+
+  // TLDR: Primary tier - always visible, large text
   private dayText: Text;
   private seasonText: Text;
   private actionsText: Text;
-  private dayProgressBar: Graphics;
-  private dayProgressBarBg: Graphics;
-  private dayCircle: Graphics;
-  private unlockProgressText: Text;
-  private unlockProgressBar: Graphics;
-  private unlockProgressBarBg: Graphics;
+
+  // TLDR: Secondary tier - present but not dominant
   private scoreText: Text;
   private lastActionPointsText: Text;
+  private dayProgressBarBg: Graphics;
+  private dayProgressBar: Graphics;
+  private dayProgressLabel: Text;
+
+  // TLDR: Tertiary tier - shown on event only, auto-hides
+  private tertiaryContainer: Container;
+  private tertiaryBg: Graphics;
   private weatherWarningText: Text;
+  private unlockProgressText: Text;
+  private unlockProgressBarBg: Graphics;
+  private unlockProgressBar: Graphics;
   private gridInfoText: Text;
+  private tertiaryHideTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // TLDR: Phase indicator bar
   private phaseContainer!: Container;
   private phaseLabels: Text[] = [];
   private phaseArrows: Text[] = [];
@@ -50,125 +61,57 @@ export class HUD {
   constructor() {
     this.container = new Container();
 
-    // Semi-transparent background panel (expanded height for unlock progress + score + weather warning)
-    const bg = new Graphics();
-    bg.roundRect(0, 0, 600, 135, 8);
-    bg.fill({ color: 0x1a1a1a, alpha: 0.9 });
-    bg.stroke({ color: 0x4caf50, width: 2 });
-    this.container.addChild(bg);
+    // TLDR: Background panel - redrawn on resize
+    this.bg = new Graphics();
+    this.container.addChild(this.bg);
 
-    // Day counter with circular progress indicator
-    this.dayCircle = new Graphics();
-    this.dayCircle.x = 30;
-    this.dayCircle.y = 30;
-    this.container.addChild(this.dayCircle);
-
+    // --- PRIMARY TIER (20px, warm cozy colors) ---
     this.dayText = new Text({
       text: 'Day 1 / 12',
       style: {
         fontFamily: 'Arial',
-        fontSize: 18,
-        fill: '#c8e6c9',
+        fontSize: 20,
+        fill: '#f5e6d3',
         fontWeight: 'bold',
       },
     });
-    this.dayText.x = 60;
-    this.dayText.y = 12;
+    this.dayText.x = 16;
+    this.dayText.y = 10;
     this.container.addChild(this.dayText);
 
-    // Season indicator
     this.seasonText = new Text({
-      text: '🌸 Spring',
+      text: '\uD83C\uDF38 Spring',
       style: {
         fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#ffffff',
+        fontSize: 20,
+        fill: '#a8e6cf',
+        fontWeight: 'bold',
       },
     });
-    this.seasonText.x = 60;
-    this.seasonText.y = 35;
     this.container.addChild(this.seasonText);
 
-    // Day progress bar (visual indicator of time within current day)
-    const progressBarX = 220;
-    const progressBarY = 20;
-    const progressBarWidth = 200;
-    const progressBarHeight = 20;
-
-    this.dayProgressBarBg = new Graphics();
-    this.dayProgressBarBg.roundRect(progressBarX, progressBarY, progressBarWidth, progressBarHeight, 4);
-    this.dayProgressBarBg.fill({ color: 0x2a2a2a });
-    this.container.addChild(this.dayProgressBarBg);
-
-    this.dayProgressBar = new Graphics();
-    this.container.addChild(this.dayProgressBar);
-
-    // Progress bar label
-    const progressLabel = new Text({
-      text: 'Day Progress',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 12,
-        fill: '#aaaaaa',
-      },
-    });
-    progressLabel.x = progressBarX + progressBarWidth / 2 - 40;
-    progressLabel.y = progressBarY + 3;
-    this.container.addChild(progressLabel);
-
-    // Actions remaining indicator
     this.actionsText = new Text({
       text: 'Actions: 3/3',
       style: {
         fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#66bb6a',
+        fontSize: 20,
+        fill: '#a8e6cf',
         fontWeight: 'bold',
       },
     });
-    this.actionsText.x = 460;
-    this.actionsText.y = 22;
     this.container.addChild(this.actionsText);
 
-    // Unlock progress indicator (bottom section)
-    const unlockProgressX = 20;
-    const unlockProgressY = 65;
-    const unlockProgressWidth = 560;
-    const unlockProgressHeight = 16;
-
-    this.unlockProgressBarBg = new Graphics();
-    this.unlockProgressBarBg.roundRect(unlockProgressX, unlockProgressY, unlockProgressWidth, unlockProgressHeight, 4);
-    this.unlockProgressBarBg.fill({ color: 0x2a2a2a });
-    this.container.addChild(this.unlockProgressBarBg);
-
-    this.unlockProgressBar = new Graphics();
-    this.container.addChild(this.unlockProgressBar);
-
-    this.unlockProgressText = new Text({
-      text: 'Next unlock: Loading...',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 11,
-        fill: '#ffd700',
-        fontWeight: 'bold',
-      },
-    });
-    this.unlockProgressText.x = unlockProgressX + 5;
-    this.unlockProgressText.y = unlockProgressY + 2;
-    this.container.addChild(this.unlockProgressText);
-
-    // Score display (bottom-right section)
+    // --- SECONDARY TIER (14px, present but subdued) ---
     this.scoreText = new Text({
       text: 'Score: 0',
       style: {
         fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#ffd700',
-        fontWeight: 'bold',
+        fontSize: 14,
+        fill: '#d4a574',
       },
     });
-    this.scoreText.x = 20;
-    this.scoreText.y = 87;
+    this.scoreText.x = 16;
+    this.scoreText.y = 38;
     this.container.addChild(this.scoreText);
 
     this.lastActionPointsText = new Text({
@@ -176,52 +119,82 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 14,
-        fill: '#66bb6a',
+        fill: '#a8e6cf',
         fontWeight: 'bold',
       },
     });
-    this.lastActionPointsText.x = 150;
-    this.lastActionPointsText.y = 89;
+    this.lastActionPointsText.visible = false;
     this.container.addChild(this.lastActionPointsText);
 
-    // TLDR: Weather warning indicator (bottom section)
+    this.dayProgressBarBg = new Graphics();
+    this.container.addChild(this.dayProgressBarBg);
+
+    this.dayProgressBar = new Graphics();
+    this.container.addChild(this.dayProgressBar);
+
+    this.dayProgressLabel = new Text({
+      text: 'Day Progress',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 11,
+        fill: '#8a7a6a',
+      },
+    });
+    this.container.addChild(this.dayProgressLabel);
+
+    // --- TERTIARY TIER (12px, hidden by default) ---
+    this.tertiaryContainer = new Container();
+    this.tertiaryContainer.visible = false;
+    this.container.addChild(this.tertiaryContainer);
+
+    this.tertiaryBg = new Graphics();
+    this.tertiaryContainer.addChild(this.tertiaryBg);
+
     this.weatherWarningText = new Text({
       text: '',
       style: {
         fontFamily: 'Arial',
-        fontSize: 13,
+        fontSize: 12,
         fill: '#ff9800',
         fontWeight: 'bold',
       },
     });
-    this.weatherWarningText.x = 20;
-    this.weatherWarningText.y = 112;
     this.weatherWarningText.visible = false;
-    this.container.addChild(this.weatherWarningText);
+    this.tertiaryContainer.addChild(this.weatherWarningText);
 
-    // TLDR: Grid size & structures indicator (right side of weather row)
+    this.unlockProgressText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: '#d4a574',
+      },
+    });
+    this.unlockProgressText.visible = false;
+    this.tertiaryContainer.addChild(this.unlockProgressText);
+
+    this.unlockProgressBarBg = new Graphics();
+    this.unlockProgressBarBg.visible = false;
+    this.tertiaryContainer.addChild(this.unlockProgressBarBg);
+
+    this.unlockProgressBar = new Graphics();
+    this.unlockProgressBar.visible = false;
+    this.tertiaryContainer.addChild(this.unlockProgressBar);
+
     this.gridInfoText = new Text({
       text: '',
       style: {
         fontFamily: 'Arial',
-        fontSize: 13,
-        fill: '#a5d6a7',
-        fontWeight: 'bold',
+        fontSize: 12,
+        fill: '#8a7a6a',
       },
     });
-    this.gridInfoText.x = 400;
-    this.gridInfoText.y = 112;
     this.gridInfoText.visible = false;
-    this.container.addChild(this.gridInfoText);
+    this.tertiaryContainer.addChild(this.gridInfoText);
 
-    // Phase indicator bar (below main HUD panel)
+    // TLDR: Phase indicator bar (below main panel and tertiary)
     this.phaseContainer = new Container();
-    this.phaseContainer.y = 140;
-
     this.phaseBg = new Graphics();
-    this.phaseBg.roundRect(0, 0, 600, 32, 6);
-    this.phaseBg.fill({ color: 0x1a1a1a, alpha: 0.85 });
-    this.phaseBg.stroke({ color: 0x3a3a3a, width: 1 });
     this.phaseContainer.addChild(this.phaseBg);
 
     let phaseX = 16;
@@ -233,7 +206,7 @@ export class HUD {
         style: {
           fontFamily: 'Arial',
           fontSize: 13,
-          fill: '#666666',
+          fill: '#555555',
           fontWeight: 'normal',
         },
       });
@@ -263,10 +236,6 @@ export class HUD {
 
     // Contextual hint (below phase bar)
     this.hintBg = new Graphics();
-    this.hintBg.roundRect(0, 0, 360, 28, 6);
-    this.hintBg.fill({ color: 0x2e7d32, alpha: 0.85 });
-    this.hintBg.x = 120;
-    this.hintBg.y = 176;
     this.hintBg.visible = false;
     this.container.addChild(this.hintBg);
 
@@ -280,21 +249,118 @@ export class HUD {
         align: 'center',
       },
     });
-    this.hintText.x = 130;
-    this.hintText.y = 182;
     this.hintText.visible = false;
     this.container.addChild(this.hintText);
 
     this.highlightPhase('planting');
+
+    // TLDR: Initial layout at default width
+    this.layoutPanel(400);
   }
 
   /**
-   * Update HUD display
-   * @param day Current day (1-12)
-   * @param maxDays Maximum days in season (default 12)
-   * @param dayProgress Progress within current day (0.0 - 1.0)
-   * @param actionsRemaining Actions left for the day
-   * @param maxActions Maximum actions per day
+   * TLDR: Redraws background and repositions elements for a given panel width.
+   */
+  private layoutPanel(width: number): void {
+    this.panelWidth = width;
+    const primaryHeight = 60;
+
+    // Redraw main background
+    this.bg.clear();
+    this.bg.roundRect(0, 0, width, primaryHeight, 10);
+    this.bg.fill({ color: 0x2a2520, alpha: 0.92 });
+    this.bg.stroke({ color: 0x6b5b4e, width: 1.5 });
+
+    // Primary: Season centered
+    this.seasonText.x = width / 2 - 50;
+    this.seasonText.y = 10;
+
+    // Primary: Actions right-aligned
+    this.actionsText.x = width - 16;
+    this.actionsText.y = 10;
+    this.actionsText.anchor.set(1, 0);
+
+    // Secondary: Score left
+    this.scoreText.x = 16;
+    this.scoreText.y = 38;
+
+    // Secondary: Last action points next to score
+    this.lastActionPointsText.x = 110;
+    this.lastActionPointsText.y = 38;
+
+    // Secondary: Day progress bar right side
+    const barWidth = Math.min(160, width * 0.35);
+    const barX = width - barWidth - 16;
+    const barY = 40;
+    const barHeight = 12;
+
+    this.dayProgressBarBg.clear();
+    this.dayProgressBarBg.roundRect(barX, barY, barWidth, barHeight, 3);
+    this.dayProgressBarBg.fill({ color: 0x3d342c });
+
+    this.dayProgressLabel.x = barX;
+    this.dayProgressLabel.y = barY - 13;
+
+    // Tertiary container sits below the main panel
+    this.tertiaryContainer.y = primaryHeight + 4;
+
+    // Tertiary background
+    this.tertiaryBg.clear();
+    this.tertiaryBg.roundRect(0, 0, width, 28, 6);
+    this.tertiaryBg.fill({ color: 0x2a2520, alpha: 0.85 });
+    this.tertiaryBg.stroke({ color: 0x6b5b4e, width: 1 });
+
+    this.weatherWarningText.x = 12;
+    this.weatherWarningText.y = 6;
+
+    this.gridInfoText.x = width - 12;
+    this.gridInfoText.y = 6;
+    this.gridInfoText.anchor.set(1, 0);
+
+    // Unlock progress bar in tertiary
+    this.unlockProgressBarBg.clear();
+    this.unlockProgressBarBg.roundRect(12, 20, width - 24, 6, 3);
+    this.unlockProgressBarBg.fill({ color: 0x3d342c });
+
+    this.unlockProgressText.x = 12;
+    this.unlockProgressText.y = 6;
+
+    // Phase bar positioning (below tertiary)
+    const phaseY = primaryHeight + 36;
+    this.phaseContainer.y = phaseY;
+    this.phaseBg.clear();
+    this.phaseBg.roundRect(0, 0, width, 32, 6);
+    this.phaseBg.fill({ color: 0x2a2520, alpha: 0.85 });
+    this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
+
+    // Hint positioning
+    this.hintBg.clear();
+    this.hintBg.roundRect(0, 0, Math.min(360, width - 40), 28, 6);
+    this.hintBg.fill({ color: 0x2e7d32, alpha: 0.85 });
+    this.hintBg.x = 20;
+    this.hintBg.y = phaseY + 36;
+
+    this.hintText.x = 30;
+    this.hintText.y = phaseY + 42;
+  }
+
+  /**
+   * TLDR: Resize the HUD panel to fit viewport width.
+   */
+  resize(viewportWidth: number): void {
+    const width = Math.min(Math.max(viewportWidth - 40, 280), 700);
+    this.layoutPanel(width);
+  }
+
+  /**
+   * TLDR: Returns the current panel width so GardenScene can center it.
+   */
+  getPanelWidth(): number {
+    return this.panelWidth;
+  }
+
+  /**
+   * Update HUD display (primary + secondary tiers)
    */
   update(
     day: number,
@@ -303,58 +369,40 @@ export class HUD {
     actionsRemaining: number = 0,
     maxActions: number = 0,
   ): void {
-    // Update day text
+    // Primary: Day counter
     this.dayText.text = `Day ${day} / ${maxDays}`;
 
-    // Update day circular progress indicator
-    this.dayCircle.clear();
-    // Background circle (grey)
-    this.dayCircle.circle(0, 0, 18);
-    this.dayCircle.fill({ color: 0x3a3a3a });
-    // Progress arc (green)
-    const progress = day / maxDays;
-    if (progress > 0) {
-      this.dayCircle.moveTo(0, 0);
-      this.dayCircle.arc(0, 0, 18, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
-      this.dayCircle.fill({ color: 0x4caf50 });
-    }
-    // Inner circle (dark)
-    this.dayCircle.circle(0, 0, 12);
-    this.dayCircle.fill({ color: 0x1a1a1a });
+    // Secondary: Day progress bar
+    const barWidth = Math.min(160, this.panelWidth * 0.35);
+    const barX = this.panelWidth - barWidth - 16;
+    const barY = 40;
+    const barHeight = 12;
 
-    // Update day progress bar
-    const progressBarX = 220;
-    const progressBarY = 20;
-    const progressBarWidth = 200;
-    const progressBarHeight = 20;
-    
     this.dayProgressBar.clear();
     if (dayProgress > 0) {
       this.dayProgressBar.roundRect(
-        progressBarX,
-        progressBarY,
-        progressBarWidth * Math.min(dayProgress, 1.0),
-        progressBarHeight,
-        4
+        barX,
+        barY,
+        barWidth * Math.min(dayProgress, 1.0),
+        barHeight,
+        3,
       );
-      this.dayProgressBar.fill({ color: 0x66bb6a });
+      this.dayProgressBar.fill({ color: 0xa8e6cf });
     }
 
-    // Update actions text with color coding
+    // Primary: Actions with color coding
     this.actionsText.text = `Actions: ${actionsRemaining}/${maxActions}`;
     if (actionsRemaining === 0) {
-      this.actionsText.style.fill = '#ff5252'; // Red when depleted
+      this.actionsText.style.fill = '#e57373';
     } else if (actionsRemaining === maxActions) {
-      this.actionsText.style.fill = '#66bb6a'; // Green when full
+      this.actionsText.style.fill = '#a8e6cf';
     } else {
-      this.actionsText.style.fill = '#ffeb3b'; // Yellow when partial
+      this.actionsText.style.fill = '#ffe082';
     }
   }
 
   /**
-   * TLDR: Update score display
-   * @param totalScore Current total score
-   * @param lastActionPoints Points from last action (0 to hide)
+   * TLDR: Update score display (secondary tier)
    */
   updateScore(totalScore: number, lastActionPoints: number = 0): void {
     this.scoreText.text = `Score: ${totalScore}`;
@@ -368,33 +416,23 @@ export class HUD {
   }
 
   /**
-   * TLDR: Update unlock progress indicator
-   * @param milestoneText Display text for next milestone
-   * @param current Current progress value
-   * @param target Target value to unlock
+   * TLDR: Update unlock progress indicator (tertiary tier - shows on event)
    */
   updateUnlockProgress(milestoneText: string, current: number, target: number): void {
-    const unlockProgressX = 20;
-    const unlockProgressY = 65;
-    const unlockProgressWidth = 560;
-    const unlockProgressHeight = 16;
-
-    // Update text
     this.unlockProgressText.text = `${milestoneText}: ${current}/${target}`;
+    this.unlockProgressText.visible = true;
+    this.unlockProgressBarBg.visible = true;
+    this.unlockProgressBar.visible = true;
 
-    // Update progress bar
+    const unlockBarWidth = this.panelWidth - 24;
     const progress = Math.min(current / target, 1.0);
     this.unlockProgressBar.clear();
     if (progress > 0) {
-      this.unlockProgressBar.roundRect(
-        unlockProgressX,
-        unlockProgressY,
-        unlockProgressWidth * progress,
-        unlockProgressHeight,
-        4
-      );
-      this.unlockProgressBar.fill({ color: 0xffd700, alpha: 0.8 });
+      this.unlockProgressBar.roundRect(12, 20, unlockBarWidth * progress, 6, 3);
+      this.unlockProgressBar.fill({ color: 0xd4a574, alpha: 0.9 });
     }
+
+    this.showTertiary();
   }
 
   setPosition(x: number, y: number): void {
@@ -403,52 +441,84 @@ export class HUD {
   }
 
   /**
-   * Update the season indicator in the HUD.
-   * Adjusts the text and text color to match the active season's palette.
+   * TLDR: Update the season indicator (primary tier).
    */
   setSeason(season: Season): void {
     const cfg = SEASON_CONFIG[season];
     this.seasonText.text = `${cfg.emoji} ${cfg.displayName}`;
 
-    // Map season to a pleasing text color
     const seasonColors: Record<Season, string> = {
-      [Season.SPRING]: '#a8e6cf',  // soft mint green
-      [Season.SUMMER]: '#ffe082',  // warm yellow
-      [Season.FALL]: '#ffcc80',    // warm orange
-      [Season.WINTER]: '#b3d9ff',  // cool blue
+      [Season.SPRING]: '#a8e6cf',
+      [Season.SUMMER]: '#ffe082',
+      [Season.FALL]: '#ffcc80',
+      [Season.WINTER]: '#b3d9ff',
     };
     this.seasonText.style.fill = seasonColors[season];
   }
 
   /**
-   * TLDR: Update weather warning display
-   * @param warningText Warning text to display (empty to hide)
+   * TLDR: Update weather warning (tertiary tier - shows on event, auto-hides)
    */
   updateWeatherWarning(warningText: string): void {
     if (warningText) {
-      this.weatherWarningText.text = `⚠️ ${warningText}`;
+      this.weatherWarningText.text = `\u26a0\ufe0f ${warningText}`;
       this.weatherWarningText.visible = true;
+      this.showTertiary();
     } else {
       this.weatherWarningText.visible = false;
+      this.hideTertiaryIfEmpty();
     }
   }
 
   /**
-   * TLDR: Update grid info display (grid size + structure count)
-   * @param rows Current grid rows
-   * @param cols Current grid cols
-   * @param structureCount Number of placed structures
+   * TLDR: Update grid info display (tertiary tier - shows on event, auto-hides)
    */
   updateGridInfo(rows: number, cols: number, structureCount: number): void {
-    const parts: string[] = [`🌿 ${cols}×${rows}`];
+    const parts: string[] = [`\uD83C\uDF3F ${cols}\u00d7${rows}`];
     if (structureCount > 0) {
-      parts.push(`🏗️ ${structureCount}`);
+      parts.push(`\uD83C\uDFD7\ufe0f ${structureCount}`);
     }
     this.gridInfoText.text = parts.join('  ');
     this.gridInfoText.visible = true;
+    this.showTertiary();
   }
 
-  /** Highlight the current game phase; others are dimmed */
+  /**
+   * TLDR: Show tertiary container and schedule auto-hide
+   */
+  private showTertiary(): void {
+    this.tertiaryContainer.visible = true;
+
+    if (this.tertiaryHideTimer !== null) {
+      clearTimeout(this.tertiaryHideTimer);
+    }
+    this.tertiaryHideTimer = setTimeout(() => {
+      this.tertiaryContainer.visible = false;
+      this.tertiaryHideTimer = null;
+    }, TERTIARY_DISPLAY_MS);
+  }
+
+  /**
+   * TLDR: Hide tertiary container only if no child elements are visible
+   */
+  private hideTertiaryIfEmpty(): void {
+    const hasContent =
+      this.weatherWarningText.visible ||
+      this.unlockProgressText.visible ||
+      this.gridInfoText.visible;
+
+    if (!hasContent) {
+      this.tertiaryContainer.visible = false;
+      if (this.tertiaryHideTimer !== null) {
+        clearTimeout(this.tertiaryHideTimer);
+        this.tertiaryHideTimer = null;
+      }
+    }
+  }
+
+  /**
+   * TLDR: Highlight the current game phase; others are dimmed
+   */
   setPhase(phase: GamePhase): void {
     if (phase === this.currentPhase) return;
     this.currentPhase = phase;
@@ -474,7 +544,9 @@ export class HUD {
     return this.currentPhase;
   }
 
-  /** Show a contextual hint. Pass empty string to hide. */
+  /**
+   * TLDR: Show a contextual hint. Pass empty string to hide.
+   */
   setHint(hint: string): void {
     if (hint) {
       this.hintText.text = `💡 ${hint}`;
@@ -486,7 +558,9 @@ export class HUD {
     }
   }
 
-  /** Animate phase transition flash (call each frame) */
+  /**
+   * TLDR: Animate phase transition flash (call each frame)
+   */
   updatePhaseTransition(delta: number): void {
     if (this.phaseTransitionAlpha > 0) {
       this.phaseTransitionAlpha -= delta * 2;
@@ -494,14 +568,14 @@ export class HUD {
         this.phaseTransitionAlpha = 0;
       }
       this.phaseBg.clear();
-      this.phaseBg.roundRect(0, 0, 600, 32, 6);
-      this.phaseBg.fill({ color: 0x1a1a1a, alpha: 0.85 });
+      this.phaseBg.roundRect(0, 0, this.panelWidth, 32, 6);
+      this.phaseBg.fill({ color: 0x2a2520, alpha: 0.85 });
       if (this.phaseTransitionAlpha > 0) {
         const cfg = PHASE_CONFIG[this.currentPhase];
         const flashColor = parseInt(cfg.color.replace('#', ''), 16);
         this.phaseBg.stroke({ color: flashColor, width: 2, alpha: this.phaseTransitionAlpha });
       } else {
-        this.phaseBg.stroke({ color: 0x3a3a3a, width: 1 });
+        this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
       }
     }
   }
@@ -511,6 +585,9 @@ export class HUD {
   }
 
   destroy(): void {
+    if (this.tertiaryHideTimer !== null) {
+      clearTimeout(this.tertiaryHideTimer);
+    }
     this.container.destroy({ children: true });
   }
 }
