@@ -100,6 +100,12 @@ export class ScoringSystem implements System {
     const basePoints = SCORE_CONFIG.harvest.base;
     const rarityMultiplier = SCORE_CONFIG.harvest.rarityMultiplier[plantConfig.rarity] ?? 1.0;
     this.lastActionPoints = Math.round(basePoints * rarityMultiplier);
+    
+    // TLDR: Emit score update event for UI feedback
+    eventBus.emit('score:updated', { 
+      total: this.getScoreBreakdown().total, 
+      lastAction: this.lastActionPoints 
+    });
   }
 
   /**
@@ -115,6 +121,12 @@ export class ScoringSystem implements System {
   private onPestRemoved(): void {
     this.stats.pestsRemoved++;
     this.lastActionPoints = SCORE_CONFIG.hazards.pestRemoved;
+    
+    // TLDR: Emit score update event for UI feedback
+    eventBus.emit('score:updated', { 
+      total: this.getScoreBreakdown().total, 
+      lastAction: this.lastActionPoints 
+    });
   }
 
   /**

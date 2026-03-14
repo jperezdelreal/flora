@@ -1435,12 +1435,17 @@ export class GardenScene implements Scene {
 
     eventBus.on('plant:harvested', (data) => {
       this.triggerHarvestBurst(data.plantId, data.seeds);
+      this.triggerPlantRemovalAnimation(data.plantId);
       this.triggerScreenShake();
       this.triggerScreenPulse();
     });
 
     eventBus.on('plant:died', (data) => {
       this.removePlantVisual(data.plantId);
+    });
+    
+    eventBus.on('score:updated', (data) => {
+      this.triggerScoreText(data.lastAction);
     });
 
     eventBus.on('pest:removed', (data) => {

@@ -93,3 +93,32 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Conventions applied**: All comments "TLDR:", bound listener cleanup in destroy(), container lifecycle
 - **Note**: Encyclopedia and Achievements menu items are placeholder — scenes not yet registered
 
+### Encyclopedia Visual Polish with Card Layout (Issue #205, PR #212)
+- **Architecture**: Beautiful card-based layout replaces simple list view
+- **Pattern**: Filter/sort state machine with keyboard focus management and detail modal
+- **Key file updated**:
+  - `src/ui/Encyclopedia.ts` — Complete redesign: card grid, filters, sort, detail popup, animations
+  - **New file**: `src/utils/plantRenderer.ts` — Shared rendering utilities for plant shape thumbnails
+- **Card design**: 120×160px cards with plant sprite (mature stage), name, 1-4 star rarity, growth/water icons
+- **Filter system**: Tabs for All/Common/Uncommon/Rare/Heirloom with visual state tracking
+- **Sort options**: Name, Rarity, or Growth Time with ascending sort
+- **Discovery counter**: Shows "Discovered: X / 22 (Y%)" at top
+- **Detail popup**: Modal overlay with large plant sprite, full stats, description, close button
+  - Click discovered card or press Enter while focused to open
+  - Esc key to close, semi-transparent backdrop
+- **Undiscovered plants**: Dark silhouette with ? icon and star rarity hint
+- **Hover effects**: Subtle glow border on discovered cards (rarity color)
+- **New discovery animation**: 5-second sparkle pulse effect on newly discovered plants (tracked in `newDiscoveries` Set)
+- **Keyboard navigation**:
+  - Arrow keys navigate focused card index across 5-column grid
+  - Enter opens detail popup for discovered plant
+  - Focus ring rendered as white stroke around card
+  - Auto-scroll to keep focused card in viewport
+- **Visual polish**: Warm parchment background (0x2a2520), rarity-colored borders, cozy aesthetic
+- **Plant rendering**: Uses `plantRenderer.ts` utility to draw procedural shapes (flower, star, bush, root, etc.)
+  - Each of 22 plants gets distinct visual from `plantVisuals.ts` config
+  - No sprite assets needed — all shapes drawn with PixiJS Graphics
+- **Animation ticker**: Subscribed to Ticker.shared for sparkle pulse effect
+- **Bug fix**: Added missing `GrowthStage.WILTING` keyframe to `plantVisuals.ts` (scale 0.9, alpha 0.7, saturation 0.3)
+- **Conventions applied**: All comments "TLDR:", Ticker cleanup in destroy(), container lifecycle
+
