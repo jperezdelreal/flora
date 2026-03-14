@@ -60,11 +60,7 @@ export class GardenScene implements Scene {
   private encyclopediaSystem!: EncyclopediaSystem;
   private encyclopedia!: Encyclopedia;
   private discoveryPopup!: DiscoveryPopup;
-  private infoText!: Text;
   private statusText!: Text;
-  private helpText!: Text;
-  private encyclopediaButton!: Graphics;
-  private encyclopediaButtonText!: Text;
   private encyclopediaVisible = false;
   private input!: InputManager;
   private hazardSystem!: HazardSystem;
@@ -290,21 +286,6 @@ export class GardenScene implements Scene {
     this.hazardTooltip = new HazardTooltip();
     this.container.addChild(this.hazardTooltip.getContainer());
 
-    // Info text at top
-    this.infoText = new Text({
-      text: '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#c8e6c9',
-        align: 'center',
-      },
-    });
-    this.infoText.anchor.set(0.5, 0);
-    this.infoText.x = ctx.app.screen.width / 2;
-    this.infoText.y = 20;
-    this.container.addChild(this.infoText);
-
     // Status text (day, actions)
     this.statusText = new Text({
       text: '',
@@ -318,47 +299,6 @@ export class GardenScene implements Scene {
     this.statusText.x = 20;
     this.statusText.y = 50;
     this.container.addChild(this.statusText);
-
-    // Help text (plant stats)
-    this.helpText = new Text({
-      text: 'Day: 0 | Plants: 0 | Discovered: 0/12',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#aaaaaa',
-        align: 'center',
-      },
-    });
-    this.helpText.anchor.set(0.5, 0);
-    this.helpText.x = ctx.app.screen.width / 2;
-    this.helpText.y = 50;
-    this.container.addChild(this.helpText);
-
-    // Encyclopedia button (top-right)
-    this.encyclopediaButton = new Graphics();
-    this.encyclopediaButton.roundRect(0, 0, 140, 40, 8);
-    this.encyclopediaButton.fill({ color: 0x2a2a2a, alpha: 0.9 });
-    this.encyclopediaButton.stroke({ color: 0x4caf50, width: 2 });
-    this.encyclopediaButton.x = ctx.app.screen.width - 160;
-    this.encyclopediaButton.y = 15;
-    this.encyclopediaButton.eventMode = 'static';
-    this.encyclopediaButton.cursor = 'pointer';
-    this.encyclopediaButton.on('pointerdown', () => this.toggleEncyclopedia());
-    this.container.addChild(this.encyclopediaButton);
-
-    this.encyclopediaButtonText = new Text({
-      text: '📖 Encyclopedia',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#4caf50',
-        fontWeight: 'bold',
-      },
-    });
-    this.encyclopediaButtonText.anchor.set(0.5, 0.5);
-    this.encyclopediaButtonText.x = this.encyclopediaButton.x + 70;
-    this.encyclopediaButtonText.y = this.encyclopediaButton.y + 20;
-    this.container.addChild(this.encyclopediaButtonText);
 
     // Initialize Encyclopedia UI
     this.encyclopedia = new Encyclopedia();
@@ -380,7 +320,7 @@ export class GardenScene implements Scene {
       this.newDiscoveriesThisSeason.add(event.config.displayName);
     });
     
-    // Initialize HUD (replaces statusText/helpText)
+    // Initialize HUD
     this.hud = new HUD();
     this.hud.setPosition(
       (ctx.app.screen.width - 600) / 2,
@@ -894,11 +834,8 @@ export class GardenScene implements Scene {
     this.isPaused = false;
   }
 
-  private showActionMessage(message: string): void {
-    this.infoText.text = message;
-    setTimeout(() => {
-      this.infoText.text = '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools';
-    }, 2000);
+  private showActionMessage(_message: string): void {
+    // Action messages handled by HUD
   }
 
   private onDayAdvance(): void {
@@ -1047,12 +984,8 @@ export class GardenScene implements Scene {
     }
   }
 
-  private updateInfoText(message: string): void {
-    this.infoText.text = message;
-    // Reset after 2 seconds
-    setTimeout(() => {
-      this.infoText.text = '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools';
-    }, 2000);
+  private updateInfoText(_message: string): void {
+    // Info messages handled by HUD
   }
   
   private showDaySummary(): void {
@@ -1173,23 +1106,11 @@ export class GardenScene implements Scene {
       setTimeout(() => this.scoringSystem.clearLastActionPoints(), 1000);
     }
 
-    // Update help text with stats (keep for legacy but HUD now shows this)
-    const stats = this.plantSystem.getStats();
-    const encycStats = this.encyclopediaSystem.getStats();
-    this.helpText.text = `Day: ${stats.currentDay} | Plants: ${stats.activePlants} (${stats.maturePlants} mature) | Discovered: ${encycStats.discovered}/${encycStats.total}`;
-
     // Update selected tile info and plant info panel
     const selectedTile = this.gridSystem.getSelectedTile();
     if (selectedTile && !this.player.isMoving()) {
       const pos = this.player.getGridPosition();
       if (selectedTile.row !== pos.row || selectedTile.col !== pos.col) {
-        // Show tile info when hovering a different tile
-        let stateText: string = selectedTile.state;
-        if (selectedTile.hasPest()) {
-          stateText += ' (click to remove)';
-        }
-        this.infoText.text = `Tile [${selectedTile.row}, ${selectedTile.col}] | State: ${stateText} | Soil: ${selectedTile.soilQuality}% | Moisture: ${selectedTile.moisture}%`;
-        
         // Show plant info panel if tile has a plant
         if (selectedTile.state === TileState.OCCUPIED) {
           const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
@@ -1208,9 +1129,6 @@ export class GardenScene implements Scene {
         // Show plant info when on occupied tile
         const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
         if (plant) {
-          const state = plant.getState();
-          this.infoText.text = `${state.config.displayName} | Stage: ${state.growthStage} | Health: ${Math.round(state.health)}% | Days: ${state.daysGrown}/${state.config.growthTime}`;
-          
           // Show plant info panel
           const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
           const gridPos = this.gridSystem.getContainer().position;
