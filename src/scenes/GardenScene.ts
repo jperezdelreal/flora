@@ -29,6 +29,14 @@ import { getPlantsBySeason, PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
 import { ANIMATION, PLANT_STAGE_COLORS, RARITY_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
+import {
+  getPlantVisual,
+  getStageKeyframe,
+  adjustColorForHealth,
+  adjustColorForAccessibility,
+  getShapeData,
+  type PlantVisualDef,
+} from '../config/plantVisuals';
 import { TutorialSystem } from '../systems/TutorialSystem';
 import {
   getViewportInfo,
@@ -114,6 +122,7 @@ export class GardenScene implements Scene {
   private plantVisualLayer!: Container;
   private plantVisuals: Map<string, Container> = new Map();
   private swayPhases: Map<string, number> = new Map();
+  private plantHealthCache: Map<string, number> = new Map();
   private shakeContainer!: Container;
   private shakeElapsed = 0;
   private shakeDuration = 0;
@@ -1457,30 +1466,77 @@ export class GardenScene implements Scene {
     visual.scale.set(0.01);
 
     const gfx = new Graphics();
-    this.drawPlantShape(gfx, GrowthStage.SEED, plant.getConfig().rarity);
+    const configId = plant.getConfig().id;
+    this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth());
     visual.addChild(gfx);
 
     this.plantVisualLayer.addChild(visual);
     this.plantVisuals.set(plantId, visual);
 
-    // TLDR: Random sway phase so plants don't oscillate in unison
+    const visualDef = getPlantVisual(configId);
+    const keyframe = getStageKeyframe(configId, GrowthStage.SEED);
+    
     this.swayPhases.set(plantId, Math.random() * Math.PI * 2);
 
-    // TLDR: Pop-in animation on creation
     this.animationSystem.tween(
       visual.scale as unknown as Record<string, unknown>,
-      { x: 1, y: 1 },
+      { x: keyframe.scale, y: keyframe.scale },
       ANIMATION.GROWTH_SCALE_DURATION,
       { easing: Easing.backOut },
+    );
+    
+    this.animationSystem.tween(
+      visual as unknown as Record<string, unknown>,
+      { alpha: keyframe.alpha },
+      ANIMATION.GROWTH_SCALE_DURATION * 0.5,
     );
   }
 
   /**
-   * TLDR: Draw plant shape per growth stage — bigger and greener as it grows
+   * TLDR: Draw plant shape per growth stage — unique visual identity per plant
    */
-  private drawPlantShape(gfx: Graphics, stage: GrowthStage, rarity: string): void {
+  private drawPlantShape(gfx: Graphics, plantId: string, stage: GrowthStage, health: number): void {
     gfx.clear();
 
+    const visualDef = getPlantVisual(plantId);
+    if (!visualDef) {
+      this.drawFallbackShape(gfx, stage);
+      return;
+    }
+
+    const keyframe = getStageKeyframe(plantId, stage);
+    const baseSize = ANIMATION.PLANT_SIZE_MATURE;
+    const shapeData = getShapeData(visualDef, stage, baseSize);
+    
+    const baseColor = adjustColorForAccessibility(visualDef.baseColor);
+    const accentColor = adjustColorForAccessibility(visualDef.accentColor);
+    const detailColor = visualDef.detailColor ? adjustColorForAccessibility(visualDef.detailColor) : accentColor;
+    
+    const mainColor = adjustColorForHealth(baseColor, health);
+    const accColor = adjustColorForHealth(accentColor, health);
+    const detColor = adjustColorForHealth(detailColor, health);
+
+    const alpha = keyframe.alpha * (health > 50 ? 1.0 : 0.7);
+    
+    if (visualDef.glowOnMature && stage === GrowthStage.MATURE && health > 70) {
+      gfx.circle(0, keyframe.yOffset, shapeData.mainRadius + 6);
+      gfx.fill({ color: accColor, alpha: 0.4 });
+    }
+
+    if (visualDef.matureShape === 'flower' && stage === GrowthStage.MATURE) {
+      this.drawFlower(gfx, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+    } else if (visualDef.matureShape === 'star' && stage === GrowthStage.MATURE) {
+      this.drawStar(gfx, shapeData, mainColor, accColor, alpha, keyframe.yOffset);
+    } else if (visualDef.matureShape === 'bush' && stage === GrowthStage.MATURE) {
+      this.drawBush(gfx, shapeData, mainColor, accColor, alpha, keyframe.yOffset);
+    } else if (visualDef.matureShape === 'root' && stage === GrowthStage.GROWING) {
+      this.drawRoot(gfx, shapeData, mainColor, accColor, alpha, keyframe.yOffset);
+    } else {
+      this.drawEllipse(gfx, shapeData, mainColor, accColor, alpha, keyframe.yOffset);
+    }
+  }
+
+  private drawFallbackShape(gfx: Graphics, stage: GrowthStage): void {
     const sizeMap: Record<string, number> = {
       [GrowthStage.SEED]: ANIMATION.PLANT_SIZE_SEED,
       [GrowthStage.SPROUT]: ANIMATION.PLANT_SIZE_SPROUT,
@@ -1489,21 +1545,132 @@ export class GardenScene implements Scene {
     };
     const radius = sizeMap[stage] ?? ANIMATION.PLANT_SIZE_SEED;
     const colors = PLANT_STAGE_COLORS[stage] ?? PLANT_STAGE_COLORS.seed;
-    const accentColors = RARITY_COLORS[rarity] ?? RARITY_COLORS.common;
-
-    // TLDR: Outer glow ring for uncommon+ rarity
-    if (rarity !== 'common' && stage === GrowthStage.MATURE) {
-      gfx.circle(0, 0, radius + 4);
-      gfx.fill({ color: accentColors[0], alpha: 0.3 });
-    }
 
     gfx.circle(0, 0, radius);
     gfx.fill({ color: colors[0] });
 
-    // TLDR: Inner highlight for depth
     if (radius > 5) {
       gfx.circle(-radius * 0.2, -radius * 0.2, radius * 0.4);
       gfx.fill({ color: colors[1], alpha: 0.5 });
+    }
+  }
+
+  private drawEllipse(
+    gfx: Graphics,
+    shape: ReturnType<typeof getShapeData>,
+    mainColor: number,
+    accentColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    gfx.ellipse(0, yOffset, shape.mainRadius, shape.mainRadius / shape.aspectRatio);
+    gfx.fill({ color: mainColor, alpha });
+
+    if (shape.mainRadius > 5) {
+      const highlightSize = shape.mainRadius * 0.35;
+      gfx.ellipse(
+        -shape.mainRadius * 0.2,
+        yOffset - shape.mainRadius * 0.2,
+        highlightSize,
+        highlightSize / shape.aspectRatio,
+      );
+      gfx.fill({ color: accentColor, alpha: alpha * 0.6 });
+    }
+  }
+
+  private drawFlower(
+    gfx: Graphics,
+    shape: ReturnType<typeof getShapeData>,
+    mainColor: number,
+    accentColor: number,
+    detailColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    const petalCount = shape.petals ?? 6;
+    const petalRadius = shape.mainRadius * 0.5;
+    const centerRadius = shape.secondaryRadius ?? shape.mainRadius * 0.3;
+
+    for (let i = 0; i < petalCount; i++) {
+      const angle = (i / petalCount) * Math.PI * 2;
+      const x = Math.cos(angle) * shape.mainRadius * 0.6;
+      const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.6;
+      gfx.circle(x, y, petalRadius);
+      gfx.fill({ color: mainColor, alpha });
+    }
+
+    gfx.circle(0, yOffset, centerRadius);
+    gfx.fill({ color: detailColor, alpha });
+  }
+
+  private drawStar(
+    gfx: Graphics,
+    shape: ReturnType<typeof getShapeData>,
+    mainColor: number,
+    accentColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    const points = shape.petals ?? 5;
+    const outerRadius = shape.mainRadius;
+    const innerRadius = shape.secondaryRadius ?? shape.mainRadius * 0.5;
+
+    gfx.moveTo(0, yOffset - outerRadius);
+    
+    for (let i = 0; i <= points * 2; i++) {
+      const radius = i % 2 === 0 ? outerRadius : innerRadius;
+      const angle = (i * Math.PI) / points - Math.PI / 2;
+      const x = Math.cos(angle) * radius;
+      const y = yOffset + Math.sin(angle) * radius;
+      gfx.lineTo(x, y);
+    }
+    
+    gfx.fill({ color: mainColor, alpha });
+
+    gfx.circle(0, yOffset, innerRadius * 0.5);
+    gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+  }
+
+  private drawBush(
+    gfx: Graphics,
+    shape: ReturnType<typeof getShapeData>,
+    mainColor: number,
+    accentColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    const clusters = 5;
+    for (let i = 0; i < clusters; i++) {
+      const angle = (i / clusters) * Math.PI * 2;
+      const offset = shape.mainRadius * 0.4;
+      const x = Math.cos(angle) * offset;
+      const y = yOffset + Math.sin(angle) * offset;
+      const clusterSize = shape.secondaryRadius ?? shape.mainRadius * 0.7;
+      
+      gfx.circle(x, y, clusterSize);
+      gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha });
+    }
+
+    gfx.circle(0, yOffset, shape.mainRadius * 0.6);
+    gfx.fill({ color: mainColor, alpha });
+  }
+
+  private drawRoot(
+    gfx: Graphics,
+    shape: ReturnType<typeof getShapeData>,
+    mainColor: number,
+    accentColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    gfx.ellipse(0, yOffset + shape.mainRadius * 0.3, shape.mainRadius, shape.mainRadius * 0.6);
+    gfx.fill({ color: mainColor, alpha });
+
+    const frondCount = 3;
+    for (let i = 0; i < frondCount; i++) {
+      const xOffset = (i - 1) * shape.mainRadius * 0.4;
+      gfx.ellipse(xOffset, yOffset - shape.mainRadius * 0.5, shape.mainRadius * 0.3, shape.mainRadius * 0.8);
+      gfx.fill({ color: accentColor, alpha });
     }
   }
 
@@ -1517,19 +1684,30 @@ export class GardenScene implements Scene {
     const plant = this.plantSystem.getPlant(plantId);
     if (!plant) return;
 
-    // TLDR: Redraw at new stage size
+    const configId = plant.getConfig().id;
+    const keyframe = getStageKeyframe(configId, stage);
+    const visualDef = getPlantVisual(configId);
+
     const gfx = visual.children[0] as Graphics;
     if (gfx) {
-      this.drawPlantShape(gfx, stage, plant.getConfig().rarity);
+      this.drawPlantShape(gfx, configId, stage, plant.getHealth());
     }
 
-    // TLDR: Scale overshoot then settle — juicy growth feedback
-    visual.scale.set(ANIMATION.GROWTH_SCALE_OVERSHOOT);
+    const swayIntensity = visualDef?.swayIntensity ?? 1.0;
+    const targetScale = keyframe.scale * (1 + 0.15 * swayIntensity);
+
+    visual.scale.set(targetScale);
     this.animationSystem.tween(
       visual.scale as unknown as Record<string, unknown>,
-      { x: 1, y: 1 },
+      { x: keyframe.scale, y: keyframe.scale },
       ANIMATION.GROWTH_SCALE_DURATION,
       { easing: Easing.elasticOut },
+    );
+
+    this.animationSystem.tween(
+      visual as unknown as Record<string, unknown>,
+      { alpha: keyframe.alpha },
+      ANIMATION.GROWTH_SCALE_DURATION * 0.5,
     );
   }
 
@@ -1663,12 +1841,27 @@ export class GardenScene implements Scene {
       this.createPlantVisual(plant.id, plant.x, plant.y);
       const visual = this.plantVisuals.get(plant.id);
       if (visual) {
-        visual.scale.set(1);
+        const keyframe = getStageKeyframe(plant.getConfig().id, plant.getGrowthStage());
+        visual.scale.set(keyframe.scale);
         const gfx = visual.children[0] as Graphics;
         if (gfx) {
-          this.drawPlantShape(gfx, plant.getGrowthStage(), plant.getConfig().rarity);
+          this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
         }
       }
+    }
+  }
+
+  /**
+   * TLDR: Refresh a single plant's visual (for health changes / wilting)
+   */
+  private refreshPlantVisual(plantId: string): void {
+    const visual = this.plantVisuals.get(plantId);
+    const plant = this.plantSystem.getPlant(plantId);
+    if (!visual || !plant) return;
+
+    const gfx = visual.children[0] as Graphics;
+    if (gfx) {
+      this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
     }
   }
 
@@ -1682,10 +1875,25 @@ export class GardenScene implements Scene {
     this.animationSystem.update(delta);
     this.particleSystem.update(delta);
 
-    // TLDR: Idle sway — gentle sine rotation on each plant visual
+    // TLDR: Idle sway — gentle sine rotation on each plant visual (per-plant intensity)
     for (const [plantId, visual] of this.plantVisuals) {
+      const plant = this.plantSystem.getPlant(plantId);
+      if (!plant) continue;
+      
+      const visualDef = getPlantVisual(plant.getConfig().id);
+      const swayIntensity = visualDef?.swayIntensity ?? 1.0;
       const phase = this.swayPhases.get(plantId) ?? 0;
-      visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) * ANIMATION.SWAY_AMPLITUDE;
+      
+      visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) * 
+                        ANIMATION.SWAY_AMPLITUDE * swayIntensity;
+      
+      const currentHealth = plant.getHealth();
+      const cachedHealth = this.plantHealthCache.get(plantId);
+      
+      if (cachedHealth === undefined || Math.abs(currentHealth - cachedHealth) > 5) {
+        this.plantHealthCache.set(plantId, currentHealth);
+        this.refreshPlantVisual(plantId);
+      }
     }
 
     // TLDR: Screen shake decay
