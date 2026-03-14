@@ -3,9 +3,9 @@ import { Season } from './seasons';
 import { SynergyTrait } from './synergies';
 
 /**
- * Plant type definitions for Flora MVP.
- * 12 plant types: 4 common, 4 uncommon, 2 rare, 2 heirloom
- * Based on GDD §5 Garden Mechanics and §10 MVP Scope
+ * Plant type definitions for Flora.
+ * 22 plant types: 5 common, 7 uncommon, 4 rare, 4 heirloom (2 original + 2 expansion per tier)
+ * Based on GDD §5 Garden Mechanics and Issue #120 Content Expansion
  */
 
 // Common plants (starter variety, forgiving)
@@ -14,7 +14,7 @@ export const TOMATO: PlantConfig = {
   name: 'tomato',
   displayName: 'Tomato',
   growthTime: 5,
-  waterNeedPerDay: 1.0, // needs daily watering
+  waterNeedPerDay: 1.0,
   yieldSeeds: 2,
   rarity: 'common',
   description: 'Classic garden staple. Requires daily watering but rewards with reliable yield.',
@@ -26,7 +26,7 @@ export const LETTUCE: PlantConfig = {
   name: 'lettuce',
   displayName: 'Lettuce',
   growthTime: 3,
-  waterNeedPerDay: 0.5, // every other day
+  waterNeedPerDay: 0.5,
   yieldSeeds: 2,
   rarity: 'common',
   description: 'Fast-growing leafy green. Fragile but quick to harvest.',
@@ -39,7 +39,7 @@ export const CARROT: PlantConfig = {
   name: 'carrot',
   displayName: 'Carrot',
   growthTime: 6,
-  waterNeedPerDay: 0.14, // ~once per week
+  waterNeedPerDay: 0.14,
   yieldSeeds: 1,
   rarity: 'common',
   description: 'Hardy root crop. Slow growth but drought-tolerant.',
@@ -58,13 +58,27 @@ export const RADISH: PlantConfig = {
   availableSeasons: [Season.SPRING, Season.FALL, Season.WINTER],
 };
 
+// TLDR: New common plant — Pea (Spring exclusive, nitrogen fixer companion)
+export const PEA: PlantConfig = {
+  id: 'pea',
+  name: 'pea',
+  displayName: 'Pea',
+  growthTime: 3,
+  waterNeedPerDay: 0.33,
+  yieldSeeds: 2,
+  rarity: 'common',
+  description: 'Spring staple legume. Fixes nitrogen in soil, boosting nearby plants.',
+  availableSeasons: [Season.SPRING],
+  synergyTraits: [SynergyTrait.NITROGEN_FIXER],
+};
+
 // Uncommon plants (strategic choices)
 export const SUNFLOWER: PlantConfig = {
   id: 'sunflower',
   name: 'sunflower',
   displayName: 'Sunflower',
   growthTime: 7,
-  waterNeedPerDay: 0.33, // moderate watering
+  waterNeedPerDay: 0.33,
   yieldSeeds: 3,
   rarity: 'uncommon',
   description: 'Tall flowering plant. Takes time but yields plentiful seeds.',
@@ -85,6 +99,7 @@ export const MINT: PlantConfig = {
   synergyTraits: [SynergyTrait.PEST_DETERRENT],
 };
 
+// TLDR: Pepper updated — Summer exclusive (seasonal exclusive per Issue #120)
 export const PEPPER: PlantConfig = {
   id: 'pepper',
   name: 'pepper',
@@ -93,8 +108,8 @@ export const PEPPER: PlantConfig = {
   waterNeedPerDay: 0.5,
   yieldSeeds: 2,
   rarity: 'uncommon',
-  description: 'Warm-season favorite. Moderate care yields colorful harvests.',
-  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  description: 'Heat-loving summer crop. Thrives in warmth, wilts in cold.',
+  availableSeasons: [Season.SUMMER],
   synergyTraits: [SynergyTrait.NITROGEN_FIXER],
 };
 
@@ -106,9 +121,37 @@ export const BASIL: PlantConfig = {
   waterNeedPerDay: 0.5,
   yieldSeeds: 2,
   rarity: 'uncommon',
-  description: 'Aromatic herb. Thrives with regular attention.',
+  description: 'Aromatic herb with potent oils. Deters pests but inhibits some neighbors.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
-  synergyTraits: [SynergyTrait.PEST_DETERRENT],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT, SynergyTrait.ALLELOPATHIC],
+};
+
+// TLDR: New uncommon plant — Cucumber (water-hungry competitor)
+export const CUCUMBER: PlantConfig = {
+  id: 'cucumber',
+  name: 'cucumber',
+  displayName: 'Cucumber',
+  growthTime: 5,
+  waterNeedPerDay: 1.0,
+  yieldSeeds: 2,
+  rarity: 'uncommon',
+  description: 'Vigorous vine that drinks heavily. Competes for water with neighbors.',
+  availableSeasons: [Season.SPRING, Season.SUMMER],
+  synergyTraits: [SynergyTrait.WATER_COMPETITOR],
+};
+
+// TLDR: New uncommon plant — Blueberry (Fall exclusive, allelopathic acidifier)
+export const BLUEBERRY: PlantConfig = {
+  id: 'blueberry',
+  name: 'blueberry',
+  displayName: 'Blueberry',
+  growthTime: 7,
+  waterNeedPerDay: 0.5,
+  yieldSeeds: 3,
+  rarity: 'uncommon',
+  description: 'Tart fall berry. Acidifies soil, slowing nearby plant growth.',
+  availableSeasons: [Season.FALL],
+  synergyTraits: [SynergyTrait.ALLELOPATHIC],
 };
 
 // Rare plants (special properties, unlockable)
@@ -117,7 +160,7 @@ export const FROST_WILLOW: PlantConfig = {
   name: 'frost_willow',
   displayName: 'Frost Willow',
   growthTime: 5,
-  waterNeedPerDay: 0.14, // weekly watering
+  waterNeedPerDay: 0.14,
   yieldSeeds: 1,
   rarity: 'rare',
   description: 'Cold-resistant ornamental. Survives harsh conditions others cannot.',
@@ -134,6 +177,34 @@ export const LAVENDER: PlantConfig = {
   rarity: 'rare',
   description: 'Fragrant perennial. Slow to mature but extremely drought-tolerant.',
   availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+};
+
+// TLDR: New rare plant — Orchid (delicate beauty that attracts pests but loves shade)
+export const ORCHID: PlantConfig = {
+  id: 'orchid',
+  name: 'orchid',
+  displayName: 'Orchid',
+  growthTime: 10,
+  waterNeedPerDay: 0.5,
+  yieldSeeds: 1,
+  rarity: 'rare',
+  description: 'Exotic bloom of stunning beauty. Attracts pests but thrives in shade.',
+  availableSeasons: [Season.SPRING, Season.SUMMER],
+  synergyTraits: [SynergyTrait.SHADE_LOVER, SynergyTrait.PEST_ATTRACTOR],
+};
+
+// TLDR: New rare plant — Venus Flytrap (pest deterrent with allelopathic tradeoff)
+export const VENUS_FLYTRAP: PlantConfig = {
+  id: 'venus_flytrap',
+  name: 'venus_flytrap',
+  displayName: 'Venus Flytrap',
+  growthTime: 8,
+  waterNeedPerDay: 0.5,
+  yieldSeeds: 1,
+  rarity: 'rare',
+  description: 'Carnivorous plant that eats pests. Its digestive secretions inhibit neighbors.',
+  availableSeasons: [Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT, SynergyTrait.ALLELOPATHIC],
 };
 
 // Heirloom plants (premium unlocks, unique traits)
@@ -162,24 +233,59 @@ export const GOLDEN_MARIGOLD: PlantConfig = {
   synergyTraits: [SynergyTrait.PEST_DETERRENT],
 };
 
+// TLDR: New heirloom — Ghost Pepper (fiery deterrent with strong allelopathy)
+export const GHOST_PEPPER: PlantConfig = {
+  id: 'ghost_pepper',
+  name: 'ghost_pepper',
+  displayName: 'Ghost Pepper',
+  growthTime: 9,
+  waterNeedPerDay: 0.33,
+  yieldSeeds: 2,
+  rarity: 'heirloom',
+  description: 'Legendary hot pepper. Its intense capsaicin deters pests but scorches neighboring roots.',
+  availableSeasons: [Season.SUMMER],
+  synergyTraits: [SynergyTrait.PEST_DETERRENT, SynergyTrait.ALLELOPATHIC],
+};
+
+// TLDR: New heirloom — Moonflower (Winter exclusive, shade-lover that attracts nocturnal pests)
+export const MOONFLOWER: PlantConfig = {
+  id: 'moonflower',
+  name: 'moonflower',
+  displayName: 'Moonflower',
+  growthTime: 8,
+  waterNeedPerDay: 0.14,
+  yieldSeeds: 2,
+  rarity: 'heirloom',
+  description: 'Mystical bloom that opens under moonlight. Thrives in shade but lures nocturnal pests.',
+  availableSeasons: [Season.WINTER],
+  synergyTraits: [SynergyTrait.SHADE_LOVER, SynergyTrait.PEST_ATTRACTOR],
+};
+
 /** All plant types available in the game */
 export const ALL_PLANTS: PlantConfig[] = [
-  // Common (4)
+  // Common (5)
   TOMATO,
   LETTUCE,
   CARROT,
   RADISH,
-  // Uncommon (4)
+  PEA,
+  // Uncommon (7)
   SUNFLOWER,
   MINT,
   PEPPER,
   BASIL,
-  // Rare (2)
+  CUCUMBER,
+  BLUEBERRY,
+  // Rare (4)
   FROST_WILLOW,
   LAVENDER,
-  // Heirloom (2)
+  ORCHID,
+  VENUS_FLYTRAP,
+  // Heirloom (4)
   HEIRLOOM_SQUASH,
   GOLDEN_MARIGOLD,
+  GHOST_PEPPER,
+  MOONFLOWER,
 ];
 
 /** Plant lookup by ID */

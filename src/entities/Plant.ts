@@ -41,6 +41,8 @@ export interface PlantState {
   isHarvestable: boolean;
   activeSynergies: Set<string>; // TLDR: Active synergy bonus IDs
   growthSpeedMultiplier: number; // TLDR: Combined growth speed multiplier from synergies
+  waterNeedMultiplier: number; // TLDR: Multiplier for water needs from negative synergies
+  negativeSynergies: Set<string>; // TLDR: Active negative synergy IDs
 }
 
 export class Plant implements Entity {
@@ -73,6 +75,8 @@ export class Plant implements Entity {
       isHarvestable: false,
       activeSynergies: new Set(),
       growthSpeedMultiplier: 1.0,
+      waterNeedMultiplier: 1.0,
+      negativeSynergies: new Set(),
     };
   }
 
@@ -106,8 +110,9 @@ export class Plant implements Entity {
       this.state.daysSinceWater++;
     }
 
-    // Check if plant needs water based on config
-    const needsWater = this.state.daysSinceWater > Math.floor(1 / this.state.config.waterNeedPerDay);
+    // TLDR: Water need check accounts for water competition multiplier
+    const effectiveWaterNeed = this.state.config.waterNeedPerDay * this.state.waterNeedMultiplier;
+    const needsWater = this.state.daysSinceWater > Math.floor(1 / effectiveWaterNeed);
     
     if (needsWater && this.state.daysSinceWater > 1) {
       // Health degrades if water need is unmet for multiple days
@@ -184,10 +189,33 @@ export class Plant implements Entity {
     this.state.activeSynergies.add(synergyId);
   }
 
+  /** TLDR: Apply negative synergy penalty to plant */
+  applyNegativeSynergy(penalty: { waterNeedMultiplier?: number; growthSpeedMultiplier?: number }, synergyId: string): void {
+    if (penalty.waterNeedMultiplier) {
+      this.state.waterNeedMultiplier *= penalty.waterNeedMultiplier;
+    }
+    if (penalty.growthSpeedMultiplier) {
+      this.state.growthSpeedMultiplier *= penalty.growthSpeedMultiplier;
+    }
+    this.state.negativeSynergies.add(synergyId);
+  }
+
+  /** TLDR: Get active negative synergies */
+  getNegativeSynergies(): Set<string> {
+    return new Set(this.state.negativeSynergies);
+  }
+
+  /** TLDR: Get water need multiplier */
+  getWaterNeedMultiplier(): number {
+    return this.state.waterNeedMultiplier;
+  }
+
   /** TLDR: Clear all synergy bonuses */
   clearSynergies(): void {
     this.state.activeSynergies.clear();
+    this.state.negativeSynergies.clear();
     this.state.growthSpeedMultiplier = 1.0;
+    this.state.waterNeedMultiplier = 1.0;
   }
 
   /** TLDR: Get active synergies */
