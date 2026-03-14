@@ -561,8 +561,8 @@ export class MenuScene implements Scene {
     const item = this.menuItems[index];
     if (!item || !item.enabled || !this.ctx) return;
     switch (item.action) {
-      case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { duration: 0.6 }).catch(console.error); break;
-      case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { duration: 0.6 }).catch(console.error); break;
+      case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
+      case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': break;
       case 'achievements': break;
       case 'settings': this.showState('settings'); break;
