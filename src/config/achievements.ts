@@ -141,6 +141,24 @@ export const ACHIEVEMENTS: readonly AchievementConfig[] = [
     threshold: 10,
     reward: { type: 'hud_theme', id: 'theme_golden_hour', displayName: 'Golden Hour Theme' },
   },
+  {
+    id: 'weed_warrior',
+    displayName: 'Weed Warrior',
+    description: 'Remove 20 weeds across all runs.',
+    category: 'mastery',
+    icon: '🌿',
+    threshold: 20,
+    reward: { type: 'badge', id: 'badge_weed_warrior', displayName: 'Weed Warrior Badge' },
+  },
+  {
+    id: 'master_composter',
+    displayName: 'Master Composter',
+    description: 'Apply compost 10 times across all runs.',
+    category: 'mastery',
+    icon: '🪴',
+    threshold: 10,
+    reward: { type: 'badge', id: 'badge_composter', displayName: 'Composter Badge' },
+  },
 ] as const;
 
 /** TLDR: Lookup achievement config by ID */

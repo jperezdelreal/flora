@@ -52,6 +52,13 @@ export interface EventMap {
   'structure:removed': { structureId: string; type: StructureType };
   // Grid expansion events
   'grid:expanded': { rows: number; cols: number };
+  // Weed events
+  'weed:spawned': { weedId: string; row: number; col: number };
+  'weed:removed': { weedId: string; row: number; col: number; compostYield: number };
+  'weed:spread': { sourceWeedId: string; newWeedId: string; row: number; col: number };
+  // Compost events
+  'compost:generated': { amount: number; source: string };
+  'compost:applied': { row: number; col: number; soilQualityBefore: number; soilQualityAfter: number };
   // Achievement events
   'achievement:unlocked': { achievementId: string; achievementName: string };
   // Accessibility events

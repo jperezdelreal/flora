@@ -3,12 +3,14 @@ export enum TileState {
   OCCUPIED = 'occupied',
   PEST = 'pest',
   STRUCTURE = 'structure',
+  WEED = 'weed',
 }
 
 export interface TileData {
   state: TileState;
   soilQuality: number; // 0-100%
   moisture: number; // 0-100%
+  weedId?: string;
 }
 
 export class Tile {
@@ -17,6 +19,7 @@ export class Tile {
   public moisture: number;
   public readonly row: number;
   public readonly col: number;
+  public weedId?: string;
 
   constructor(row: number, col: number, data?: Partial<TileData>) {
     this.row = row;
@@ -24,12 +27,14 @@ export class Tile {
     this.state = data?.state ?? TileState.EMPTY;
     this.soilQuality = data?.soilQuality ?? 75;
     this.moisture = data?.moisture ?? 50;
+    this.weedId = data?.weedId;
   }
 
   reset(): void {
     this.state = TileState.EMPTY;
     this.soilQuality = 75;
     this.moisture = 50;
+    this.weedId = undefined;
   }
 
   isEmpty(): boolean {
@@ -46,6 +51,10 @@ export class Tile {
 
   hasStructure(): boolean {
     return this.state === TileState.STRUCTURE;
+  }
+
+  hasWeed(): boolean {
+    return this.state === TileState.WEED;
   }
 
   setSoilQuality(quality: number): void {

@@ -28,3 +28,5 @@ export { AchievementSystem } from './AchievementSystem';
 export type { AchievementSaveState, AchievementState, AchievementUnlockCallback } from './AchievementSystem';
 export { DailyChallengeSystem } from './DailyChallengeSystem';
 export type { DailyChallenge, LeaderboardEntry, RunHistoryEntry } from './DailyChallengeSystem';
+export { WeedSystem } from './WeedSystem';
+export type { WeedSystemConfig } from './WeedSystem';

@@ -4,6 +4,7 @@ import { PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 import type { EncyclopediaSystem } from './EncyclopediaSystem';
 import type { SynergySystem } from './SynergySystem';
+import type { WeedSystem } from './WeedSystem';
 
 export interface PlantSystemConfig {
   /** Frames per in-game day (60fps * seconds) */
@@ -12,6 +13,7 @@ export interface PlantSystemConfig {
   encyclopediaSystem?: EncyclopediaSystem;
   /** Optional synergy system for bonus calculation */
   synergySystem?: SynergySystem;
+  weedSystem?: WeedSystem;
 }
 
 /**
@@ -26,13 +28,17 @@ export class PlantSystem implements System {
   private plants: Map<string, Plant> = new Map();
   private frameCounter = 0;
   private currentDay = 0;
-  private readonly config: PlantSystemConfig;
+  private config: PlantSystemConfig;
 
   // Encyclopedia: tracks discovered plant types
   private discoveredPlants: Set<string> = new Set();
 
   constructor(config: PlantSystemConfig) {
     this.config = config;
+  }
+
+  setWeedSystem(weedSystem: WeedSystem): void {
+    this.config = { ...this.config, weedSystem };
   }
 
   /** Add a plant to the system */
@@ -179,6 +185,12 @@ export class PlantSystem implements System {
       const oldStage = plant.getGrowthStage();
       const wasActive = plant.active;
       
+      // TLDR: Apply weed growth penalty
+      if (this.config.weedSystem) {
+        const wp = this.config.weedSystem.getGrowthPenaltyMultiplier(plant.y, plant.x);
+        if (wp < 1.0) plant.applyNegativeSynergy({ growthSpeedMultiplier: wp }, 'weed_adjacency');
+      }
+
       plant.advanceDay();
       
       const newStage = plant.getGrowthStage();
