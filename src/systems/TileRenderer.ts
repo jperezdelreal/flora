@@ -28,7 +28,7 @@ interface TileVisualState {
   season: Season;
 }
 
-/** Structure types that TileRenderer can draw (superset of config — includes Trellis) */
+/** Structure types that TileRenderer can draw */
 type RenderableStructure = StructureType | 'trellis';
 
 // ─── Tile visual constants ──────────────────────────────────────────────────
@@ -374,18 +374,16 @@ export class TileRenderer implements System {
   ): void {
     switch (structType) {
       case StructureType.GREENHOUSE:
-      case 'greenhouse' as RenderableStructure:
         this.drawGreenhouse(gfx, size, padding);
         break;
       case StructureType.COMPOST_BIN:
-      case 'compost_bin' as RenderableStructure:
         this.drawCompostBin(gfx, size, padding);
         break;
       case StructureType.RAIN_BARREL:
-      case 'rain_barrel' as RenderableStructure:
         this.drawRainBarrel(gfx, size, padding);
         break;
-      case 'trellis' as RenderableStructure:
+      case StructureType.TRELLIS:
+      case 'trellis':
         this.drawTrellis(gfx, size, padding);
         break;
     }

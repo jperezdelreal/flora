@@ -5,6 +5,17 @@ export enum StructureType {
   GREENHOUSE = 'greenhouse',
   COMPOST_BIN = 'compost_bin',
   RAIN_BARREL = 'rain_barrel',
+  TRELLIS = 'trellis',
+}
+
+/** TLDR: Visual parameters for procedural structure rendering */
+export interface StructureVisual {
+  /** Primary color palette for the structure sprite */
+  colors: { primary: number; secondary: number; accent: number };
+  /** Shape hint used by TileRenderer */
+  shape: 'frame' | 'container' | 'cylinder' | 'lattice';
+  /** Whether the structure has a shimmer/animation hint */
+  animated: boolean;
 }
 
 /** TLDR: Config shape for a placeable structure */
@@ -17,6 +28,8 @@ export interface StructureConfig {
   icon: string;
   /** TLDR: Hex color used for rendering the structure on the grid */
   color: number;
+  /** TLDR: Visual parameters for procedural rendering by TileRenderer */
+  visual: StructureVisual;
 }
 
 /** TLDR: All structure configs keyed by type */
@@ -28,6 +41,11 @@ export const STRUCTURE_CONFIGS: Record<StructureType, StructureConfig> = {
     unlockMilestoneId: 'runs_10',
     icon: '🏠',
     color: 0x81c784,
+    visual: {
+      colors: { primary: 0x90caf9, secondary: 0x81c784, accent: 0xb3e5fc },
+      shape: 'frame',
+      animated: false,
+    },
   },
   [StructureType.COMPOST_BIN]: {
     id: StructureType.COMPOST_BIN,
@@ -36,6 +54,11 @@ export const STRUCTURE_CONFIGS: Record<StructureType, StructureConfig> = {
     unlockMilestoneId: 'runs_10',
     icon: '🗑️',
     color: 0x8d6e63,
+    visual: {
+      colors: { primary: 0x8d6e63, secondary: 0x5d4037, accent: 0xa1887f },
+      shape: 'container',
+      animated: false,
+    },
   },
   [StructureType.RAIN_BARREL]: {
     id: StructureType.RAIN_BARREL,
@@ -44,6 +67,24 @@ export const STRUCTURE_CONFIGS: Record<StructureType, StructureConfig> = {
     unlockMilestoneId: 'runs_5',
     icon: '🛢️',
     color: 0x64b5f6,
+    visual: {
+      colors: { primary: 0x64b5f6, secondary: 0x455a64, accent: 0x81d4fa },
+      shape: 'cylinder',
+      animated: true,
+    },
+  },
+  [StructureType.TRELLIS]: {
+    id: StructureType.TRELLIS,
+    displayName: 'Trellis',
+    description: 'Supports climbing plants for bonus yield',
+    unlockMilestoneId: 'runs_15',
+    icon: '🪜',
+    color: 0xa1887f,
+    visual: {
+      colors: { primary: 0xa1887f, secondary: 0x8d6e63, accent: 0x6d4c41 },
+      shape: 'lattice',
+      animated: false,
+    },
   },
 };
 

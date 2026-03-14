@@ -5,6 +5,7 @@ import { Structure } from '../entities/Structure';
 import { StructureType, STRUCTURE_CONFIGS } from '../config/structures';
 import { Season, SEASON_CONFIG } from '../config/seasons';
 import { eventBus } from '../core/EventBus';
+import type { TileRenderer } from './TileRenderer';
 
 export class GridSystem {
   private container: Container;
@@ -17,6 +18,7 @@ export class GridSystem {
   private structures: Map<string, Structure> = new Map();
   private structureGraphics: Map<string, Graphics> = new Map();
   private seasonalSoilBase: number | null = null;
+  private tileRenderer: TileRenderer | null = null;
 
   constructor(grid: GardenGrid) {
     this.grid = grid;
@@ -48,6 +50,13 @@ export class GridSystem {
     graphics.clear();
     graphics.x = pos.x;
     graphics.y = pos.y;
+
+    if (this.tileRenderer) {
+      // TileRenderer owns visuals — only draw transparent hit area for interaction
+      graphics.rect(padding, padding, size - padding * 2, size - padding * 2);
+      graphics.fill({ color: 0x000000, alpha: 0 });
+      return;
+    }
 
     // Base soil color with quality variation
     const soilColor = this.getSoilColor(tile.soilQuality);
@@ -231,6 +240,22 @@ export class GridSystem {
     this.seasonalSoilBase = baseColor;
   }
 
+  /** TLDR: Delegate tile/structure visuals to a TileRenderer */
+  public setTileRenderer(renderer: TileRenderer): void {
+    this.tileRenderer = renderer;
+    // Add TileRenderer layer below GridSystem's own tile graphics
+    this.container.addChildAt(renderer.getContainer(), 0);
+    // Register existing structures with TileRenderer
+    for (const structure of this.structures.values()) {
+      renderer.registerStructure(structure.row, structure.col, structure.type);
+    }
+  }
+
+  /** TLDR: Get the TileRenderer if one is set */
+  public getTileRenderer(): TileRenderer | null {
+    return this.tileRenderer;
+  }
+
   /**
    * TLDR: Rebuild grid for a new GardenGrid (used after grid expansion)
    */
@@ -246,6 +271,9 @@ export class GridSystem {
     this.grid = newGrid;
     this.initializeGrid();
     this.setupInteraction();
+
+    // Sync TileRenderer to the new grid
+    this.tileRenderer?.setGrid(newGrid);
   }
 
   /** TLDR: Get the underlying grid */
@@ -262,6 +290,9 @@ export class GridSystem {
 
     tile.state = TileState.STRUCTURE;
     this.structures.set(structure.id, structure);
+
+    // Notify TileRenderer so it can draw the structure sprite
+    this.tileRenderer?.registerStructure(structure.row, structure.col, structure.type);
 
     eventBus.emit('structure:placed', {
       structureId: structure.id,
@@ -282,6 +313,9 @@ export class GridSystem {
     if (tile) {
       tile.state = TileState.EMPTY;
     }
+
+    // Notify TileRenderer to clear the structure sprite
+    this.tileRenderer?.unregisterStructure(structure.row, structure.col);
 
     this.structures.delete(structureId);
     const gfx = this.structureGraphics.get(structureId);
@@ -325,6 +359,8 @@ export class GridSystem {
   }
 
   public destroy(): void {
+    this.tileRenderer?.destroy();
+    this.tileRenderer = null;
     this.container.destroy({ children: true });
     this.tileGraphics.clear();
     this.structures.clear();

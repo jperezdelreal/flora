@@ -21,6 +21,7 @@ import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { AchievementSystem } from '../systems/AchievementSystem';
 import { PlantRenderer } from '../systems/PlantRenderer';
+import { TileRenderer } from '../systems/TileRenderer';
 import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
 import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
@@ -122,6 +123,7 @@ export class GardenScene implements Scene {
   private animationSystem!: AnimationSystem;
   private particleSystem!: ParticleSystem;
   private plantRenderer!: PlantRenderer;
+  private tileRenderer!: TileRenderer;
   private shakeContainer!: Container;
   private shakeElapsed = 0;
   private shakeDuration = 0;
@@ -409,6 +411,12 @@ export class GardenScene implements Scene {
     // TLDR: Initialize visual polish systems
     this.animationSystem = new AnimationSystem();
     this.particleSystem = new ParticleSystem();
+
+    // TLDR: TileRenderer — dedicated visuals for soil, structures, weed overlays
+    this.tileRenderer = new TileRenderer({ grid: this.grid });
+    this.tileRenderer.setSeason(this.currentSeason);
+    this.gridSystem.setTileRenderer(this.tileRenderer);
+
     this.plantRenderer = new PlantRenderer({
       animationSystem: this.animationSystem,
       plantSystem: this.plantSystem,
@@ -792,6 +800,8 @@ export class GardenScene implements Scene {
     // Grid tint & seasonal soil
     this.gridSystem.setSeason(this.currentSeason);
     this.gridSystem.setSeasonalSoilColor(palette.soil);
+    // TileRenderer seasonal palette
+    this.tileRenderer.setSeason(this.currentSeason);
     // HUD season indicator
     this.hud.setSeason(this.currentSeason);
     // Ambient particles for season atmosphere
@@ -1816,6 +1826,7 @@ export class GardenScene implements Scene {
     this.animationSystem.update(delta);
     this.particleSystem.update(delta);
     this.plantRenderer.update(delta);
+    this.tileRenderer.update(delta);
 
     // TLDR: Smooth seasonal color transition (2s crossfade)
     if (this.seasonTransitionFrom && this.seasonTransitionTarget) {
@@ -1914,6 +1925,7 @@ export class GardenScene implements Scene {
     this.animationSystem.destroy();
     this.particleSystem.destroy();
     this.plantRenderer.destroy();
+    this.tileRenderer.destroy();
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();

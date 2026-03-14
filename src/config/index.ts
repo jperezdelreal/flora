@@ -46,6 +46,8 @@ export const COLORS = {
   PALE_GREEN: 0xc8e6c9,
   ACCENT_GREEN: 0x66bb6a,
   SOIL_BROWN: 0x5c3a1e,
+  SOIL_LIGHT: 0x8b6f47,
+  SEED_SHELL: 0x4a3626,
   SKY_BLUE: 0x87ceeb,
   WHITE: 0xffffff,
   BLACK: 0x000000,
