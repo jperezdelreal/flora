@@ -33,7 +33,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.SPRING]: {
     displayName: 'Spring',
     emoji: '🌸',
-    backgroundColor: 0x3a6b35,  // vibrant green
+    backgroundColor: 0xe8f5e9,  // Light mint green
     gridTint: 0xffffff,          // no tint — natural palette
     pestSpawnMultiplier: 0.5,    // mild pest activity
     droughtEnabled: false,
@@ -43,7 +43,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.SUMMER]: {
     displayName: 'Summer',
     emoji: '☀️',
-    backgroundColor: 0x5c6e1f,  // warm olive green
+    backgroundColor: 0xfff8e1,  // Cream yellow
     gridTint: 0xffefaa,          // warm golden tint
     pestSpawnMultiplier: 1.0,    // normal pest activity
     droughtEnabled: true,        // drought hazard active
@@ -53,7 +53,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.FALL]: {
     displayName: 'Fall',
     emoji: '🍂',
-    backgroundColor: 0x7a4e1e,  // warm autumn brown
+    backgroundColor: 0xfbe9e7,  // Warm peach
     gridTint: 0xffcc88,          // warm orange tint
     pestSpawnMultiplier: 2.0,   // pest surge
     droughtEnabled: false,
@@ -63,7 +63,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.WINTER]: {
     displayName: 'Winter',
     emoji: '❄️',
-    backgroundColor: 0x253657,  // cold dark blue
+    backgroundColor: 0xe3f2fd,  // Light blue
     gridTint: 0xccddff,          // cool blue tint
     pestSpawnMultiplier: 0.2,    // minimal pest activity
     droughtEnabled: false,

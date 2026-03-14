@@ -26,6 +26,7 @@ import { GAME, TOUCH } from '../config';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getPlantsBySeason } from '../config/plants';
+import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
 import { ANIMATION, PLANT_STAGE_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
@@ -131,6 +132,12 @@ export class GardenScene implements Scene {
   private targetSkyColor = 0;
   private skyLerpElapsed = 0;
   private skyLerpDuration = 0;
+
+  // TLDR: Seasonal palette transition state (smooth 2s crossfade)
+  private seasonTransitionFrom: { bg: number; tint: number } | null = null;
+  private seasonTransitionTarget: { bg: number; tint: number } | null = null;
+  private seasonTransitionElapsed = 0;
+  private readonly SEASON_TRANSITION_DURATION = 2.0;
 
   // TLDR: Touch controller and responsive state
   private touchController!: TouchController;
@@ -638,6 +645,9 @@ export class GardenScene implements Scene {
       }
     });
 
+    // Apply seasonal palette (soil color, ambient particles)
+    this.applySeason(false);
+
     // Initial render
     this.gridSystem.update();
     this.updateStatusText();
@@ -775,10 +785,11 @@ export class GardenScene implements Scene {
     // Pick a new season (different from current when possible)
     const seasons: Season[] = [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER];
     const otherSeasons = seasons.filter(s => s !== this.currentSeason);
+    const previousSeason = this.currentSeason;
     this.currentSeason = otherSeasons[Math.floor(Math.random() * otherSeasons.length)];
     
-    // Apply new season visuals
-    this.applySeason();
+    // Apply new season visuals (smooth 2s transition)
+    this.applySeason(true, previousSeason);
 
     // TLDR: Reset achievement run trackers and set new season
     this.achievementSystem.resetRun();
@@ -824,16 +835,52 @@ export class GardenScene implements Scene {
   }
   
   /** Apply seasonal visuals and hazard configuration to all systems */
-  private applySeason(): void {
+  private applySeason(smooth = false, previousSeason?: Season): void {
     const seasonCfg = SEASON_CONFIG[this.currentSeason];
-    // Background color
-    if (this._ctx) {
-      this._ctx.app.renderer.background.color = seasonCfg.backgroundColor;
+    const palette = getSeasonalPalette(this.currentSeason);
+
+    if (smooth && this._ctx && previousSeason) {
+      // Capture previous season's colors for smooth 2s crossfade
+      const prevPalette = getSeasonalPalette(previousSeason);
+      const prevCfg = SEASON_CONFIG[previousSeason];
+      this.seasonTransitionFrom = {
+        bg: prevPalette.background,
+        tint: prevCfg.gridTint,
+      };
+      this.seasonTransitionTarget = {
+        bg: palette.background,
+        tint: seasonCfg.gridTint,
+      };
+      this.seasonTransitionElapsed = 0;
+    } else if (this._ctx) {
+      // Instant apply (first load)
+      this._ctx.app.renderer.background.color = palette.background;
     }
-    // Grid tint
+
+    // Grid tint & seasonal soil
     this.gridSystem.setSeason(this.currentSeason);
+    this.gridSystem.setSeasonalSoilColor(palette.soil);
     // HUD season indicator
     this.hud.setSeason(this.currentSeason);
+    // Ambient particles for season atmosphere
+    this.startSeasonalAmbientParticles();
+  }
+
+  /** Start ambient particles matching the current season */
+  private startSeasonalAmbientParticles(): void {
+    if (!this._ctx) return;
+    const w = this._ctx.app.screen.width;
+    const h = this._ctx.app.screen.height;
+
+    const palette = getSeasonalPalette(this.currentSeason);
+    const cfg = palette.ambientParticles;
+    
+    this.particleSystem.startAmbientParticles({
+      type: cfg.type,
+      count: cfg.count,
+      bounds: { width: w, height: h },
+      colors: cfg.colors,
+    });
   }
   
   private showScoreSummary(): void {
@@ -1980,6 +2027,60 @@ export class GardenScene implements Scene {
   }
 
   /**
+   * TLDR: Quick shrink-to-nothing animation on plant removal (100ms)
+   */
+  private triggerPlantRemovalAnimation(plantConfigId: string): void {
+    // Find the plant visual that matches this config ID
+    for (const [pid, visual] of this.plantVisuals) {
+      const plant = this.plantSystem.getPlant(pid);
+      if (!plant && visual) {
+        // This is the plant being removed - animate it shrinking
+        this.animationSystem.tween(
+          visual.scale as unknown as Record<string, unknown>,
+          { x: 0, y: 0 },
+          0.1,
+          {
+            easing: Easing.easeIn,
+            onComplete: () => {
+              this.removePlantVisual(pid);
+            },
+          },
+        );
+        break;
+      }
+    }
+  }
+
+  /**
+   * TLDR: Floating score text on harvest (+15 pts)
+   */
+  private triggerScoreText(points: number): void {
+    // Find last harvested plant position
+    let textX = this._ctx.app.screen.width / 2;
+    let textY = this._ctx.app.screen.height / 2;
+
+    for (const [pid, v] of this.plantVisuals) {
+      const p = this.plantSystem.getPlant(pid);
+      if (!p) {
+        const gridPos = this.gridSystem.getContainer().position;
+        textX = gridPos.x + v.x + 20;
+        textY = gridPos.y + v.y - 35;
+        break;
+      }
+    }
+
+    this.particleSystem.floatingText({
+      x: textX,
+      y: textY,
+      text: `+${points} pts`,
+      color: '#ffd54f',
+      fontSize: 16,
+      duration: 1.5,
+      riseSpeed: 20,
+    });
+  }
+
+  /**
    * TLDR: Brief screen shake on harvest for tactile feedback
    */
   private triggerScreenShake(): void {
@@ -2039,12 +2140,41 @@ export class GardenScene implements Scene {
       spread: tileSize * 0.4,
     });
 
+    // Soil darkening overlay (temporary moisture visual)
+    const tile = this.grid.getTile(row, col);
+    if (tile) {
+      tile.setMoisture(100);
+      
+      // Create darkening overlay
+      const overlay = new Graphics();
+      overlay.rect(tilePos.x, tilePos.y, tileSize, tileSize);
+      overlay.fill({ color: 0x000000, alpha: 0.25 });
+      this.gridSystem.getContainer().addChild(overlay);
+      
+      // Fade out soil darkening over 2 seconds
+      this.animationSystem.tween(
+        overlay as unknown as Record<string, unknown>,
+        { alpha: 0 },
+        2.0,
+        {
+          easing: Easing.easeOut,
+          onComplete: () => {
+            this.gridSystem.getContainer().removeChild(overlay);
+            overlay.destroy();
+            tile.setMoisture(50);
+          },
+        },
+      );
+    }
+
     // Brief brightness pulse on the plant visual
     const plant = this.plantSystem.getPlantAt(col, row);
     if (plant) {
       const pVisual = this.plantVisuals.get(plant.id);
       if (pVisual) {
         const originalScale = pVisual.scale.x;
+        
+        // Scale pulse (brightness effect via scale)
         this.animationSystem.tween(
           pVisual.scale as unknown as Record<string, unknown>,
           { x: originalScale * 1.15, y: originalScale * 1.15 },
@@ -2057,6 +2187,25 @@ export class GardenScene implements Scene {
                 { x: originalScale, y: originalScale },
                 0.25,
                 { easing: Easing.elasticOut },
+              );
+            },
+          },
+        );
+        
+        // Saturation/brightness boost via alpha pulse
+        const originalAlpha = pVisual.alpha;
+        this.animationSystem.tween(
+          pVisual as unknown as Record<string, unknown>,
+          { alpha: Math.min(1, originalAlpha * 1.2) },
+          0.2,
+          {
+            easing: Easing.easeOut,
+            onComplete: () => {
+              this.animationSystem.tween(
+                pVisual as unknown as Record<string, unknown>,
+                { alpha: originalAlpha },
+                0.3,
+                { easing: Easing.easeOut },
               );
             },
           },
@@ -2145,6 +2294,40 @@ export class GardenScene implements Scene {
     this.targetSkyColor = (r << 16) | (g << 8) | b;
     this.skyLerpElapsed = 0;
     this.skyLerpDuration = ANIMATION.DAY_SKY_LERP_DURATION;
+    
+    // TLDR: Trigger star twinkle during night phase (days 6-12 in cycle)
+    const isNight = (day % 12) >= 6;
+    if (isNight) {
+      this.triggerStarTwinkle();
+    }
+  }
+  
+  /**
+   * TLDR: Random twinkling stars during night phase
+   */
+  private triggerStarTwinkle(): void {
+    const starCount = 8 + Math.floor(Math.random() * 5);
+    const screenW = this._ctx.app.screen.width;
+    const screenH = this._ctx.app.screen.height;
+    
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * screenW;
+      const y = Math.random() * (screenH * 0.4); // Top 40% of screen
+      const delay = Math.random() * 0.5;
+      
+      setTimeout(() => {
+        this.particleSystem.glow({
+          x,
+          y,
+          radius: 2 + Math.random() * 2,
+          color: 0xffffff,
+          pulseSpeed: 2.0 + Math.random() * 2.0,
+          minAlpha: 0.3,
+          maxAlpha: 0.9,
+          duration: 1.5 + Math.random() * 1.0,
+        });
+      }, delay * 1000);
+    }
   }
 
   /**
@@ -2208,6 +2391,29 @@ export class GardenScene implements Scene {
 
     this.animationSystem.update(delta);
     this.particleSystem.update(delta);
+
+    // TLDR: Smooth seasonal color transition (2s crossfade)
+    if (this.seasonTransitionFrom && this.seasonTransitionTarget) {
+      this.seasonTransitionElapsed += dt;
+      const t = Math.min(1, this.seasonTransitionElapsed / this.SEASON_TRANSITION_DURATION);
+      const eased = t * t * (3 - 2 * t); // smoothstep
+
+      this._ctx.app.renderer.background.color = lerpColor(
+        this.seasonTransitionFrom.bg,
+        this.seasonTransitionTarget.bg,
+        eased,
+      );
+      this.gridSystem.getContainer().tint = lerpColor(
+        this.seasonTransitionFrom.tint,
+        this.seasonTransitionTarget.tint,
+        eased,
+      );
+
+      if (t >= 1) {
+        this.seasonTransitionFrom = null;
+        this.seasonTransitionTarget = null;
+      }
+    }
 
     // TLDR: Idle sway — rotation + x-offset on mature plants (per-plant intensity)
     for (const [plantId, visual] of this.plantVisuals) {

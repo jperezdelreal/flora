@@ -86,6 +86,24 @@ export interface WaterDropletsConfig {
   spread: number;
 }
 
+export interface AmbientParticleConfig {
+  type: 'petals' | 'fireflies' | 'leaves' | 'snow';
+  count: number;
+  bounds: { width: number; height: number };
+  colors: number[];
+}
+
+interface AmbientParticle {
+  graphic: Graphics;
+  vx: number;
+  vy: number;
+  wobblePhase: number;
+  wobbleSpeed: number;
+  wobbleAmplitude: number;
+  life: number;
+  maxLife: number;
+}
+
 interface ActiveFloatingText {
   textObj: Text;
   elapsed: number;
@@ -101,6 +119,9 @@ export class ParticleSystem implements System {
   private ripples: ActiveRipple[] = [];
   private glows: ActiveGlow[] = [];
   private floatingTexts: ActiveFloatingText[] = [];
+  private ambientParticles: AmbientParticle[] = [];
+  private ambientConfig: AmbientParticleConfig | null = null;
+  private ambientSpawnTimer = 0;
 
   constructor() {
     this.container = new Container();
@@ -243,6 +264,102 @@ export class ParticleSystem implements System {
     }
   }
 
+  /**
+   * TLDR: Start continuous ambient particles for seasonal atmosphere
+   */
+  startAmbientParticles(config: AmbientParticleConfig): void {
+    this.stopAmbientParticles();
+    this.ambientConfig = config;
+    this.ambientSpawnTimer = 0;
+    for (let i = 0; i < config.count; i++) {
+      this.spawnAmbientParticle(true);
+    }
+  }
+
+  /**
+   * TLDR: Stop and clean up all ambient particles
+   */
+  stopAmbientParticles(): void {
+    for (const p of this.ambientParticles) {
+      p.graphic.destroy();
+    }
+    this.ambientParticles = [];
+    this.ambientConfig = null;
+  }
+
+  private spawnAmbientParticle(randomizeY = false): void {
+    if (!this.ambientConfig) return;
+    const cfg = this.ambientConfig;
+    const color = cfg.colors[Math.floor(Math.random() * cfg.colors.length)];
+    const size = 2 + Math.random() * 3;
+
+    const graphic = new Graphics();
+    switch (cfg.type) {
+      case 'petals':
+        graphic.ellipse(0, 0, size, size * 0.6);
+        graphic.fill({ color, alpha: 0.7 });
+        break;
+      case 'fireflies':
+        graphic.circle(0, 0, size * 0.5);
+        graphic.fill({ color, alpha: 0.8 });
+        break;
+      case 'leaves':
+        graphic.ellipse(0, 0, size, size * 0.4);
+        graphic.fill({ color, alpha: 0.6 });
+        break;
+      case 'snow':
+        graphic.circle(0, 0, size * 0.4);
+        graphic.fill({ color, alpha: 0.9 });
+        break;
+    }
+
+    graphic.x = Math.random() * cfg.bounds.width;
+    graphic.y = randomizeY
+      ? Math.random() * cfg.bounds.height
+      : -10 - Math.random() * 50;
+
+    let vx = 0, vy = 0, wobbleSpeed = 0, wobbleAmplitude = 0;
+    switch (cfg.type) {
+      case 'petals':
+        vx = 10 + Math.random() * 15;
+        vy = 15 + Math.random() * 10;
+        wobbleSpeed = 1.5 + Math.random();
+        wobbleAmplitude = 20;
+        break;
+      case 'fireflies':
+        vx = (Math.random() - 0.5) * 10;
+        vy = (Math.random() - 0.5) * 5;
+        wobbleSpeed = 2.0 + Math.random();
+        wobbleAmplitude = 30;
+        graphic.y = Math.random() * cfg.bounds.height;
+        break;
+      case 'leaves':
+        vx = 20 + Math.random() * 20;
+        vy = 25 + Math.random() * 15;
+        wobbleSpeed = 1.0 + Math.random() * 0.5;
+        wobbleAmplitude = 40;
+        break;
+      case 'snow':
+        vx = (Math.random() - 0.5) * 8;
+        vy = 12 + Math.random() * 8;
+        wobbleSpeed = 0.8 + Math.random() * 0.5;
+        wobbleAmplitude = 15;
+        break;
+    }
+
+    this.container.addChild(graphic);
+    this.ambientParticles.push({
+      graphic,
+      vx,
+      vy,
+      wobblePhase: Math.random() * Math.PI * 2,
+      wobbleSpeed,
+      wobbleAmplitude,
+      life: 5 + Math.random() * 10,
+      maxLife: 15,
+    });
+  }
+
   update(delta: number): void {
     const dt = delta;
 
@@ -348,6 +465,46 @@ export class ParticleSystem implements System {
       this.floatingTexts[idx].textObj.destroy();
       this.floatingTexts.splice(idx, 1);
     }
+
+    // TLDR: Update ambient particles — continuous drift with wobble
+    if (this.ambientConfig) {
+      this.ambientSpawnTimer += dt;
+      if (this.ambientSpawnTimer > 0.5 && this.ambientParticles.length < this.ambientConfig.count * 2) {
+        this.ambientSpawnTimer = 0;
+        this.spawnAmbientParticle();
+      }
+    }
+
+    const deadAmbient: number[] = [];
+    for (let i = 0; i < this.ambientParticles.length; i++) {
+      const p = this.ambientParticles[i];
+      p.life -= dt;
+      p.wobblePhase += p.wobbleSpeed * dt;
+
+      if (p.life <= 0 || (this.ambientConfig && (
+        p.graphic.y > this.ambientConfig.bounds.height + 20 ||
+        p.graphic.x > this.ambientConfig.bounds.width + 20 ||
+        p.graphic.x < -20
+      ))) {
+        deadAmbient.push(i);
+        continue;
+      }
+
+      const wobble = Math.sin(p.wobblePhase) * p.wobbleAmplitude * dt;
+      p.graphic.x += p.vx * dt + wobble;
+      p.graphic.y += p.vy * dt;
+
+      // Fireflies pulse alpha
+      if (this.ambientConfig?.type === 'fireflies') {
+        p.graphic.alpha = 0.3 + 0.7 * Math.abs(Math.sin(p.wobblePhase * 0.5));
+      }
+    }
+
+    for (let i = deadAmbient.length - 1; i >= 0; i--) {
+      const idx = deadAmbient[i];
+      this.ambientParticles[idx].graphic.destroy();
+      this.ambientParticles.splice(idx, 1);
+    }
   }
 
   getContainer(): Container {
@@ -355,10 +512,11 @@ export class ParticleSystem implements System {
   }
 
   get activeCount(): number {
-    return this.particles.length + this.ripples.length + this.glows.length + this.floatingTexts.length;
+    return this.particles.length + this.ripples.length + this.glows.length + this.floatingTexts.length + this.ambientParticles.length;
   }
 
   destroy(): void {
+    this.stopAmbientParticles();
     for (const p of this.particles) p.graphic.destroy();
     for (const r of this.ripples) r.graphics.forEach((g) => g.destroy());
     for (const g of this.glows) g.graphic.destroy();
