@@ -123,3 +123,94 @@ Issue #49 requires enhanced hazard mechanics with 3 pest types, telegraphed weat
 ❌ Full GardenScene integration (requires separate PR)
 
 **Follow-Up Required**: Issue #49 follow-up for WeatherSystem and UI integration
+
+---
+
+## 2026-03-14T00:35Z: Performance & Accessibility Architecture
+
+**By:** Brock (Web Engine Dev)  
+**Status:** Implemented (PR #143)  
+**Issue:** #116  
+
+### Context
+
+Issue #116 requires performance optimization (object pooling, FPS monitoring, bundle analysis) and accessibility (colorblind modes, keyboard navigation, screen reader support). This touches engine-level infrastructure that other domains build upon.
+
+### Key Decisions
+
+1. **Generic Object Pool over PixiJS-specific pool**
+   - `ObjectPool<T>` accepts any type via `create`/`reset`/`destroy` callbacks
+   - **Rationale:** ParticleSystem, AnimationSystem, and future systems all need pooling but for different object types. A generic pool is reusable across all of them without coupling to Graphics.
+
+2. **FPS Monitor as dev-only overlay with quality tiers**
+   - Three tiers: `high` (60+ FPS), `medium` (30-50 FPS), `low` (<30 FPS)
+   - Only instantiated when `import.meta.env.DEV` is true; zero cost in production
+   - **Rationale:** Auto quality reduction needs sustained measurement (180 frames) to avoid reacting to brief dips. Quality callbacks let systems independently respond (reduce particles, skip animations, etc).
+
+3. **Config-driven colorblind palettes (not CSS filters)**
+   - Four palettes defined as typed `ColorPalette` objects in `src/config/accessibility.ts`
+   - Systems query `getActivePalette()` for the current palette
+   - **Rationale:** CSS filters degrade all visuals uniformly. Config-driven palettes let us tune each color for optimal contrast per vision type. Palettes use the Okabe-Ito color scheme foundations.
+
+4. **ARIA live region for screen reader announcements**
+   - Hidden DOM element with `role="status"` and `aria-live="polite"` (or `"assertive"` for milestones/achievements)
+   - `announce()` utility clears and re-sets text to force re-announcement
+   - **Rationale:** PixiJS Canvas is opaque to screen readers. A live region bridges this gap without requiring complex ARIA tree mirroring.
+
+5. **Keyboard focus management in PixiJS**
+   - Custom focus index + rendered focus ring (Graphics stroke) rather than DOM focus
+   - Arrow keys, Tab, Enter/Space all work; focus wraps around
+   - **Rationale:** PixiJS elements aren't DOM nodes, so native focus doesn't work. A lightweight focus index + visual ring is simpler and more reliable than injecting hidden DOM proxies.
+
+6. **Accessibility preferences persisted via SaveManager**
+   - Extended `SettingsSaveData` with `colorVisionMode`, `reducedMotion`, `highContrast`
+   - `SAVE_KEYS.SETTINGS` key in localStorage
+   - **Rationale:** Accessibility settings must survive page reloads. Using the existing SaveManager pattern keeps it consistent with audio/unlock/achievement persistence.
+
+### Deferred
+
+- **Bundle visualizer**: `rollup-plugin-visualizer` has ESM-only compatibility issues with the project's CommonJS setup. Can revisit when project migrates to ESM or use `source-map-explorer` as alternative.
+- **Texture atlasing**: Requires asset pipeline changes; deferred to dedicated sprint.
+- **Object pool integration into ParticleSystem**: Pool is ready; actual integration into ParticleSystem's burst/ripple/glow methods is a follow-up task.
+- **Reduced motion mode**: Preference is loaded and persisted; actual animation reduction needs per-system opt-in.
+- **High contrast mode**: Schema field exists; visual implementation deferred.
+
+---
+
+## 2026-03-14T00:35Z: Title Screen & Main Menu Architecture
+
+**By:** Misty (Web UI Dev)  
+**Status:** Implemented (PR #144)  
+**Issue:** #117  
+
+### Context
+
+Issue #117 requested a polished title screen and main menu as the player's first impression. Required: animated backdrop, game logo with bloom, studio credit, full menu system (New Run, Continue, Encyclopedia, Achievements, Settings), settings panel with volume sliders and colorblind mode, animated background with particles, and complete keyboard navigation.
+
+### Key Decisions
+
+1. **State Machine over Multiple Scenes**: MenuScene uses an internal state machine (`title → main → settings → credits`) rather than separate scenes for each panel. Rationale: all panels share the animated background and particle system; separate scenes would duplicate rendering and require cross-scene state for settings.
+
+2. **Layer-Based Rendering**: Each menu state gets its own Container, toggled via `visible`. This avoids reconstructing UI on every state change and allows the particle layer to render behind all states.
+
+3. **ParticleSystem Reuse for Fireflies**: Instead of creating a new effect system, MenuScene instantiates ParticleSystem and uses `burst()` with negative gravity and warm colors. This keeps the particle API consistent and avoids code duplication.
+
+4. **AudioManager.getVolumes() Addition**: Settings panel needs to read current volume levels. Added a public `getVolumes()` method that returns a readonly copy of volume preferences. This is cleaner than exposing internal state and follows the existing `getMuteState()` pattern.
+
+5. **SettingsSaveData Schema**: Created a new `SettingsSaveData` interface with `colorblindMode` as the required field and optional fields (`colorVisionMode`, `reducedMotion`, `highContrast`) for future accessibility features. This allows incremental expansion without breaking existing saves.
+
+6. **Continue Button Grayed Logic**: Uses `saveManager.loadGarden() !== null` to determine if a save exists. This is the simplest reliable check — if garden data exists, a run was started.
+
+7. **Keyboard Navigation Design**: Unified navigation model: Arrow Up/Down navigates items, Enter/Space activates, Esc backs out, Tab cycles. In settings, Left/Right adjusts the currently focused slider by 5% increments. Navigation skips disabled items automatically.
+
+### Files Modified
+
+- **New**: `src/scenes/MenuScene.ts`
+- **Modified**: `BootScene.ts`, `scenes/index.ts`, `main.ts`, `AudioManager.ts`
+- **Schema**: `saveSchema.ts` (SettingsSaveData), `SaveManager.ts` (saveSettings/loadSettings)
+
+### Deferred
+
+- Encyclopedia and Achievements menu items are placeholders (scenes not yet registered)
+- Responsive relayout on resize (currently captures dimensions at init time)
+- Sound effects for menu navigation (can subscribe to UI events when audio SFX expands)
