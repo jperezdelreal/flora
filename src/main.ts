@@ -1,8 +1,10 @@
 import { Application } from 'pixi.js';
-import { SceneManager, GameLoop, InputManager, AssetLoader } from './core';
+import { SceneManager, GameLoop, InputManager, AssetLoader, FPSMonitor } from './core';
 import { BootScene, GardenScene, SeedSelectionScene } from './scenes';
 import { GAME, SCENES } from './config';
 import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager } from './systems';
+import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';
+import { eventBus } from './core/EventBus';
 
 async function main(): Promise<void> {
   const app = new Application();
@@ -13,6 +15,10 @@ async function main(): Promise<void> {
   });
 
   document.body.appendChild(app.canvas);
+
+  // TLDR: Initialize accessibility — ARIA live region + load persisted preferences
+  initAriaLiveRegion();
+  loadAccessibilityPrefs();
 
   // TLDR: Create centralized save manager (must exist before systems that persist data)
   const saveManager = new SaveManager();
@@ -52,8 +58,20 @@ async function main(): Promise<void> {
   document.addEventListener('click', resumeAudio);
   document.addEventListener('keydown', resumeAudio);
 
+  // TLDR: FPS monitor — enabled in dev mode only
+  const isDev = import.meta.env?.DEV ?? false;
+  const fpsMonitor = new FPSMonitor(isDev);
+  if (isDev) {
+    fpsMonitor.setPosition(app.screen.width - 100, 10);
+    app.stage.addChild(fpsMonitor.getContainer());
+    fpsMonitor.setQualityChangeCallback((tier) => {
+      console.warn(`[FPSMonitor] Quality tier changed to: ${tier}`);
+    });
+  }
+
   // Fixed-timestep game loop (60 FPS deterministic updates)
   const gameLoop = new GameLoop(app.ticker, GAME.TARGET_FPS);
+  gameLoop.setFPSMonitor(fpsMonitor);
 
   gameLoop.setUpdateCallback((dt: number) => {
     sceneManager.update(dt);
@@ -61,6 +79,32 @@ async function main(): Promise<void> {
   });
 
   gameLoop.start();
+
+  // TLDR: Announce key game events to screen readers via ARIA live region
+  eventBus.on('plant:harvested', (data) => {
+    announce(`Plant harvested. Seeds collected: ${data.seeds}.`);
+  });
+  eventBus.on('day:advanced', (data) => {
+    announce(`Day ${data.day} has begun.`);
+  });
+  eventBus.on('season:ended', (data) => {
+    announce(`The ${data.season} season has ended.`);
+  });
+  eventBus.on('milestone:unlocked', (data) => {
+    announce(`Milestone unlocked: ${data.milestoneName}!`, 'assertive');
+  });
+  eventBus.on('achievement:unlocked', (data) => {
+    announce(`Achievement unlocked: ${data.achievementName}!`, 'assertive');
+  });
+  eventBus.on('discovery:new', (data) => {
+    announce(`New plant discovered: ${data.plantName}!`, 'assertive');
+  });
+  eventBus.on('pest:spawned', () => {
+    announce('A pest has appeared in the garden.');
+  });
+  eventBus.on('weather:warning', (data) => {
+    announce(`Weather warning: ${data.type} expected in ${data.daysUntil} days.`);
+  });
 }
 
 main().catch(console.error);

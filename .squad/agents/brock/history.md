@@ -22,3 +22,15 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Graceful corruption handling**: `validateSave()` checks structure, `migrateSave()` repairs broken saves, no data loss
 - **Manual save triggers**: End of run, day advance, discovery, unlock milestone
 - **Key files**: `src/systems/SaveManager.ts`, `src/config/saveSchema.ts`, `src/utils/storage.ts`, `src/ui/SaveIndicator.ts`, `src/main.ts` (wiring)
+
+### Performance & Accessibility Infrastructure (Issue #116)
+- **Object Pool**: Generic `ObjectPool<T>` in `src/utils/objectPool.ts` — acquire/release pattern with configurable create/reset/destroy callbacks, pre-warming, max size cap
+- **FPS Monitor**: `src/core/FPSMonitor.ts` — dev-mode overlay sampling real FPS via `performance.now()`, rolling 60-frame window, auto quality tier detection (high/medium/low) with sustained-drop threshold
+- **GameLoop integration**: FPSMonitor attached via `gameLoop.setFPSMonitor()`, samples after every rendered frame
+- **Colorblind palettes**: `src/config/accessibility.ts` defines 4 vision modes (normal, deuteranopia, protanopia, tritanopia) as config-driven `ColorPalette` objects
+- **Accessibility runtime**: `src/utils/accessibility.ts` — ARIA live region (`announce()`), localStorage persistence, palette cycling, focus ring drawing, reduced motion detection
+- **ARIA announcements**: `main.ts` subscribes to EventBus events (harvest, day, season, milestone, achievement, discovery, pest, weather) and pushes messages to a hidden `role="status"` DOM element
+- **Keyboard navigation**: PauseMenu now has full arrow/Tab/Enter/Space navigation with visible yellow focus ring, wrap-around, and colorblind mode toggle
+- **Semantic HTML**: index.html now has `<main role="application">`, skip-to-content link, proper landmark structure
+- **Save schema extended**: `SettingsSaveData` interface with `colorVisionMode`, `reducedMotion`, `highContrast` fields; SaveManager has `saveSettings()`/`loadSettings()` helpers
+- **Key files**: `src/utils/objectPool.ts`, `src/core/FPSMonitor.ts`, `src/config/accessibility.ts`, `src/utils/accessibility.ts`, `src/ui/PauseMenu.ts`, `src/main.ts`, `index.html`

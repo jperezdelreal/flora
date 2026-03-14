@@ -6,3 +6,5 @@ export type { Action, KeyBindings } from './InputManager';
 export { AssetLoader } from './AssetLoader';
 export type { AssetBundle } from './AssetLoader';
 export { EventBus, eventBus } from './EventBus';
+export { FPSMonitor } from './FPSMonitor';
+export type { QualityTier, QualityChangeCallback } from './FPSMonitor';

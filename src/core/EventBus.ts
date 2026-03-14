@@ -53,6 +53,9 @@ export interface EventMap {
   'grid:expanded': { rows: number; cols: number };
   // Achievement events
   'achievement:unlocked': { achievementId: string; achievementName: string };
+  // Accessibility events
+  'accessibility:colorVisionChanged': { mode: string; label: string };
+  'accessibility:settingsChanged': { setting: string; value: boolean | string };
 }
 
 type EventName = keyof EventMap & string;

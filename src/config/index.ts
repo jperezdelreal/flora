@@ -61,3 +61,4 @@ export { getNextMilestone as getNextUnlockMilestone } from './unlocks';
 export * from './scoring';
 export * from './animations';
 export * from './structures';
+export * from './accessibility';

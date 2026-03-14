@@ -1,4 +1,5 @@
 import { Ticker } from 'pixi.js';
+import type { FPSMonitor } from './FPSMonitor';
 
 /**
  * Fixed-timestep game loop built on PixiJS v8 Ticker.
@@ -10,6 +11,7 @@ export class GameLoop {
   private onFixedUpdate: ((dt: number) => void) | null = null;
   private onRender: ((alpha: number) => void) | null = null;
   private _frameCount = 0;
+  private fpsMonitor: FPSMonitor | null = null;
 
   constructor(
     private ticker: Ticker,
@@ -26,6 +28,11 @@ export class GameLoop {
   /** Register the render interpolation callback */
   setRenderCallback(fn: (alpha: number) => void): void {
     this.onRender = fn;
+  }
+
+  /** TLDR: Attach an FPS monitor to sample every rendered frame */
+  setFPSMonitor(monitor: FPSMonitor): void {
+    this.fpsMonitor = monitor;
   }
 
   /** Total fixed-step frames elapsed since start */
@@ -59,5 +66,8 @@ export class GameLoop {
     // Alpha for interpolation (0..1 between fixed steps)
     const alpha = this.accumulator / this.fixedDt;
     this.onRender?.(alpha);
+
+    // TLDR: Sample FPS after each rendered frame
+    this.fpsMonitor?.sample();
   }
 }
