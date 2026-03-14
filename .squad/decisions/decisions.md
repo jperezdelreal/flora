@@ -37,3 +37,75 @@ No repo may make direct git commits to another repo's branch. ALL cross-repo com
 **Rule:** Use `gh issue create`, `gh issue comment`, `gh pr review` — NEVER `gh api repos/.../contents -X PUT`.
 
 ---
+
+## 2026-03-14T11:08Z: Scene Transitions Architecture
+
+**By:** Brock (Web Engine Dev)  
+**Source:** PR #208, Issue #200
+
+**Tier:** T1
+
+**Status:** ✅ ACTIVE
+
+### What
+Four distinct scene transition types (fade, crossfade, slide, loading) replace hard cuts. Input blocked during transitions via `transitioning` flag. Easing functions pure utilities. Temporary container staging for simultaneous dual-scene rendering.
+
+**Key Decisions:**
+- Fade, crossfade, slide, loading as distinct implementations (not unified generic)
+- Easing functions as stateless callbacks (linear, easeInOutCubic, easeOut, easeIn)
+- Input blocking via SceneManager flag, not InputManager changes
+- Temporary Container for new scene init during old scene display
+
+**Routes:**
+- Boot → Menu: loading
+- Menu → SeedSelection: crossfade
+- SeedSelection → Garden: fade
+- Menu → Garden (continue): fade
+
+---
+
+## 2026-03-14T11:08Z: Plant Growth Animation Architecture
+
+**By:** Misty (Web UI Dev)  
+**Source:** PR #207, Issue #197
+
+**Tier:** T1
+
+**Status:** ✅ ACTIVE
+
+### What
+Procedural PixiJS Graphics rendering (8 shape types) for all 22 plants. Config-driven visuals in `plantVisuals.ts`. Keyframe interpolation for smooth growth transitions. Health-based visual degradation (wilting). Per-plant sway intensity (0.4–1.8x).
+
+**Key Decisions:**
+- Procedural Graphics (not sprite assets) — flexible, no art pipeline, 60 FPS with 64+ plants
+- Config-driven visual definitions — centralized, easy iteration, future JSON modding
+- Keyframe interpolation — continuous growth perception, elasticOut easing for "juicy" feel
+- Health-based desaturation — visual feedback for under-watered/pest-damaged plants
+- Per-plant sway intensity — tall plants 1.5–1.8x, medium 1.0x, short 0.4–0.5x
+
+**Impact:** PlantSystem unchanged. EventBus reused `plant:grew`. AnimationSystem sufficient for tweens. Integrated with colorblind accessibility.
+
+---
+
+## 2026-03-14T11:08Z: Seasonal Palette System
+
+**By:** Sabrina (Engine Design)  
+**Source:** Issue #202 (Round 2)
+
+**Tier:** T2
+
+**Status:** 🔄 IN PROGRESS (code complete, git push retry in Round 3)
+
+### What
+Four seasonal color palettes (Spring pastels, Summer vibrant, Autumn warm, Winter muted) applied to plants, soil, sky, UI. Per-plant season color overrides. 2-second smooth lerp on season change.
+
+**Key Decisions:**
+- Four distinct palettes (not interpolated global shifts)
+- Per-plant color overrides per season (customization beyond global palette)
+- 2-second transition window for palette lerp
+
+**Files:** `src/config/seasonalPalettes.ts` (NEW), plants.ts overrides, TransitionSystem lerp, GardenScene application.
+
+**Note:** Build validated ✅, git commit/push failed, retry in Round 3.
+
+---

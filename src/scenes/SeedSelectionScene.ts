@@ -5,6 +5,7 @@ import { ModifierSelector } from '../ui/ModifierSelector';
 import { SeedSelectionSystem, SeedPool } from '../systems/SeedSelectionSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
+import { audioManager } from '../systems/AudioManager';
 import { COLORS, SCENES } from '../config';
 
 /**
@@ -196,6 +197,9 @@ export class SeedSelectionScene implements Scene {
       }
     };
     window.addEventListener('keydown', this.boundOnKeyDown);
+
+    // TLDR: Start ambient audio loop for pre-run atmosphere
+    audioManager.startAmbient();
   }
 
   /**
@@ -272,6 +276,9 @@ export class SeedSelectionScene implements Scene {
   }
 
   destroy(): void {
+    // TLDR: Stop ambient audio when leaving seed selection
+    audioManager.stopAmbient();
+
     // Cleanup keyboard listener (following GardenScene pattern)
     window.removeEventListener('keydown', this.boundOnKeyDown);
 

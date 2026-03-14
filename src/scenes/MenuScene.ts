@@ -123,6 +123,9 @@ export class MenuScene implements Scene {
     this.elapsed = 0;
     this.titleFadeComplete = false;
     this.fireflyCooldown = 0;
+
+    // TLDR: Start ambient audio loop for menu atmosphere
+    audioManager.startAmbient();
   }
 
   private buildBackground(): void {
@@ -681,6 +684,9 @@ export class MenuScene implements Scene {
   }
 
   destroy(): void {
+    // TLDR: Stop ambient audio when leaving menu
+    audioManager.stopAmbient();
+
     window.removeEventListener('keydown', this.boundOnKeyDown);
     window.removeEventListener('pointermove', this.boundOnPointerMove);
     window.removeEventListener('pointerup', this.boundOnPointerUp);
