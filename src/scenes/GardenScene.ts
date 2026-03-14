@@ -21,8 +21,9 @@ import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
 import { AchievementSystem } from '../systems/AchievementSystem';
 import { PlantRenderer } from '../systems/PlantRenderer';
+import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
 import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
-import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
+import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
 import { GAME, TOUCH, SCENES } from '../config';
@@ -100,6 +101,9 @@ export class GardenScene implements Scene {
   
   // TLDR: Structure placement state
   private structurePlacementMode: StructureType | null = null;
+
+  // TLDR: SeedSelectionSystem for wiring actual run seed pool (#242)
+  private seedSelectionSystem: SeedSelectionSystem;
   
   // TLDR: Season length (may be extended by Greenhouse)
   private maxSeasonDays = 12;
@@ -143,8 +147,9 @@ export class GardenScene implements Scene {
   private orientationHint: Container | null = null;
   private boundOnResize!: () => void;
 
-  constructor(saveManager: SaveManager) {
+  constructor(saveManager: SaveManager, seedSelectionSystem: SeedSelectionSystem) {
     this.saveManager = saveManager;
+    this.seedSelectionSystem = seedSelectionSystem;
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -388,6 +393,12 @@ export class GardenScene implements Scene {
     this.seedInventory = new SeedInventory();
     this.seedInventory.setPosition(10, 0);
     this.container.addChild(this.seedInventory.getContainer());
+
+    // TLDR: Wire actual run seed pool from SeedSelectionSystem (#242)
+    const currentPool = this.seedSelectionSystem.getCurrentPool();
+    if (currentPool && currentPool.seeds.length > 0) {
+      this.seedInventory.setAvailableSeeds(currentPool.seeds);
+    }
     
     // Initialize Plant Info Panel (tooltip)
     this.plantInfoPanel = new PlantInfoPanel();
@@ -923,7 +934,65 @@ export class GardenScene implements Scene {
     // TLDR: Apply frost damage from WeatherSystem
     this.weatherSystem.applyFrostDamage(activePlants);
 
+    // TLDR: Show brief day advance summary (#241)
+    this.showDayAdvanceSummary(day);
+
     this.updateStatusText();
+  }
+
+  /**
+   * TLDR: Determine current game phase based on game state (#241)
+   */
+  private determineGamePhase(): GamePhase {
+    const actions = this.player.getActionsRemaining();
+    const activePlants = Array.from(this.plants.values()).filter(p => p.active);
+    const maturePlants = activePlants.filter(p => p.getState().growthStage === GrowthStage.MATURE);
+
+    if (actions === 0) {
+      return 'day_end';
+    }
+    if (maturePlants.length > 0) {
+      return 'harvest';
+    }
+    if (activePlants.length > 0) {
+      return 'tending';
+    }
+    return 'planting';
+  }
+
+  /**
+   * TLDR: Get contextual hint based on current phase and actions (#241)
+   */
+  private getContextualHint(phase: GamePhase, actions: number): string {
+    if (actions === 0) {
+      return 'No actions left — day will advance soon';
+    }
+    switch (phase) {
+      case 'planting':
+        return 'Tap an empty tile to plant a seed';
+      case 'tending':
+        return 'Water your plants! Select the watering can tool';
+      case 'harvest':
+        return 'Harvest mature plants by tapping them!';
+      case 'day_end':
+        return '';
+    }
+  }
+
+  /**
+   * TLDR: Show brief day advance info message (#241)
+   */
+  private showDayAdvanceSummary(day: number): void {
+    const activePlants = Array.from(this.plants.values()).filter(p => p.active);
+    const maturePlants = activePlants.filter(p => p.getState().growthStage === GrowthStage.MATURE);
+    const parts: string[] = [`☀️ Day ${day} begins!`];
+    if (activePlants.length > 0) {
+      parts.push(`${activePlants.length} plant${activePlants.length > 1 ? 's' : ''} growing`);
+    }
+    if (maturePlants.length > 0) {
+      parts.push(`${maturePlants.length} ready to harvest`);
+    }
+    this.showActionMessage(parts.join(' • '));
   }
 
   private updateStatusText(): void {
@@ -1165,6 +1234,12 @@ export class GardenScene implements Scene {
       this.grid.config.cols,
       this.gridSystem.getStructures().length,
     );
+
+    // TLDR: Phase tracking and contextual hints (#241)
+    const phase = this.determineGamePhase();
+    this.hud.setPhase(phase);
+    this.hud.setHint(this.getContextualHint(phase, actions));
+    this.hud.updatePhaseTransition(delta);
 
     // Check for season end (maxSeasonDays reached)
     if (day >= this.maxSeasonDays && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {

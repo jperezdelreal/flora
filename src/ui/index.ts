@@ -9,6 +9,7 @@ export type { HazardWarningData } from './HazardWarning';
 export { HazardTooltip } from './HazardTooltip';
 export type { HazardTooltipData } from './HazardTooltip';
 export { HUD } from './HUD';
+export type { GamePhase } from './HUD';
 export { SeedInventory } from './SeedInventory';
 export { PlantInfoPanel } from './PlantInfoPanel';
 export { DaySummary } from './DaySummary';

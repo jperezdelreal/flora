@@ -45,7 +45,7 @@ async function main(): Promise<void> {
     new EncyclopediaScene(encyclopediaSystem),
     new AchievementsScene(achievementSystem),
     new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem),
-    new GardenScene(saveManager)
+    new GardenScene(saveManager, seedSelectionSystem)
   );
 
   // Boot the first scene

@@ -1,5 +1,4 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { ALL_PLANTS } from '../config/plants';
 import { PlantConfig } from '../entities/Plant';
 
 const RARITY_COLORS = {
@@ -82,8 +81,8 @@ export class SeedInventory {
     this.cardsContainer.y = 90;
     this.container.addChild(this.cardsContainer);
 
-    // Initialize with starter seeds (common plants)
-    this.setAvailableSeeds(ALL_PLANTS.filter(p => p.rarity === 'common'));
+    // Seeds are set externally via setAvailableSeeds() from GardenScene
+    // using the actual run pool from SeedSelectionSystem
   }
 
   /**
