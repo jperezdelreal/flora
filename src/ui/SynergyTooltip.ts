@@ -1,14 +1,18 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { SYNERGY_BONUSES } from '../config/synergies';
+import { SYNERGY_BONUSES, NEGATIVE_SYNERGY_EFFECTS } from '../config/synergies';
 
 /**
- * TLDR: SynergyTooltip displays synergy tutorial and hover info
+ * TLDR: SynergyTooltip displays synergy tutorial, hover info, and negative synergy warnings
  */
 export class SynergyTooltip {
   private container: Container;
   private background: Graphics;
   private titleText: Text;
   private descriptionText: Text;
+  private warningContainer: Container;
+  private warningBackground: Graphics;
+  private warningTitleText: Text;
+  private warningDescText: Text;
   private visible = false;
 
   constructor() {
@@ -47,6 +51,40 @@ export class SynergyTooltip {
     this.descriptionText.x = 10;
     this.descriptionText.y = 35;
     this.container.addChild(this.descriptionText);
+
+    // TLDR: Warning tooltip for negative synergies (separate container)
+    this.warningContainer = new Container();
+    this.warningContainer.visible = false;
+
+    this.warningBackground = new Graphics();
+    this.warningContainer.addChild(this.warningBackground);
+
+    this.warningTitleText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: '#ff6b6b',
+        fontWeight: 'bold',
+      },
+    });
+    this.warningTitleText.x = 10;
+    this.warningTitleText.y = 10;
+    this.warningContainer.addChild(this.warningTitleText);
+
+    this.warningDescText = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 13,
+        fill: '#ffaaaa',
+        wordWrap: true,
+        wordWrapWidth: 280,
+      },
+    });
+    this.warningDescText.x = 10;
+    this.warningDescText.y = 35;
+    this.warningContainer.addChild(this.warningDescText);
   }
 
   /**
@@ -70,28 +108,64 @@ export class SynergyTooltip {
   }
 
   /**
-   * TLDR: Show synergy info for plant
+   * TLDR: Show synergy info for plant (positive + negative)
    */
-  showSynergyInfo(synergies: Set<string>): void {
-    if (synergies.size === 0) {
+  showSynergyInfo(synergies: Set<string>, negativeSynergies?: Set<string>): void {
+    if (synergies.size === 0 && (!negativeSynergies || negativeSynergies.size === 0)) {
       this.hide();
       return;
     }
 
-    const synergyList = Array.from(synergies)
+    const positiveSynergyList = Array.from(synergies)
       .map((id) => {
         const bonus = SYNERGY_BONUSES[id];
-        return bonus ? `• ${bonus.name}` : '';
+        return bonus ? `🌟 ${bonus.name}` : '';
       })
       .filter((s) => s)
       .join('\n');
 
+    const negativeSynergyList = negativeSynergies
+      ? Array.from(negativeSynergies)
+          .map((id) => {
+            const effect = NEGATIVE_SYNERGY_EFFECTS[id];
+            return effect ? `⚠️ ${effect.name}` : '';
+          })
+          .filter((s) => s)
+          .join('\n')
+      : '';
+
+    const combined = [positiveSynergyList, negativeSynergyList].filter((s) => s).join('\n');
+
     this.titleText.text = 'Active Synergies';
-    this.descriptionText.text = synergyList;
+    this.descriptionText.text = combined;
 
     this.updateBackground();
     this.container.visible = true;
     this.visible = true;
+  }
+
+  /**
+   * TLDR: Show pre-planting warnings for negative synergies
+   * Displayed before placing a plant to inform player of consequences
+   */
+  showPlantingWarnings(warnings: string[]): void {
+    if (warnings.length === 0) {
+      this.hideWarning();
+      return;
+    }
+
+    this.warningTitleText.text = '⚠️ Planting Warnings';
+    this.warningDescText.text = warnings.join('\n\n');
+
+    this.updateWarningBackground();
+    this.warningContainer.visible = true;
+  }
+
+  /**
+   * TLDR: Hide warning tooltip
+   */
+  hideWarning(): void {
+    this.warningContainer.visible = false;
   }
 
   /**
@@ -116,11 +190,32 @@ export class SynergyTooltip {
   }
 
   /**
+   * TLDR: Update warning background with red accent
+   */
+  private updateWarningBackground(): void {
+    const width = 300;
+    const height = Math.max(60, this.warningDescText.height + 50);
+
+    this.warningBackground.clear();
+    this.warningBackground.roundRect(0, 0, width, height, 8);
+    this.warningBackground.fill({ color: 0x1a1a1a, alpha: 0.95 });
+    this.warningBackground.stroke({ color: 0xff4444, width: 2 });
+  }
+
+  /**
    * TLDR: Position tooltip on screen
    */
   setPosition(x: number, y: number): void {
     this.container.x = x;
     this.container.y = y;
+  }
+
+  /**
+   * TLDR: Position warning tooltip
+   */
+  setWarningPosition(x: number, y: number): void {
+    this.warningContainer.x = x;
+    this.warningContainer.y = y;
   }
 
   /**
@@ -139,7 +234,15 @@ export class SynergyTooltip {
     return this.container;
   }
 
+  /**
+   * TLDR: Get warning container for adding to scene
+   */
+  getWarningContainer(): Container {
+    return this.warningContainer;
+  }
+
   destroy(): void {
     this.container.destroy({ children: true });
+    this.warningContainer.destroy({ children: true });
   }
 }

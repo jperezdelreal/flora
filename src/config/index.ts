@@ -49,6 +49,16 @@ export const COLORS = {
   BLACK: 0x000000,
 } as const;
 
+/** TLDR: Touch gesture tuning values */
+export const TOUCH = {
+  LONG_PRESS_MS: 500,
+  DRAG_THRESHOLD_PX: 10,
+  PINCH_MIN_SCALE: 0.5,
+  PINCH_MAX_SCALE: 2.0,
+  HAPTIC_ENABLED: true,
+  MIN_TOUCH_TARGET_PX: 44,
+} as const;
+
 export * from './seasons';
 export * from './plants';
 export * from './tools';
