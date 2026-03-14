@@ -12,6 +12,7 @@ export const SAVE_KEYS = {
   TUTORIAL: 'flora_tutorial',
   GARDEN: 'flora_garden',
   ACHIEVEMENTS: 'flora_achievements',
+  SETTINGS: 'flora_settings',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */
@@ -80,6 +81,14 @@ export interface AchievementSaveData {
   cosmeticRewards: string[];
 }
 
+/** TLDR: Persisted display/accessibility settings */
+export interface SettingsSaveData {
+  colorblindMode: boolean;
+  colorVisionMode?: string;
+  reducedMotion?: boolean;
+  highContrast?: boolean;
+}
+
 /** TLDR: Full save file shape — used for validation and migration */
 export interface SaveSchema {
   version: number;
@@ -89,4 +98,5 @@ export interface SaveSchema {
   audio: AudioSaveData;
   garden: GardenSaveData;
   achievements: AchievementSaveData;
+  settings: SettingsSaveData;
 }

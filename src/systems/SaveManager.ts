@@ -8,6 +8,7 @@ import type {
   AudioSaveData,
   GardenSaveData,
   AchievementSaveData,
+  SettingsSaveData,
 } from '../config/saveSchema';
 import { loadJSON, saveJSON, isStorageAvailable } from '../utils/storage';
 
@@ -107,6 +108,16 @@ export class SaveManager {
   /** TLDR: Load achievement state */
   loadAchievements(): AchievementSaveData | null {
     return this.load<AchievementSaveData>(SAVE_KEYS.ACHIEVEMENTS);
+  }
+
+  /** TLDR: Save display/accessibility settings */
+  saveSettings(data: SettingsSaveData): boolean {
+    return this.save(SAVE_KEYS.SETTINGS, data);
+  }
+
+  /** TLDR: Load display/accessibility settings */
+  loadSettings(): SettingsSaveData | null {
+    return this.load<SettingsSaveData>(SAVE_KEYS.SETTINGS);
   }
 
   // ------ Save-state notifications ------

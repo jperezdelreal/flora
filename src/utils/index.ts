@@ -20,3 +20,19 @@ export function createRng(seed: number) {
     return (state >>> 0) / 0xffffffff;
   };
 }
+
+export { ObjectPool } from './objectPool';
+export type { PoolConfig } from './objectPool';
+export {
+  initAriaLiveRegion,
+  announce,
+  loadAccessibilityPrefs,
+  saveAccessibilityPrefs,
+  getAccessibilityPrefs,
+  getActivePalette,
+  setColorVisionMode,
+  cycleColorVisionMode,
+  getColorVisionLabel,
+  drawFocusRing,
+  prefersReducedMotion,
+} from './accessibility';
