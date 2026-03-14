@@ -7,6 +7,7 @@ export enum GrowthStage {
   SPROUT = 'sprout',
   GROWING = 'growing',
   MATURE = 'mature',
+  WILTING = 'wilting',
 }
 
 export enum WaterState {
@@ -123,6 +124,10 @@ export class Plant implements Entity {
     // Advance growth if plant is healthy (with growth speed multiplier)
     if (this.state.health > 0 && !this.state.isMature) {
       this.state.daysGrown += this.state.growthSpeedMultiplier;
+    }
+
+    // Always re-evaluate stage (handles wilting on any stage including mature)
+    if (this.state.health > 0) {
       this.updateGrowthStage();
     }
 
@@ -132,10 +137,16 @@ export class Plant implements Entity {
     }
   }
 
-  /** Update growth stage based on days grown */
+  /** Update growth stage based on days grown and health */
   private updateGrowthStage(): void {
     const config = this.state.config;
     const progress = this.state.daysGrown / config.growthTime;
+
+    // Wilting overrides normal stage when health is critically low
+    if (this.state.health < 40 && this.state.health > 0 && progress >= 0.33) {
+      this.state.growthStage = GrowthStage.WILTING;
+      return;
+    }
 
     if (progress >= 1.0) {
       this.state.growthStage = GrowthStage.MATURE;
