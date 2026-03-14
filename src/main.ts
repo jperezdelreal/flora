@@ -1,6 +1,6 @@
 import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader, FPSMonitor } from './core';
-import { AchievementsScene, BootScene, GardenScene, MenuScene, SeedSelectionScene, EncyclopediaScene } from './scenes';
+import { AchievementsScene, BootScene, EncyclopediaScene, GardenScene, MenuScene, SeedSelectionScene } from './scenes';
 import { GAME, SCENES } from './config';
 import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem, AchievementSystem } from './systems';
 import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';

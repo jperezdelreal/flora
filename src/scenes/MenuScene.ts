@@ -30,6 +30,10 @@ interface SliderState {
  */
 export class MenuScene implements Scene {
   readonly name = 'menu';
+  /** TLDR: When true, init() skips title screen and shows main menu directly */
+  static skipTitle = false;
+  /** TLDR: When true, init() skips title screen and shows main menu directly */
+  static skipTitle = false;
   private container = new Container();
   private particleSystem: ParticleSystem;
   private animationSystem: AnimationSystem;
@@ -62,10 +66,7 @@ export class MenuScene implements Scene {
   private titleFadeComplete = false;
   private fireflyCooldown = 0;
 
-  // TLDR: When true, init skips title screen and goes straight to main menu
-  private _returnToMain = false;
-
-  private boundOnKeyDown!: (e: KeyboardEvent) => void;
+private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private ctx: SceneContext | null = null;
 
   private draggingSlider: SliderState | null = null;
@@ -81,12 +82,7 @@ export class MenuScene implements Scene {
     this.animationSystem = new AnimationSystem();
   }
 
-  /** TLDR: Flag to skip title screen on next init — used when returning from sub-scenes */
-  setReturnToMain(): void {
-    this._returnToMain = true;
-  }
-
-  async init(ctx: SceneContext): Promise<void> {
+async init(ctx: SceneContext): Promise<void> {
     this.ctx = ctx;
     const { app } = ctx;
     const stage = app.stage.children[0] as Container;
@@ -114,9 +110,15 @@ export class MenuScene implements Scene {
     this.buildSettingsPanel();
     this.buildCreditsPage();
 
-    // TLDR: Skip title and show main menu directly when returning from sub-scenes
-    if (this._returnToMain) {
-      this._returnToMain = false;
+<<<<<<< HEAD
+    // TLDR: Skip title screen when returning from sub-scenes (e.g. Encyclopedia) when returning from sub-scenes
+    if (MenuScene.skipTitle) {
+      MenuScene.skipTitle = false;
+=======
+    // TLDR: Skip title screen when returning from sub-scenes (e.g. Encyclopedia)
+    if (MenuScene.skipTitle) {
+      MenuScene.skipTitle = false;
+>>>>>>> 5f46b75 (feat: Encyclopedia standalone scene accessible from main menu)
       this.titleFadeComplete = true;
       this.showState('main');
     } else {
@@ -583,7 +585,11 @@ export class MenuScene implements Scene {
       case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
+<<<<<<< HEAD
       case 'achievements': this.ctx.sceneManager.transitionTo(SCENES.ACHIEVEMENTS, { type: 'crossfade' }).catch(console.error); break;
+=======
+      case 'achievements': break;
+>>>>>>> 5f46b75 (feat: Encyclopedia standalone scene accessible from main menu)
       case 'settings': this.showState('settings'); break;
     }
   }
