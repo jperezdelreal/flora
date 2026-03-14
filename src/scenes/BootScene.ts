@@ -130,7 +130,7 @@ export class BootScene implements Scene {
       this.ready = true;
       this.transitioned = true;
       ctx.sceneManager
-        .transitionTo(SCENES.SEED_SELECTION, { duration: 0.6 })
+        .transitionTo(SCENES.MENU, { duration: 0.6 })
         .catch(console.error);
     }
   }
