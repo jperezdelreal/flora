@@ -14,6 +14,7 @@ export const ANIMATION = {
   // Idle sway x-offset on mature plants (gentle horizontal motion)
   SWAY_X_AMPLITUDE: 1.5,
   SWAY_X_FREQUENCY: 0.8,
+  // Idle sway x-offset on mature plants (gentle horizontal motion)
 
   // Harvest burst particles
   HARVEST_PARTICLE_COUNT: 14,

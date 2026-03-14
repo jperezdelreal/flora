@@ -1526,7 +1526,6 @@ export class GardenScene implements Scene {
 
     const alpha = keyframe.alpha * (health > 50 ? 1.0 : 0.7);
 
-    // Glow aura on mature plants with high health
     if (visualDef.glowOnMature && stage === GrowthStage.MATURE && health > 70) {
       gfx.circle(0, keyframe.yOffset, shapeData.mainRadius + 6);
       gfx.fill({ color: accColor, alpha: 0.4 });
@@ -1876,6 +1875,9 @@ export class GardenScene implements Scene {
     return (r << 16) | (g << 8) | b;
   }
 
+
+  
+
   /**
    * TLDR: Animate plant visual when growth stage changes — scale pop + redraw
    */
@@ -2164,6 +2166,7 @@ export class GardenScene implements Scene {
     }
     this.plantVisuals.clear();
     this.swayPhases.clear();
+    this.plantBaseX.clear();
 
     const activePlants = this.plantSystem.getActivePlants();
     for (const plant of activePlants) {
@@ -2215,7 +2218,6 @@ export class GardenScene implements Scene {
       const stage = plant.getGrowthStage();
       const isMatureOrGrowing = stage === GrowthStage.MATURE || stage === GrowthStage.GROWING;
       
-      // Rotation sway on all non-seed stages
       if (stage !== GrowthStage.SEED) {
         const rotationScale = stage === GrowthStage.SPROUT ? 0.4 : 1.0;
         visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) * 
@@ -2224,7 +2226,6 @@ export class GardenScene implements Scene {
         visual.rotation = 0;
       }
       
-      // X-offset sway only on mature/growing plants (the signature idle motion)
       if (isMatureOrGrowing) {
         const baseX = this.plantBaseX.get(plantId) ?? visual.x;
         const xSway = Math.sin(time * ANIMATION.SWAY_X_FREQUENCY * Math.PI * 2 + phase * 1.5) *

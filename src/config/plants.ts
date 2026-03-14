@@ -154,6 +154,20 @@ export const BLUEBERRY: PlantConfig = {
   synergyTraits: [SynergyTrait.ALLELOPATHIC],
 };
 
+// TLDR: New uncommon plant — Strawberry (Spring/Summer, fast fruiting vine)
+export const STRAWBERRY: PlantConfig = {
+  id: 'strawberry',
+  name: 'strawberry',
+  displayName: 'Strawberry',
+  growthTime: 4,
+  waterNeedPerDay: 0.5,
+  yieldSeeds: 2,
+  rarity: 'uncommon',
+  description: 'Sweet low-growing berry. Spreads quickly and fruits in warm seasons.',
+  availableSeasons: [Season.SPRING, Season.SUMMER],
+  synergyTraits: [SynergyTrait.NITROGEN_FIXER],
+};
+
 // Rare plants (special properties, unlockable)
 export const FROST_WILLOW: PlantConfig = {
   id: 'frost_willow',
@@ -205,6 +219,20 @@ export const VENUS_FLYTRAP: PlantConfig = {
   description: 'Carnivorous plant that eats pests. Its digestive secretions inhibit neighbors.',
   availableSeasons: [Season.SUMMER, Season.FALL],
   synergyTraits: [SynergyTrait.PEST_DETERRENT, SynergyTrait.ALLELOPATHIC],
+};
+
+// TLDR: New rare plant — Bamboo (fast-growing tall grass, shade provider)
+export const BAMBOO: PlantConfig = {
+  id: 'bamboo',
+  name: 'bamboo',
+  displayName: 'Bamboo',
+  growthTime: 4,
+  waterNeedPerDay: 0.33,
+  yieldSeeds: 2,
+  rarity: 'rare',
+  description: 'Rapid-growing grass that towers over the garden. Provides shade to neighbors.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL],
+  synergyTraits: [SynergyTrait.SHADE_PROVIDER],
 };
 
 // Heirloom plants (premium unlocks, unique traits)
@@ -261,6 +289,20 @@ export const MOONFLOWER: PlantConfig = {
   synergyTraits: [SynergyTrait.SHADE_LOVER, SynergyTrait.PEST_ATTRACTOR],
 };
 
+// TLDR: New heirloom — Crystal Rose (all-season magical bloom)
+export const CRYSTAL_ROSE: PlantConfig = {
+  id: 'crystal_rose',
+  name: 'crystal_rose',
+  displayName: 'Crystal Rose',
+  growthTime: 10,
+  waterNeedPerDay: 0.5,
+  yieldSeeds: 3,
+  rarity: 'heirloom',
+  description: 'Prismatic bloom of crystalline petals. Attracts every pest in the garden.',
+  availableSeasons: [Season.SPRING, Season.SUMMER, Season.FALL, Season.WINTER],
+  synergyTraits: [SynergyTrait.PEST_ATTRACTOR],
+};
+
 /** All plant types available in the game */
 export const ALL_PLANTS: PlantConfig[] = [
   // Common (5)
@@ -276,16 +318,19 @@ export const ALL_PLANTS: PlantConfig[] = [
   BASIL,
   CUCUMBER,
   BLUEBERRY,
-  // Rare (4)
+  STRAWBERRY,
+  // Rare (5)
   FROST_WILLOW,
   LAVENDER,
   ORCHID,
   VENUS_FLYTRAP,
-  // Heirloom (4)
+  BAMBOO,
+  // Heirloom (5)
   HEIRLOOM_SQUASH,
   GOLDEN_MARIGOLD,
   GHOST_PEPPER,
   MOONFLOWER,
+  CRYSTAL_ROSE,
 ];
 
 /** Plant lookup by ID */
