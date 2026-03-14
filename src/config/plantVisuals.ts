@@ -13,6 +13,10 @@ export interface PlantKeyframe {
   yOffset: number;
 }
 
+export type SeedShape = 'round' | 'oval' | 'flat' | 'pointed';
+export type LeafShape = 'round' | 'pointed' | 'serrated' | 'narrow';
+export type StemStyle = 'thin' | 'medium' | 'thick';
+
 export interface PlantVisualDef {
   plantId: string;
   keyframes: Record<GrowthStage, PlantKeyframe>;
@@ -22,6 +26,12 @@ export interface PlantVisualDef {
   detailColor?: number;
   swayIntensity: number;
   glowOnMature: boolean;
+  /** Per-species procedural parameters */
+  seedShape: SeedShape;
+  leafShape: LeafShape;
+  stemStyle: StemStyle;
+  leafCount: number;
+  fruitSize: number;
 }
 
 const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
@@ -42,6 +52,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xffc107,
     swayIntensity: 1.0,
     glowOnMature: false,
+    seedShape: 'flat',
+    leafShape: 'serrated',
+    stemStyle: 'medium',
+    leafCount: 5,
+    fruitSize: 0.9,
   },
   lettuce: {
     plantId: 'lettuce',
@@ -51,6 +66,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     accentColor: 0xa5d6a7,
     swayIntensity: 0.8,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'round',
+    stemStyle: 'thin',
+    leafCount: 8,
+    fruitSize: 0.0,
   },
   carrot: {
     plantId: 'carrot',
@@ -61,6 +81,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xff6f00,
     swayIntensity: 0.4,
     glowOnMature: false,
+    seedShape: 'pointed',
+    leafShape: 'serrated',
+    stemStyle: 'thin',
+    leafCount: 4,
+    fruitSize: 0.7,
   },
   radish: {
     plantId: 'radish',
@@ -70,6 +95,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     accentColor: 0x8bc34a,
     swayIntensity: 0.5,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'round',
+    stemStyle: 'thin',
+    leafCount: 3,
+    fruitSize: 0.6,
   },
   pea: {
     plantId: 'pea',
@@ -80,6 +110,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x7cb342,
     swayIntensity: 1.3,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'pointed',
+    stemStyle: 'thin',
+    leafCount: 6,
+    fruitSize: 0.5,
   },
   sunflower: {
     plantId: 'sunflower',
@@ -90,6 +125,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xffeb3b,
     swayIntensity: 1.5,
     glowOnMature: true,
+    seedShape: 'oval',
+    leafShape: 'pointed',
+    stemStyle: 'thick',
+    leafCount: 12,
+    fruitSize: 1.0,
   },
   mint: {
     plantId: 'mint',
@@ -99,6 +139,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     accentColor: 0x80cbc4,
     swayIntensity: 1.0,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'serrated',
+    stemStyle: 'thin',
+    leafCount: 7,
+    fruitSize: 0.0,
   },
   pepper: {
     plantId: 'pepper',
@@ -109,6 +154,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xff9800,
     swayIntensity: 0.7,
     glowOnMature: false,
+    seedShape: 'flat',
+    leafShape: 'pointed',
+    stemStyle: 'medium',
+    leafCount: 4,
+    fruitSize: 0.8,
   },
   basil: {
     plantId: 'basil',
@@ -118,6 +168,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     accentColor: 0x689f38,
     swayIntensity: 0.9,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'round',
+    stemStyle: 'medium',
+    leafCount: 6,
+    fruitSize: 0.0,
   },
   cucumber: {
     plantId: 'cucumber',
@@ -128,6 +183,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x2e7d32,
     swayIntensity: 1.2,
     glowOnMature: false,
+    seedShape: 'oval',
+    leafShape: 'serrated',
+    stemStyle: 'medium',
+    leafCount: 5,
+    fruitSize: 0.85,
   },
   blueberry: {
     plantId: 'blueberry',
@@ -138,6 +198,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x3f51b5,
     swayIntensity: 0.6,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'narrow',
+    stemStyle: 'medium',
+    leafCount: 5,
+    fruitSize: 0.4,
   },
   frost_willow: {
     plantId: 'frost_willow',
@@ -148,6 +213,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x4fc3f7,
     swayIntensity: 1.8,
     glowOnMature: true,
+    seedShape: 'pointed',
+    leafShape: 'narrow',
+    stemStyle: 'thick',
+    leafCount: 8,
+    fruitSize: 0.3,
   },
   lavender: {
     plantId: 'lavender',
@@ -158,6 +228,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x7b1fa2,
     swayIntensity: 1.1,
     glowOnMature: true,
+    seedShape: 'oval',
+    leafShape: 'narrow',
+    stemStyle: 'thin',
+    leafCount: 10,
+    fruitSize: 0.3,
   },
   orchid: {
     plantId: 'orchid',
@@ -168,6 +243,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xe91e63,
     swayIntensity: 0.8,
     glowOnMature: true,
+    seedShape: 'flat',
+    leafShape: 'narrow',
+    stemStyle: 'thin',
+    leafCount: 5,
+    fruitSize: 0.7,
   },
   venus_flytrap: {
     plantId: 'venus_flytrap',
@@ -178,6 +258,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x689f38,
     swayIntensity: 0.5,
     glowOnMature: true,
+    seedShape: 'pointed',
+    leafShape: 'serrated',
+    stemStyle: 'thick',
+    leafCount: 5,
+    fruitSize: 0.6,
   },
   heirloom_squash: {
     plantId: 'heirloom_squash',
@@ -188,6 +273,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xffc107,
     swayIntensity: 0.4,
     glowOnMature: true,
+    seedShape: 'flat',
+    leafShape: 'round',
+    stemStyle: 'thick',
+    leafCount: 4,
+    fruitSize: 1.0,
   },
   golden_marigold: {
     plantId: 'golden_marigold',
@@ -198,6 +288,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xff9800,
     swayIntensity: 1.0,
     glowOnMature: true,
+    seedShape: 'oval',
+    leafShape: 'serrated',
+    stemStyle: 'medium',
+    leafCount: 14,
+    fruitSize: 0.5,
   },
   ghost_pepper: {
     plantId: 'ghost_pepper',
@@ -208,6 +303,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xff5252,
     swayIntensity: 0.8,
     glowOnMature: true,
+    seedShape: 'pointed',
+    leafShape: 'pointed',
+    stemStyle: 'medium',
+    leafCount: 4,
+    fruitSize: 0.7,
   },
   moonflower: {
     plantId: 'moonflower',
@@ -218,6 +318,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x81d4fa,
     swayIntensity: 1.2,
     glowOnMature: true,
+    seedShape: 'round',
+    leafShape: 'round',
+    stemStyle: 'thin',
+    leafCount: 7,
+    fruitSize: 0.8,
   },
   strawberry: {
     plantId: 'strawberry',
@@ -228,6 +333,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xffcdd2,
     swayIntensity: 0.7,
     glowOnMature: false,
+    seedShape: 'pointed',
+    leafShape: 'serrated',
+    stemStyle: 'thin',
+    leafCount: 5,
+    fruitSize: 0.7,
   },
   sage: {
     plantId: 'sage',
@@ -238,6 +348,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0xb0bec5,
     swayIntensity: 0.6,
     glowOnMature: false,
+    seedShape: 'round',
+    leafShape: 'narrow',
+    stemStyle: 'medium',
+    leafCount: 6,
+    fruitSize: 0.0,
   },
   watermelon: {
     plantId: 'watermelon',
@@ -248,6 +363,11 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     detailColor: 0x2e7d32,
     swayIntensity: 0.3,
     glowOnMature: true,
+    seedShape: 'flat',
+    leafShape: 'round',
+    stemStyle: 'thick',
+    leafCount: 4,
+    fruitSize: 1.0,
   },
 };
 

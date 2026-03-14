@@ -17,6 +17,10 @@ export interface SeasonalColorPalette {
   readonly accent: number;
   /** Plant color saturation multiplier (1.0 = normal) */
   readonly plantSaturation: number;
+  /** Color temperature tint applied to plant rendering (lerped with base colors) */
+  readonly plantColorShift: number;
+  /** Intensity of the color temperature shift (0.0 = none, 1.0 = full tint) */
+  readonly plantColorShiftIntensity: number;
   /** Ambient particle configuration */
   readonly ambientParticles: {
     type: 'petals' | 'fireflies' | 'leaves' | 'snow';
@@ -32,6 +36,8 @@ export const SEASONAL_PALETTES: Record<Season, SeasonalColorPalette> = {
     sky: 0x87ceeb,        // Sky blue
     accent: 0xffb7c5,     // Cherry blossom pink
     plantSaturation: 1.0,
+    plantColorShift: 0xf8e0f0,   // Pastel pink warmth
+    plantColorShiftIntensity: 0.08,
     ambientParticles: {
       type: 'petals',
       colors: [0xffb7c5, 0xffc9d9, 0xffd4e5], // Light pink shades
@@ -44,6 +50,8 @@ export const SEASONAL_PALETTES: Record<Season, SeasonalColorPalette> = {
     sky: 0x64b5f6,        // Light blue
     accent: 0xffd54f,     // Golden yellow
     plantSaturation: 1.2,
+    plantColorShift: 0xfff0c0,   // Golden warmth
+    plantColorShiftIntensity: 0.1,
     ambientParticles: {
       type: 'fireflies',
       colors: [0xffeb3b, 0xffd54f, 0xffc107], // Yellow/golden tones
@@ -56,6 +64,8 @@ export const SEASONAL_PALETTES: Record<Season, SeasonalColorPalette> = {
     sky: 0xffab91,        // Peachy orange
     accent: 0xff7043,     // Orange-red
     plantSaturation: 0.9,
+    plantColorShift: 0xffd0a0,   // Warm orange tones
+    plantColorShiftIntensity: 0.12,
     ambientParticles: {
       type: 'leaves',
       colors: [0xff7043, 0xff8a65, 0xd84315, 0xbf360c], // Orange/brown leaves
@@ -68,6 +78,8 @@ export const SEASONAL_PALETTES: Record<Season, SeasonalColorPalette> = {
     sky: 0xb0bec5,        // Cool gray-blue
     accent: 0x80deea,     // Ice blue
     plantSaturation: 0.7,
+    plantColorShift: 0xc8e0f8,   // Cool blue tones
+    plantColorShiftIntensity: 0.15,
     ambientParticles: {
       type: 'snow',
       colors: [0xffffff, 0xf5f5f5, 0xe0e0e0], // White/light gray snow
