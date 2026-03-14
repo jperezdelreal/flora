@@ -41,6 +41,7 @@ export interface EventMap {
   // Synergy events
   'synergy:activated': { plantId: string; synergyId: string; x: number; y: number };
   'synergy:tutorial': { synergyId: string };
+  'synergy:warning': { plantId: string; synergyId: string; x: number; y: number };
   // Tutorial events
   'tutorial:started': Record<string, never>;
   'tutorial:completed': Record<string, never>;
@@ -59,6 +60,12 @@ export interface EventMap {
   // Daily challenge events
   'daily:started': { seed: number; dateString: string; modifiers: string[] };
   'daily:scoreSubmitted': { seed: number; score: number; rank: number };
+  // TLDR: Touch/responsive events
+  'touch:tap': { x: number; y: number };
+  'touch:longpress': { x: number; y: number };
+  'touch:pinch': { scale: number };
+  'viewport:resized': { width: number; height: number; category: string };
+  'viewport:orientationChanged': { orientation: string };
 }
 
 type EventName = keyof EventMap & string;

@@ -2,11 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>🌿 FLORA</title>
   <style>
     * { margin: 0; padding: 0; }
-    body { overflow: hidden; background: #1a1a2e; }
+    html, body { overflow: hidden; background: #1a1a2e; touch-action: none; -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+    body { position: fixed; width: 100%; height: 100%; }
     /* TLDR: Skip-to-content link for keyboard users */
     .skip-link {
       position: absolute;

@@ -21,7 +21,8 @@ import { AchievementSystem } from '../systems/AchievementSystem';
 import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
-import { GAME } from '../config';
+import { TouchController } from '../core/TouchController';
+import { GAME, TOUCH } from '../config';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getPlantsBySeason, PLANT_BY_ID } from '../config/plants';
@@ -29,6 +30,13 @@ import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
 import { ANIMATION, PLANT_STAGE_COLORS, RARITY_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
 import { TutorialSystem } from '../systems/TutorialSystem';
+import {
+  getViewportInfo,
+  calculateGridScale,
+  shouldShowOrientationHint,
+  isTouchDevice,
+} from '../utils/responsive';
+import type { ViewportInfo } from '../utils/responsive';
 
 export class GardenScene implements Scene {
   readonly name = 'garden';
@@ -113,6 +121,13 @@ export class GardenScene implements Scene {
   private targetSkyColor = 0;
   private skyLerpElapsed = 0;
   private skyLerpDuration = 0;
+
+  // TLDR: Touch controller and responsive state
+  private touchController!: TouchController;
+  private viewportInfo!: ViewportInfo;
+  private gardenZoomScale = 1;
+  private orientationHint: Container | null = null;
+  private boundOnResize!: () => void;
 
   constructor(saveManager: SaveManager) {
     this.saveManager = saveManager;
@@ -524,6 +539,49 @@ export class GardenScene implements Scene {
     // Setup keyboard shortcuts
     this.setupKeyboardShortcuts();
 
+    // TLDR: Initialize touch controller — unified pointer abstraction for mobile
+    this.touchController = new TouchController(this.shakeContainer, {
+      longPressMs: TOUCH.LONG_PRESS_MS,
+      dragThresholdPx: TOUCH.DRAG_THRESHOLD_PX,
+      pinchMinScale: TOUCH.PINCH_MIN_SCALE,
+      pinchMaxScale: TOUCH.PINCH_MAX_SCALE,
+      hapticEnabled: TOUCH.HAPTIC_ENABLED,
+    });
+
+    this.touchController.setCallbacks({
+      onTap: (evt) => {
+        eventBus.emit('touch:tap', { x: evt.position.x, y: evt.position.y });
+      },
+      onLongPress: (evt) => {
+        // TLDR: Long-press opens plant info panel at the pressed tile
+        eventBus.emit('touch:longpress', { x: evt.position.x, y: evt.position.y });
+      },
+      onPinch: (evt) => {
+        if (evt.scale !== undefined) {
+          this.gardenZoomScale = evt.scale;
+          this.gridSystem.getContainer().scale.set(evt.scale);
+          eventBus.emit('touch:pinch', { scale: evt.scale });
+        }
+      },
+      onPinchEnd: () => {
+        // TLDR: Snap scale to grid after pinch ends
+        this.touchController.setBasePinchScale(this.gardenZoomScale);
+      },
+    });
+
+    // TLDR: Capture viewport info and apply responsive layout
+    this.viewportInfo = getViewportInfo();
+    this.applyResponsiveLayout(ctx);
+
+    // TLDR: Listen for window resize to re-layout
+    this.boundOnResize = () => {
+      this.viewportInfo = getViewportInfo();
+      this.applyResponsiveLayout(this._ctx);
+      const { width, height, category } = this.viewportInfo;
+      eventBus.emit('viewport:resized', { width, height, category });
+    };
+    window.addEventListener('resize', this.boundOnResize);
+
     // Setup audio event listeners
     this.setupAudioListeners();
 
@@ -579,6 +637,94 @@ export class GardenScene implements Scene {
   private setupGridClickHandling(): void {
     // This method is no longer needed as we use gridSystem.onTileClick callback
     // Kept as stub in case needed for future direct grid container interactions
+  }
+
+  /** TLDR: Apply responsive layout — repositions/scales UI for current viewport */
+  private applyResponsiveLayout(ctx: SceneContext): void {
+    const w = ctx.app.screen.width;
+    const h = ctx.app.screen.height;
+
+    // TLDR: Re-center grid for current viewport
+    this.gridSystem.centerInViewport(w, h);
+
+    // TLDR: Responsive grid scaling via viewport-aware calculation
+    const gridInfo = calculateGridScale(
+      w,
+      h,
+      this.grid.config.cols,
+      this.grid.config.rows,
+      this.grid.config.padding ?? 4,
+      this.grid.config.tileSize,
+    );
+    const gardenContainer = this.gridSystem.getContainer();
+    gardenContainer.scale.set(gridInfo.scale * this.gardenZoomScale);
+    gardenContainer.x = gridInfo.offsetX;
+    gardenContainer.y = gridInfo.offsetY;
+
+    // TLDR: Re-position HUD
+    this.hud.setPosition(Math.max(10, (w - 600) / 2), 10);
+
+    // TLDR: Re-position toolbar centered at bottom
+    this.toolBar.position(w / 2 - 135, h - 100);
+
+    // TLDR: Orientation hint for portrait on small screens
+    if (shouldShowOrientationHint(w, h)) {
+      this.showOrientationHint(ctx);
+    } else {
+      this.hideOrientationHint();
+    }
+  }
+
+  /** TLDR: Show a gentle hint to rotate to landscape */
+  private showOrientationHint(ctx: SceneContext): void {
+    if (this.orientationHint) return;
+
+    this.orientationHint = new Container();
+
+    const bg = new Graphics();
+    bg.rect(0, 0, ctx.app.screen.width, ctx.app.screen.height);
+    bg.fill({ color: 0x000000, alpha: 0.7 });
+    this.orientationHint.addChild(bg);
+
+    const hint = new Text({
+      text: '📱 Rotate your device for the best experience',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 18,
+        fill: '#c8e6c9',
+        align: 'center',
+        wordWrap: true,
+        wordWrapWidth: ctx.app.screen.width - 40,
+      },
+    });
+    hint.anchor.set(0.5, 0.5);
+    hint.x = ctx.app.screen.width / 2;
+    hint.y = ctx.app.screen.height / 2;
+    this.orientationHint.addChild(hint);
+
+    // TLDR: Auto-dismiss after 3 seconds
+    this.container.addChild(this.orientationHint);
+    const hintRef = this.orientationHint;
+    setTimeout(() => {
+      if (hintRef.parent) {
+        hintRef.parent.removeChild(hintRef);
+        hintRef.destroy({ children: true });
+      }
+      if (this.orientationHint === hintRef) {
+        this.orientationHint = null;
+      }
+    }, 3000);
+  }
+
+  /** TLDR: Remove orientation hint if visible */
+  private hideOrientationHint(): void {
+    if (this.orientationHint) {
+      if (this.orientationHint.parent) {
+        this.orientationHint.parent.removeChild(this.orientationHint);
+      }
+      this.orientationHint.destroy({ children: true });
+      this.orientationHint = null;
+    }
   }
   
   private setupKeyboardShortcuts(): void {
@@ -853,6 +999,9 @@ export class GardenScene implements Scene {
   }
 
   update(delta: number, _ctx: SceneContext): void {
+    // TLDR: Update touch controller (animates ripple feedback)
+    this.touchController.update(delta);
+
     // Don't update game logic when paused
     if (this.isPaused) {
       return;
@@ -1612,6 +1761,9 @@ export class GardenScene implements Scene {
   destroy(): void {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
+    window.removeEventListener('resize', this.boundOnResize);
+    this.touchController.destroy();
+    this.hideOrientationHint();
     this.animationSystem.destroy();
     this.particleSystem.destroy();
     for (const [, visual] of this.plantVisuals) {
