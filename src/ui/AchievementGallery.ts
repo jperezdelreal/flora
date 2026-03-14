@@ -313,8 +313,27 @@ export class AchievementGallery {
       });
       catHint.anchor.set(0.5, 0);
       catHint.x = CARD_WIDTH / 2;
-      catHint.y = 130;
+      catHint.y = 100;
       card.addChild(catHint);
+
+      // TLDR: Dimmed reward preview for locked achievements
+      const rewardPreview = new Text({
+        text: entry.config.reward.displayName,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 10,
+          fill: '#333333',
+          fontStyle: 'italic',
+          align: 'center',
+          wordWrap: true,
+          wordWrapWidth: CARD_WIDTH - 16,
+        },
+      });
+      rewardPreview.anchor.set(0.5, 0);
+      rewardPreview.x = CARD_WIDTH / 2;
+      rewardPreview.y = 120;
+      rewardPreview.alpha = 0.5;
+      card.addChild(rewardPreview);
     }
 
     return card;

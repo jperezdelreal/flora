@@ -583,7 +583,7 @@ export class MenuScene implements Scene {
       case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
-      case 'achievements': break;
+      case 'achievements': this.ctx.sceneManager.transitionTo(SCENES.ACHIEVEMENTS, { type: 'crossfade' }).catch(console.error); break;
       case 'settings': this.showState('settings'); break;
     }
   }
