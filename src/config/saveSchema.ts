@@ -13,6 +13,7 @@ export const SAVE_KEYS = {
   GARDEN: 'flora_garden',
   ACHIEVEMENTS: 'flora_achievements',
   SETTINGS: 'flora_settings',
+  RUN_HISTORY: 'flora_run_history',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */
@@ -89,6 +90,24 @@ export interface SettingsSaveData {
   highContrast?: boolean;
 }
 
+/** TLDR: Persisted run history entry for post-run review */
+export interface RunHistorySaveData {
+  seed: number;
+  score: number;
+  modifiers: string[];
+  season: string;
+  date: number;
+  isDaily: boolean;
+}
+
+/** TLDR: Persisted leaderboard entry for a daily/seeded challenge */
+export interface LeaderboardSaveData {
+  score: number;
+  modifiers: string[];
+  date: number;
+  seed: number;
+}
+
 /** TLDR: Full save file shape — used for validation and migration */
 export interface SaveSchema {
   version: number;
@@ -99,4 +118,5 @@ export interface SaveSchema {
   garden: GardenSaveData;
   achievements: AchievementSaveData;
   settings: SettingsSaveData;
+  runHistory: RunHistorySaveData[];
 }

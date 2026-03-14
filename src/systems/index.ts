@@ -26,3 +26,5 @@ export { TutorialSystem } from './TutorialSystem';
 export type { TutorialSaveData } from './TutorialSystem';
 export { AchievementSystem } from './AchievementSystem';
 export type { AchievementSaveState, AchievementState, AchievementUnlockCallback } from './AchievementSystem';
+export { DailyChallengeSystem } from './DailyChallengeSystem';
+export type { DailyChallenge, LeaderboardEntry, RunHistoryEntry } from './DailyChallengeSystem';

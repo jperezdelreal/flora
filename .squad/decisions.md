@@ -48,78 +48,95 @@ Players will return to Flora if runs feel *different enough* to explore new stra
 
 **Document Owner:** Oak | **Status:** Active — guides work until reassessed
 
----
-
-## 2026-03-13T21:55Z: Synergy System Design
-
-**By:** Erika (Systems Dev)  
-**Status:** Implemented (PR #67)  
-
-### Context
-
-Issue #51 requested adjacency bonuses and polyculture detection to reward strategic plant placement. The system needed to:
-- Support multiple synergy types (shade, nitrogen, pest deterrent, polyculture)
-- Integrate with existing PlantSystem, HazardSystem, and ScoringSystem
-- Provide visual feedback and tutorial on first activation
-- Scale to support future synergy types
-
-### Key Decisions
-
-1. **Synergy State Management**: Store active synergies directly in Plant entity state (`activeSynergies: Set<string>`, `growthSpeedMultiplier: number`)
-   - Rationale: Co-locates synergy state with plant data, simplifies serialization and PlantSystem integration
-
-2. **Recalculation Timing**: Recalculate synergies at day advance, not per-frame
-   - Rationale: Synergies only affect growth (once per day); avoids wasteful 60 FPS checks
-
-3. **Pest Deterrent Integration**: SynergySystem provides `isPestDeterrentActive(x, y, allPlants)` query method for HazardSystem
-   - Rationale: Keeps HazardSystem as single source of truth; avoids circular dependencies
-
-4. **Growth Speed Stacking**: Multiple synergies stack multiplicatively (shade 1.15x + polyculture 1.10x = 1.265x)
-   - Rationale: Encourages creative arrangements; matches player intuition
-
-5. **Visual Feedback**: Emit `synergy:activated` event per plant-synergy pair, display tutorial on first activation
-   - Rationale: Decouples calculation from UI; allows multiple UI elements to react
-
-### Implementation Summary
-
-**Files Created**:
-- `src/config/synergies.ts` — Synergy trait enum, bonus definitions
-- `src/systems/SynergySystem.ts` — Adjacency calculation and logic
-- `src/ui/SynergyTooltip.ts` — Tutorial and hover info
-
-**Files Modified**: Plant.ts, plants.ts (synergy traits), PlantSystem.ts, HazardSystem.ts, ScoringSystem.ts, EventBus.ts, GardenScene.ts
-
-**Status**: ✅ Zero TypeScript errors, clean integration, PR #67 merged
-
-**Deferred**: Visual glow effect, Encyclopedia synergy hints, negative synergies (per GDD)
+> **Archived:** Strategic Roadmap and Synergy System decisions archived to `decisions/archive/decisions-pre-phase3.md` on 2026-03-14. Active decision ledger now focused on Phase 3+ work.
 
 ---
 
-## 2025-01-30: Enhanced Hazard Mechanics Design
+## 2026-03-14T00:35Z: Performance & Accessibility Architecture
 
-**By:** Erika (Systems Dev)  
-**Status:** Partially Implemented  
+**By:** Brock (Web Engine Dev)  
+**Status:** Implemented (PR #143)  
+**Issue:** #116  
 
 ### Context
 
-Issue #49 requires enhanced hazard mechanics with 3 pest types, telegraphed weather, and puzzle-based mitigation.
+Issue #116 requires performance optimization (object pooling, FPS monitoring, bundle analysis) and accessibility (colorblind modes, keyboard navigation, screen reader support). This touches engine-level infrastructure that other domains build upon.
 
 ### Key Decisions
 
-1. **Separate Pest Entity**: Created typed `Pest` entity with behavior-specific types (Aphids spread, Slugs target young, Beetles target mature)
-   - Rationale: Enables compile-time safety and clearer behavior modeling
+1. **Generic Object Pool over PixiJS-specific pool**
+   - `ObjectPool<T>` accepts any type via `create`/`reset`/`destroy` callbacks
+   - **Rationale:** ParticleSystem, AnimationSystem, and future systems all need pooling but for different object types. A generic pool is reusable across all of them without coupling to Graphics.
 
-2. **Plant-Based Pest Resistance**: Certain plants naturally repel specific pest types (Mint→Aphids, Lavender→Slugs, Sunflower→Beetles)
-   - Rationale: Creates strategic depth and teaches companion planting implicitly
+2. **FPS Monitor as dev-only overlay with quality tiers**
+   - Three tiers: `high` (60+ FPS), `medium` (30-50 FPS), `low` (<30 FPS)
+   - Only instantiated when `import.meta.env.DEV` is true; zero cost in production
+   - **Rationale:** Auto quality reduction needs sustained measurement (180 frames) to avoid reacting to brief dips. Quality callbacks let systems independently respond (reduce particles, skip animations, etc).
 
-3. **Weather System Separation**: WeatherSystem designed but not yet integrated (backward-compat stubs added)
-   - Issue: GardenScene tightly coupled to old HazardSystem API
-   - Resolution: Follow-up PR required
+3. **Config-driven colorblind palettes (not CSS filters)**
+   - Four palettes defined as typed `ColorPalette` objects in `src/config/accessibility.ts`
+   - Systems query `getActivePalette()` for the current palette
+   - **Rationale:** CSS filters degrade all visuals uniformly. Config-driven palettes let us tune each color for optimal contrast per vision type. Palettes use the Okabe-Ito color scheme foundations.
 
-### Implementation Status
+4. **ARIA live region for screen reader announcements**
+   - Hidden DOM element with `role="status"` and `aria-live="polite"` (or `"assertive"` for milestones/achievements)
+   - `announce()` utility clears and re-sets text to force re-announcement
+   - **Rationale:** PixiJS Canvas is opaque to screen readers. A live region bridges this gap without requiring complex ARIA tree mirroring.
 
-✅ Pest entity with 3 types, Pest resistance configs, Updated HazardSystem, EventBus events
-⚠️ WeatherSystem designed but not integrated, HazardWarning/HazardTooltip UI designed but not integrated
-❌ Full GardenScene integration (requires separate PR)
+5. **Keyboard focus management in PixiJS**
+   - Custom focus index + rendered focus ring (Graphics stroke) rather than DOM focus
+   - Arrow keys, Tab, Enter/Space all work; focus wraps around
+   - **Rationale:** PixiJS elements aren't DOM nodes, so native focus doesn't work. A lightweight focus index + visual ring is simpler and more reliable than injecting hidden DOM proxies.
 
-**Follow-Up Required**: Issue #49 follow-up for WeatherSystem and UI integration
+6. **Accessibility preferences persisted via SaveManager**
+   - Extended `SettingsSaveData` with `colorVisionMode`, `reducedMotion`, `highContrast`
+   - `SAVE_KEYS.SETTINGS` key in localStorage
+   - **Rationale:** Accessibility settings must survive page reloads. Using the existing SaveManager pattern keeps it consistent with audio/unlock/achievement persistence.
+
+### Deferred
+
+- **Bundle visualizer**: `rollup-plugin-visualizer` has ESM-only compatibility issues with the project's CommonJS setup. Can revisit when project migrates to ESM or use `source-map-explorer` as alternative.
+- **Texture atlasing**: Requires asset pipeline changes; deferred to dedicated sprint.
+- **Object pool integration into ParticleSystem**: Pool is ready; actual integration into ParticleSystem's burst/ripple/glow methods is a follow-up task.
+- **Reduced motion mode**: Preference is loaded and persisted; actual animation reduction needs per-system opt-in.
+- **High contrast mode**: Schema field exists; visual implementation deferred.
+
+---
+
+## 2026-03-14T00:35Z: Title Screen & Main Menu Architecture
+
+**By:** Misty (Web UI Dev)  
+**Status:** Implemented (PR #144)  
+**Issue:** #117  
+
+### Context
+
+Issue #117 requested a polished title screen and main menu as the player's first impression. Required: animated backdrop, game logo with bloom, studio credit, full menu system (New Run, Continue, Encyclopedia, Achievements, Settings), settings panel with volume sliders and colorblind mode, animated background with particles, and complete keyboard navigation.
+
+### Key Decisions
+
+1. **State Machine over Multiple Scenes**: MenuScene uses an internal state machine (`title → main → settings → credits`) rather than separate scenes for each panel. Rationale: all panels share the animated background and particle system; separate scenes would duplicate rendering and require cross-scene state for settings.
+
+2. **Layer-Based Rendering**: Each menu state gets its own Container, toggled via `visible`. This avoids reconstructing UI on every state change and allows the particle layer to render behind all states.
+
+3. **ParticleSystem Reuse for Fireflies**: Instead of creating a new effect system, MenuScene instantiates ParticleSystem and uses `burst()` with negative gravity and warm colors. This keeps the particle API consistent and avoids code duplication.
+
+4. **AudioManager.getVolumes() Addition**: Settings panel needs to read current volume levels. Added a public `getVolumes()` method that returns a readonly copy of volume preferences. This is cleaner than exposing internal state and follows the existing `getMuteState()` pattern.
+
+5. **SettingsSaveData Schema**: Created a new `SettingsSaveData` interface with `colorblindMode` as the required field and optional fields (`colorVisionMode`, `reducedMotion`, `highContrast`) for future accessibility features. This allows incremental expansion without breaking existing saves.
+
+6. **Continue Button Grayed Logic**: Uses `saveManager.loadGarden() !== null` to determine if a save exists. This is the simplest reliable check — if garden data exists, a run was started.
+
+7. **Keyboard Navigation Design**: Unified navigation model: Arrow Up/Down navigates items, Enter/Space activates, Esc backs out, Tab cycles. In settings, Left/Right adjusts the currently focused slider by 5% increments. Navigation skips disabled items automatically.
+
+### Files Modified
+
+- **New**: `src/scenes/MenuScene.ts`
+- **Modified**: `BootScene.ts`, `scenes/index.ts`, `main.ts`, `AudioManager.ts`
+- **Schema**: `saveSchema.ts` (SettingsSaveData), `SaveManager.ts` (saveSettings/loadSettings)
+
+### Deferred
+
+- Encyclopedia and Achievements menu items are placeholders (scenes not yet registered)
+- Responsive relayout on resize (currently captures dimensions at init time)
+- Sound effects for menu navigation (can subscribe to UI events when audio SFX expands)
