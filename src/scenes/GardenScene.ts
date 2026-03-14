@@ -25,10 +25,10 @@ import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardT
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
-import { GAME, TOUCH } from '../config';
+import { GAME, TOUCH, SCENES } from '../config';
+import { MenuScene } from './MenuScene';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
-import { getPlantsBySeason } from '../config/plants';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus } from '../core/EventBus';
 import { audioManager } from '../systems';
@@ -285,46 +285,6 @@ export class GardenScene implements Scene {
     this.hazardTooltip = new HazardTooltip();
     this.container.addChild(this.hazardTooltip.getContainer());
 
-    // Demo: Plant some starter plants for testing
-    this.plantDemoPlants();
-
-    // Add some demo state to tiles
-    const demoTile1 = this.grid.getTile(2, 3);
-    if (demoTile1) {
-      demoTile1.state = TileState.OCCUPIED;
-      demoTile1.setSoilQuality(85);
-      
-      // Create a demo plant (x=col, y=row)
-      const plant = this.plantSystem.createPlant('basil', demoTile1.col, demoTile1.row);
-      if (plant) {
-        // Simulate pest spawn for demo
-        const pestSpawned = this.hazardSystem.trySpawnPestOnPlant(plant);
-        if (pestSpawned) {
-          demoTile1.state = TileState.PEST;
-        }
-      }
-    }
-
-    const demoTile2 = this.grid.getTile(4, 5);
-    if (demoTile2) {
-      demoTile2.state = TileState.PEST;
-      demoTile2.setSoilQuality(45);
-    }
-
-    // Simulate drought for demo (trigger at day 5)
-    this.hazardSystem.onDayAdvance(5);
-
-    // Vary soil quality across grid for visual feedback
-    for (let row = 0; row < gridSize.rows; row++) {
-      for (let col = 0; col < gridSize.cols; col++) {
-        const tile = this.grid.getTile(row, col);
-        if (tile && tile.state === TileState.EMPTY) {
-          const variation = ((row + col) % 3) * 15;
-          tile.setSoilQuality(60 + variation);
-        }
-      }
-    }
-
     // Info text at top
     this.infoText = new Text({
       text: '🌱 Garden Scene - Use WASD/Arrows to move, click tiles to move/use tools',
@@ -458,8 +418,13 @@ export class GardenScene implements Scene {
         this.tutorialOverlay.showHowToPlay();
       },
       onMainMenu: () => {
-        // TODO: Navigate to main menu scene
-        console.log('Main menu not implemented yet');
+        // TLDR: Save garden state, then navigate to MenuScene main menu
+        this.saveGardenState();
+        const menuScene = this._ctx.sceneManager.getScene(SCENES.MENU);
+        if (menuScene && menuScene instanceof MenuScene) {
+          menuScene.setReturnToMain();
+        }
+        this._ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
       },
     };
     this.pauseMenu = new PauseMenu(pauseCallbacks);
@@ -841,8 +806,6 @@ export class GardenScene implements Scene {
     // TLDR: Recalculate season length (Greenhouse extends by 2 days)
     this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
     
-    // Plant demo plants for next season
-    this.plantDemoPlants();
     this.gridSystem.update();
     
     // TLDR: Rebuild plant visual layer for new season's plants
@@ -971,31 +934,6 @@ export class GardenScene implements Scene {
     const toolName = tool ? tool.replace('_', ' ').toUpperCase() : 'None';
     
     this.statusText.text = `Day: ${day} | Actions: ${actions}/${maxActions} | Tool: ${toolName}`;
-  }
-
-  private plantDemoPlants(): void {
-    // Choose demo plants that are available in the current season
-    const seasonalPlants = getPlantsBySeason(this.currentSeason);
-    
-    // Prefer a mix of rarities; fall back to first available plants
-    const demoSlots = [
-      { row: 2, col: 2 },
-      { row: 2, col: 4 },
-      { row: 4, col: 3 },
-      { row: 5, col: 5 },
-    ];
-
-    for (let i = 0; i < demoSlots.length && i < seasonalPlants.length; i++) {
-      const plantConfig = seasonalPlants[i % seasonalPlants.length];
-      const { row, col } = demoSlots[i];
-      const plant = this.plantSystem.createPlant(plantConfig.id, col, row);
-      if (plant) {
-        const tile = this.grid.getTile(row, col);
-        if (tile) {
-          tile.state = TileState.OCCUPIED;
-        }
-      }
-    }
   }
 
   private handleTileClick(tile: Tile): void {
