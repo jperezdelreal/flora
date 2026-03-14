@@ -29,6 +29,7 @@ const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
   [GrowthStage.SPROUT]: { scale: 0.5, alpha: 0.9, saturation: 0.6, yOffset: -2 },
   [GrowthStage.GROWING]: { scale: 0.8, alpha: 1.0, saturation: 0.85, yOffset: -5 },
   [GrowthStage.MATURE]: { scale: 1.0, alpha: 1.0, saturation: 1.0, yOffset: -8 },
+  [GrowthStage.WILTING]: { scale: 0.9, alpha: 0.7, saturation: 0.3, yOffset: -4 },
 };
 
 export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
