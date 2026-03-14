@@ -73,3 +73,18 @@ Implemented issue #218 — tool progression with tiers and advanced tools. Key d
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
 
+### Demo Scaffolding Removal (PR #252)
+Completed issue #237 — removed all hardcoded demo/test scaffolding from GardenScene.init(). Key changes:
+
+1. **Removed plantDemoPlants() method**: Was planting seasonal plants at hardcoded tile slots (2,2), (2,4), (4,3), (5,5) on every init and season start.
+
+2. **Removed demo state injection in init()**: Hardcoded basil at tile (2,3) with forced pest spawn, tile (4,5) forced to PEST state with low soil quality, simulated drought via hazardSystem.onDayAdvance(5), and soil quality variation loop overriding natural defaults.
+
+3. **Removed plantDemoPlants() call in startNewSeason()**: New seasons now start clean without pre-planted crops.
+
+4. **Cleaned unused import**: Removed `getPlantsBySeason` import that was only used by the deleted demo method.
+
+**Result**: Garden starts empty as designed. Players plant seeds themselves via SeedSelectionScene flow. All systems (grid, plant, hazard, weather, synergy) still initialize correctly.
+
+**Build Status**: Zero TypeScript errors. Clean Vite production build.
+
