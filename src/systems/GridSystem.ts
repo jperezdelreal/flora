@@ -16,6 +16,7 @@ export class GridSystem {
   private onTileClickCallback?: (tile: Tile) => void;
   private structures: Map<string, Structure> = new Map();
   private structureGraphics: Map<string, Graphics> = new Map();
+  private seasonalSoilBase: number | null = null;
 
   constructor(grid: GardenGrid) {
     this.grid = grid;
@@ -71,9 +72,8 @@ export class GridSystem {
   }
 
   private getSoilColor(soilQuality: number): number {
-    // Soil quality 0-100% maps to darker to lighter brown
-    const minColor = 0x3d2817; // Dark brown (poor soil)
-    const maxColor = 0x6b4423; // Rich brown (good soil)
+    const minColor = this.seasonalSoilBase ?? 0x3d2817;
+    const maxColor = 0x6b4423;
 
     const t = soilQuality / 100;
     const r1 = (minColor >> 16) & 0xff;
@@ -224,6 +224,11 @@ export class GridSystem {
    */
   public setSeason(season: Season): void {
     this.container.tint = SEASON_CONFIG[season].gridTint;
+  }
+
+  /** Set the base soil color for the current season */
+  public setSeasonalSoilColor(baseColor: number): void {
+    this.seasonalSoilBase = baseColor;
   }
 
   /**
