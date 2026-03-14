@@ -66,3 +66,13 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Stage container swapping**: Crossfade and slide transitions create temporary containers, render new scene into them, then move children back to main stage after animation completes
 - **Convention**: All transitions return Promises that resolve when animation completes, allowing await-based sequencing
 - **Key files**: src/core/SceneManager.ts, src/core/index.ts, src/scenes/BootScene.ts, src/scenes/MenuScene.ts, src/scenes/SeedSelectionScene.ts
+
+### Procedural Audio Integration (Issue #203, PR #211)
+- **Context**: AudioManager was fully implemented with procedural synthesis, but MenuScene and SeedSelectionScene didn't start ambient audio
+- **Problem**: Players experience silence on title screen and seed selection, breaking cozy atmosphere continuity
+- **Solution**: Added `audioManager.startAmbient()` to MenuScene.init() and SeedSelectionScene.init(), plus corresponding `stopAmbient()` in destroy() methods
+- **Audio flow**: BootScene (silent) → MenuScene (ambient starts) → SeedSelectionScene (ambient continues) → GardenScene (ambient continues + SFX active)
+- **Scene lifecycle**: Each scene stops ambient on destroy(), next scene starts it on init(). This creates a brief silence during scene transitions, which is acceptable given transition animations provide visual continuity
+- **Already complete**: AudioManager has full Web Audio API synthesis (ambient loop + 5 SFX), GardenScene has complete event-driven SFX integration via EventBus
+- **Key files**: src/scenes/MenuScene.ts, src/scenes/SeedSelectionScene.ts, src/systems/AudioManager.ts (unchanged)
+
