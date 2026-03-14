@@ -1,8 +1,12 @@
 # 🌿 FLORA
 
+[![Deploy to GitHub Pages](https://github.com/jperezdelreal/flora/actions/workflows/deploy.yml/badge.svg)](https://github.com/jperezdelreal/flora/actions/workflows/deploy.yml)
+
 > Cozy gardening roguelite — procedural botanical art via L-systems
 
 **Stack:** Vite + TypeScript + PixiJS v8
+
+**🎮 [Play Now](https://jperezdelreal.github.io/flora/)**
 
 ## Quick Start
 
