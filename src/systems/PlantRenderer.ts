@@ -358,14 +358,25 @@ export class PlantRenderer implements System {
     const baseSize = ANIMATION.PLANT_SIZE_MATURE;
     const shapeData = getShapeData(visualDef, stage, baseSize);
 
-    // Apply accessibility + seasonal saturation
+    // Apply accessibility + seasonal saturation + seasonal color temperature shift
     const palette = getSeasonalPalette(this.currentSeason);
     const satFactor = palette.plantSaturation;
+    const shiftColor = palette.plantColorShift;
+    const shiftIntensity = palette.plantColorShiftIntensity;
 
-    const baseColor = adjustSaturation(adjustColorForAccessibility(visualDef.baseColor), satFactor);
-    const accentColor = adjustSaturation(adjustColorForAccessibility(visualDef.accentColor), satFactor);
+    const baseColor = lerpColor(
+      adjustSaturation(adjustColorForAccessibility(visualDef.baseColor), satFactor),
+      shiftColor, shiftIntensity,
+    );
+    const accentColor = lerpColor(
+      adjustSaturation(adjustColorForAccessibility(visualDef.accentColor), satFactor),
+      shiftColor, shiftIntensity,
+    );
     const detailColor = visualDef.detailColor
-      ? adjustSaturation(adjustColorForAccessibility(visualDef.detailColor), satFactor)
+      ? lerpColor(
+          adjustSaturation(adjustColorForAccessibility(visualDef.detailColor), satFactor),
+          shiftColor, shiftIntensity,
+        )
       : accentColor;
 
     const mainColor = adjustColorForHealth(baseColor, health);
@@ -374,18 +385,20 @@ export class PlantRenderer implements System {
 
     const alpha = keyframe.alpha * (health > 50 ? 1.0 : 0.7);
 
-    // Glow aura on mature plants with high health
-    if (visualDef.glowOnMature && stage === GrowthStage.MATURE && health > 70) {
-      gfx.circle(0, keyframe.yOffset, shapeData.mainRadius + 6);
-      gfx.fill({ color: accColor, alpha: 0.4 });
+    // Harvest-ready glow on ALL mature plants; stronger glow for glowOnMature species
+    if (stage === GrowthStage.MATURE && health > 70) {
+      const glowAlpha = visualDef.glowOnMature ? 0.4 : 0.2;
+      const glowRadius = shapeData.mainRadius + (visualDef.glowOnMature ? 6 : 4);
+      gfx.circle(0, keyframe.yOffset, glowRadius);
+      gfx.fill({ color: accColor, alpha: glowAlpha });
     }
 
     switch (stage) {
       case GrowthStage.SEED:
-        this.drawSeedShape(gfx, shapeData, mainColor, accColor, alpha);
+        this.drawSeedShape(gfx, visualDef, shapeData, mainColor, accColor, alpha);
         break;
       case GrowthStage.SPROUT:
-        this.drawSproutShape(gfx, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+        this.drawSproutShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
         break;
       case GrowthStage.GROWING:
         this.drawGrowingShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
@@ -542,26 +555,58 @@ export class PlantRenderer implements System {
 
   // ─── Growth Stage Shapes ─────────────────────────────────────────────
 
-  /** Seed: small mound with seed hint colored by plant identity */
+  /** Seed: small mound with species-specific seed shape hint */
   private drawSeedShape(
     gfx: Graphics,
+    visualDef: PlantVisualDef,
     shape: PlantShapeData,
     mainColor: number,
     _accentColor: number,
     alpha: number,
   ): void {
     const seedSize = Math.max(shape.mainRadius, 3);
+
+    // Soil mound
     gfx.ellipse(0, 2, seedSize * 1.4, seedSize * 0.5);
     gfx.fill({ color: 0x795548, alpha: alpha * 0.5 });
-    gfx.circle(0, 0, seedSize);
-    gfx.fill({ color: 0x8d6e63, alpha });
-    gfx.circle(0, -seedSize * 0.15, seedSize * 0.45);
-    gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
+
+    // Species-specific seed shape
+    switch (visualDef.seedShape) {
+      case 'oval':
+        gfx.ellipse(0, 0, seedSize * 0.9, seedSize * 0.6);
+        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.ellipse(0, -seedSize * 0.1, seedSize * 0.5, seedSize * 0.3);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.5 });
+        break;
+      case 'flat':
+        gfx.ellipse(0, 0, seedSize * 1.1, seedSize * 0.45);
+        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.ellipse(0, -seedSize * 0.05, seedSize * 0.6, seedSize * 0.2);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.45 });
+        break;
+      case 'pointed':
+        // Teardrop-shaped seed
+        gfx.moveTo(0, -seedSize * 0.7);
+        gfx.lineTo(seedSize * 0.5, seedSize * 0.3);
+        gfx.lineTo(-seedSize * 0.5, seedSize * 0.3);
+        gfx.closePath();
+        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.circle(0, seedSize * 0.05, seedSize * 0.3);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
+        break;
+      default: // 'round'
+        gfx.circle(0, 0, seedSize);
+        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.circle(0, -seedSize * 0.15, seedSize * 0.45);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
+        break;
+    }
   }
 
-  /** Sprout: tiny stem with cotyledon leaf nubs */
+  /** Sprout: species-specific stem + cotyledon leaves */
   private drawSproutShape(
     gfx: Graphics,
+    visualDef: PlantVisualDef,
     shape: PlantShapeData,
     mainColor: number,
     accentColor: number,
@@ -570,18 +615,60 @@ export class PlantRenderer implements System {
     yOffset: number,
   ): void {
     const stemHeight = shape.mainRadius * 1.6;
-    const stemWidth = Math.max(shape.mainRadius * 0.2, 1.5);
+    const stemWidthMap = { thin: 1.2, medium: 1.8, thick: 2.4 };
+    const stemWidth = Math.max(shape.mainRadius * 0.2, stemWidthMap[visualDef.stemStyle]);
+
+    // Stem
     gfx.rect(-stemWidth / 2, yOffset, stemWidth, stemHeight);
     gfx.fill({ color: accentColor, alpha });
-    gfx.ellipse(-shape.mainRadius * 0.4, yOffset + stemHeight * 0.3, shape.mainRadius * 0.4, shape.mainRadius * 0.2);
-    gfx.fill({ color: mainColor, alpha });
-    gfx.ellipse(shape.mainRadius * 0.4, yOffset + stemHeight * 0.15, shape.mainRadius * 0.35, shape.mainRadius * 0.18);
-    gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+
+    // Cotyledon leaves — shape varies by leafShape
+    const leafW = shape.mainRadius * 0.4;
+    const leafH = shape.mainRadius * 0.2;
+    switch (visualDef.leafShape) {
+      case 'pointed':
+        // Pointed cotyledons (triangular tips)
+        gfx.moveTo(-leafW * 2, yOffset + stemHeight * 0.3);
+        gfx.lineTo(-leafW * 0.5, yOffset + stemHeight * 0.25);
+        gfx.lineTo(-leafW * 0.8, yOffset + stemHeight * 0.4);
+        gfx.closePath();
+        gfx.fill({ color: mainColor, alpha });
+        gfx.moveTo(leafW * 2, yOffset + stemHeight * 0.15);
+        gfx.lineTo(leafW * 0.5, yOffset + stemHeight * 0.12);
+        gfx.lineTo(leafW * 0.8, yOffset + stemHeight * 0.3);
+        gfx.closePath();
+        gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+        break;
+      case 'narrow':
+        // Narrow elongated cotyledons
+        gfx.ellipse(-leafW * 0.8, yOffset + stemHeight * 0.3, leafW * 0.2, leafH * 1.8);
+        gfx.fill({ color: mainColor, alpha });
+        gfx.ellipse(leafW * 0.8, yOffset + stemHeight * 0.15, leafW * 0.18, leafH * 1.6);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+        break;
+      case 'serrated':
+        // Round cotyledons with a notch (serrated hint)
+        gfx.ellipse(-leafW, yOffset + stemHeight * 0.3, leafW, leafH);
+        gfx.fill({ color: mainColor, alpha });
+        gfx.ellipse(-leafW * 1.1, yOffset + stemHeight * 0.3, leafW * 0.15, leafH * 0.8);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.5 });
+        gfx.ellipse(leafW, yOffset + stemHeight * 0.15, leafW * 0.9, leafH * 0.9);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+        break;
+      default: // 'round'
+        gfx.ellipse(-leafW, yOffset + stemHeight * 0.3, leafW, leafH);
+        gfx.fill({ color: mainColor, alpha });
+        gfx.ellipse(leafW, yOffset + stemHeight * 0.15, leafW * 0.9, leafH * 0.9);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+        break;
+    }
+
+    // Growing tip
     gfx.circle(0, yOffset - shape.mainRadius * 0.15, shape.mainRadius * 0.25);
     gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
   }
 
-  /** Growing: intermediate form developing toward mature shape */
+  /** Growing: intermediate form developing toward mature shape with species-specific leaves */
   private drawGrowingShape(
     gfx: Graphics,
     visualDef: PlantVisualDef,
@@ -592,10 +679,14 @@ export class PlantRenderer implements System {
     alpha: number,
     yOffset: number,
   ): void {
+    const stemWidthMap = { thin: 1.2, medium: 1.8, thick: 2.4 };
     const stemHeight = shape.mainRadius * 1.2;
-    const stemWidth = Math.max(shape.mainRadius * 0.18, 1.5);
+    const stemWidth = Math.max(shape.mainRadius * 0.18, stemWidthMap[visualDef.stemStyle]);
     gfx.rect(-stemWidth / 2, yOffset + shape.mainRadius * 0.3, stemWidth, stemHeight);
     gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+
+    // Growing leaves — count and shape determined by species
+    const growingLeafCount = Math.min(visualDef.leafCount, 4);
 
     if (visualDef.matureShape === 'flower') {
       const petalCount = Math.max(3, (shape.petals ?? 6) - 2);
@@ -610,13 +701,18 @@ export class PlantRenderer implements System {
       gfx.circle(0, yOffset, shape.mainRadius * 0.25);
       gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
     } else if (visualDef.matureShape === 'bush') {
-      const clusters = 3;
+      const clusters = Math.min(growingLeafCount, 3);
       for (let i = 0; i < clusters; i++) {
         const angle = (i / clusters) * Math.PI * 2;
         const x = Math.cos(angle) * shape.mainRadius * 0.3;
         const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.3;
         gfx.circle(x, y, shape.mainRadius * 0.5);
         gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha: alpha * 0.85 });
+      }
+      // Fruit preview for berry/strawberry bushes
+      if (visualDef.fruitSize > 0.3) {
+        gfx.circle(shape.mainRadius * 0.2, yOffset - shape.mainRadius * 0.1, shape.mainRadius * 0.15 * visualDef.fruitSize);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.5 });
       }
     } else if (visualDef.matureShape === 'root') {
       this.drawRoot(gfx, shape, mainColor, accentColor, alpha, yOffset);
@@ -626,16 +722,19 @@ export class PlantRenderer implements System {
       gfx.circle(0, yOffset, shape.mainRadius * 0.3);
       gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
     } else {
+      // Oval/circle/tall/wide: leaves arranged by species parameters
       gfx.ellipse(0, yOffset, shape.mainRadius * 0.8, shape.mainRadius * 0.7 / shape.aspectRatio);
       gfx.fill({ color: mainColor, alpha });
-      gfx.ellipse(-shape.mainRadius * 0.35, yOffset - shape.mainRadius * 0.1, shape.mainRadius * 0.35, shape.mainRadius * 0.25);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
-      gfx.ellipse(shape.mainRadius * 0.35, yOffset + shape.mainRadius * 0.05, shape.mainRadius * 0.3, shape.mainRadius * 0.22);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.65 });
+      for (let i = 0; i < growingLeafCount; i++) {
+        const angle = ((i / growingLeafCount) * Math.PI) - Math.PI / 2;
+        const lx = Math.cos(angle) * shape.mainRadius * 0.5;
+        const ly = yOffset + Math.sin(angle) * shape.mainRadius * 0.3;
+        this.drawLeaf(gfx, visualDef.leafShape, lx, ly, shape.mainRadius * 0.3, accentColor, alpha * 0.7);
+      }
     }
   }
 
-  /** Mature: full unique shape per plant species with optional fruit/flower detail */
+  /** Mature: full unique shape per plant species with fruit/flower detail and species leaves */
   private drawMatureShape(
     gfx: Graphics,
     visualDef: PlantVisualDef,
@@ -649,18 +748,39 @@ export class PlantRenderer implements System {
     switch (visualDef.matureShape) {
       case 'flower':
         this.drawFlower(gfx, shape, mainColor, accentColor, detailColor, alpha, yOffset);
+        // Species-specific leaf ring around the base
+        this.drawLeafRing(gfx, visualDef, shape, accentColor, alpha, yOffset + shape.mainRadius * 0.6, Math.min(visualDef.leafCount, 4));
         break;
       case 'star':
         this.drawStar(gfx, shape, mainColor, accentColor, alpha, yOffset);
         break;
       case 'bush':
         this.drawBush(gfx, shape, mainColor, accentColor, alpha, yOffset);
+        // Fruit dots for berry/fruit-bearing bushes
+        if (visualDef.fruitSize > 0) {
+          const fruitCount = Math.min(visualDef.leafCount, 5);
+          for (let i = 0; i < fruitCount; i++) {
+            const angle = (i / fruitCount) * Math.PI * 2 + 0.3;
+            const dist = shape.mainRadius * 0.35;
+            const fx = Math.cos(angle) * dist;
+            const fy = yOffset + Math.sin(angle) * dist;
+            gfx.circle(fx, fy, shape.mainRadius * 0.15 * visualDef.fruitSize);
+            gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
+          }
+        }
         break;
       case 'root':
         this.drawRoot(gfx, shape, mainColor, accentColor, alpha, yOffset);
         break;
       default:
         this.drawEllipse(gfx, shape, mainColor, accentColor, alpha, yOffset);
+        // Species-distinguishing leaves around oval/circle/tall/wide shapes
+        this.drawLeafRing(gfx, visualDef, shape, accentColor, alpha, yOffset, Math.min(visualDef.leafCount, 6));
+        // Fruit detail for fruit-bearing plants
+        if (visualDef.fruitSize > 0.5) {
+          gfx.circle(shape.mainRadius * 0.3, yOffset - shape.mainRadius * 0.2, shape.mainRadius * 0.2 * visualDef.fruitSize);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.85 });
+        }
         break;
     }
   }
@@ -704,6 +824,66 @@ export class PlantRenderer implements System {
       default:
         this.drawEllipse(gfx, shape, wiltMain, wiltAccent, wiltAlpha, droopOffset);
         break;
+    }
+  }
+
+  // ─── Species-Specific Leaf Helpers ──────────────────────────────────
+
+  /** Draw a single leaf at position, styled by leafShape */
+  private drawLeaf(
+    gfx: Graphics,
+    leafShape: string,
+    x: number,
+    y: number,
+    size: number,
+    color: number,
+    alpha: number,
+  ): void {
+    switch (leafShape) {
+      case 'pointed':
+        gfx.moveTo(x, y - size);
+        gfx.lineTo(x + size * 0.4, y);
+        gfx.lineTo(x - size * 0.4, y);
+        gfx.closePath();
+        gfx.fill({ color, alpha });
+        break;
+      case 'narrow':
+        gfx.ellipse(x, y, size * 0.15, size * 0.8);
+        gfx.fill({ color, alpha });
+        break;
+      case 'serrated':
+        gfx.ellipse(x, y, size * 0.4, size * 0.25);
+        gfx.fill({ color, alpha });
+        // Serration nicks
+        gfx.circle(x - size * 0.3, y, size * 0.08);
+        gfx.fill({ color, alpha: alpha * 0.6 });
+        gfx.circle(x + size * 0.3, y, size * 0.08);
+        gfx.fill({ color, alpha: alpha * 0.6 });
+        break;
+      default: // 'round'
+        gfx.ellipse(x, y, size * 0.35, size * 0.25);
+        gfx.fill({ color, alpha });
+        break;
+    }
+  }
+
+  /** Draw a ring of species-specific leaves around a center point */
+  private drawLeafRing(
+    gfx: Graphics,
+    visualDef: PlantVisualDef,
+    shape: PlantShapeData,
+    color: number,
+    alpha: number,
+    yCenter: number,
+    count: number,
+  ): void {
+    const radius = shape.mainRadius * 0.75;
+    const leafSize = shape.mainRadius * 0.35;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2;
+      const lx = Math.cos(angle) * radius;
+      const ly = yCenter + Math.sin(angle) * radius * 0.6;
+      this.drawLeaf(gfx, visualDef.leafShape, lx, ly, leafSize, color, alpha * 0.7);
     }
   }
 }
