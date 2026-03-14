@@ -260,7 +260,7 @@ export class SeedSelectionScene implements Scene {
       // TLDR: Seeds available via SeedSelectionSystem.getCurrentPool()
     }
 
-    ctx.sceneManager.transitionTo(SCENES.GARDEN, { duration: 0.6 }).catch(console.error);
+    ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error);
   }
 
   update(_dt: number, _ctx: SceneContext): void {

@@ -1,5 +1,5 @@
 export { SceneManager } from './SceneManager';
-export type { Scene, SceneContext, TransitionOptions } from './SceneManager';
+export type { Scene, SceneContext, TransitionOptions, TransitionType } from './SceneManager';
 export { GameLoop } from './GameLoop';
 export { InputManager } from './InputManager';
 export type { Action, KeyBindings, PointerState } from './InputManager';
