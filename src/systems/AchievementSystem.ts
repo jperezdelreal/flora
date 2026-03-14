@@ -33,6 +33,8 @@ interface AchievementCounters {
   synergiesActivated: number;
   runsCompleted: number;
   discoveredSpecies: number;
+  weedsRemoved: number;
+  compostApplied: number;
 }
 
 /** TLDR: Per-run volatile trackers (reset each season) */
@@ -271,6 +273,8 @@ export class AchievementSystem implements System {
             synergiesActivated: data.counters?.synergiesActivated ?? 0,
             runsCompleted: data.counters?.runsCompleted ?? 0,
             discoveredSpecies: data.counters?.discoveredSpecies ?? 0,
+            weedsRemoved: data.counters?.weedsRemoved ?? 0,
+            compostApplied: data.counters?.compostApplied ?? 0,
           },
           cosmeticRewards: data.cosmeticRewards ?? [],
         };
@@ -295,6 +299,8 @@ export class AchievementSystem implements System {
         synergiesActivated: 0,
         runsCompleted: 0,
         discoveredSpecies: 0,
+        weedsRemoved: 0,
+        compostApplied: 0,
       },
       cosmeticRewards: [],
     };

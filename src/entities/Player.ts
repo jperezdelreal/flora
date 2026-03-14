@@ -10,6 +10,8 @@ export enum ToolType {
   WATER = 'water',
   HARVEST = 'harvest',
   REMOVE_PEST = 'remove_pest',
+  REMOVE_WEED = 'remove_weed',
+  COMPOST = 'compost',
 }
 
 export interface PlayerState {

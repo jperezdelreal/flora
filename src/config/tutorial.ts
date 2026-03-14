@@ -134,6 +134,20 @@ export const TUTORIAL_HINTS: readonly TutorialHint[] = [
     triggerEvent: 'day:advanced',
     durationMs: 5000,
   },
+  {
+    id: 'hint_weed',
+    message: 'A weed appeared! Pull it before it spreads. Weeds slow nearby plant growth, but yield compost when removed.',
+    icon: '🌿',
+    triggerEvent: 'weed:spawned',
+    durationMs: 5000,
+  },
+  {
+    id: 'hint_compost',
+    message: 'You earned compost! Use the Compost tool on any tile to boost its soil quality by 20%.',
+    icon: '🪴',
+    triggerEvent: 'compost:generated',
+    durationMs: 5000,
+  },
 ] as const;
 
 /** TLDR: How to Play content for PauseMenu reference screen */

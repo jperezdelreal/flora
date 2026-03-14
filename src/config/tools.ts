@@ -107,16 +107,55 @@ export const TOOL_REMOVE_PEST: ToolConfig = {
   },
 };
 
+
+export const TOOL_REMOVE_WEED: ToolConfig = {
+  type: ToolType.REMOVE_WEED,
+  name: 'remove_weed',
+  displayName: 'Pull Weed',
+  icon: '🌿',
+  description: 'Pull a weed from a tile and earn compost',
+  validate: (tile: Tile, _plant: Plant | null): boolean => {
+    return tile.hasWeed();
+  },
+  execute: (tile: Tile, _plant: Plant | null): ToolActionResult => {
+    if (!tile.hasWeed()) {
+      return { success: false, message: 'No weed to pull here' };
+    }
+    return { success: true, message: 'Pulled a weed! Compost earned.', advanceDay: true };
+  },
+};
+
+export const TOOL_COMPOST: ToolConfig = {
+  type: ToolType.COMPOST,
+  name: 'compost',
+  displayName: 'Compost',
+  icon: '🪴',
+  description: 'Apply compost to boost soil quality (+20%)',
+  validate: (tile: Tile, _plant: Plant | null): boolean => {
+    return tile.soilQuality < 100;
+  },
+  execute: (tile: Tile, _plant: Plant | null): ToolActionResult => {
+    if (tile.soilQuality >= 100) {
+      return { success: false, message: 'Soil quality is already at maximum' };
+    }
+    return { success: true, message: 'Applied compost! Soil quality boosted.', advanceDay: true };
+  },
+};
+
 export const ALL_TOOLS: ToolConfig[] = [
   TOOL_WATER,
   TOOL_HARVEST,
   TOOL_REMOVE_PEST,
+  TOOL_REMOVE_WEED,
+  TOOL_COMPOST,
 ];
 
 export const TOOL_BY_TYPE: Record<ToolType, ToolConfig> = {
   [ToolType.WATER]: TOOL_WATER,
   [ToolType.HARVEST]: TOOL_HARVEST,
   [ToolType.REMOVE_PEST]: TOOL_REMOVE_PEST,
+  [ToolType.REMOVE_WEED]: TOOL_REMOVE_WEED,
+  [ToolType.COMPOST]: TOOL_COMPOST,
 };
 
 export function getToolConfig(type: ToolType): ToolConfig {

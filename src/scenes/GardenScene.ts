@@ -39,6 +39,7 @@ import {
   type PlantVisualDef,
 } from '../config/plantVisuals';
 import { TutorialSystem } from '../systems/TutorialSystem';
+import { WeedSystem } from '../systems/WeedSystem';
 import {
   getViewportInfo,
   calculateGridScale,
@@ -91,6 +92,7 @@ export class GardenScene implements Scene {
   private achievementSystem!: AchievementSystem;
   private achievementNotification!: AchievementNotification;
   private achievementGallery!: AchievementGallery;
+  private weedSystem!: WeedSystem;
   
   // TLDR: Save system integration
   private saveManager: SaveManager;
@@ -215,6 +217,9 @@ export class GardenScene implements Scene {
     this.gridSystem.centerInViewport(ctx.app.screen.width, ctx.app.screen.height);
     this.gridSystem.setSeason(this.currentSeason);
     this.container.addChild(this.gridSystem.getContainer());
+
+    this.weedSystem = new WeedSystem({ grid: this.grid, season: this.currentSeason });
+    this.plantSystem.setWeedSystem(this.weedSystem);
 
     // Initialize player at center of grid
     this.player = new Player('player-1', {
@@ -1086,6 +1091,8 @@ export class GardenScene implements Scene {
 
     // TLDR: Update weather system
     this.weatherSystem.update(delta);
+
+    this.weedSystem.update(delta);
 
     // Update grid system (re-renders if state changed)
     this.gridSystem.update();
@@ -2544,6 +2551,7 @@ export class GardenScene implements Scene {
     this.plantSystem.destroy();
     this.hazardSystem.destroy();
     this.weatherSystem.destroy();
+    this.weedSystem.destroy();
     this.scoringSystem.destroy();
     this.synergySystem.destroy();
     this.unlockSystem.destroy();

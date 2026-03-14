@@ -61,12 +61,15 @@ export interface AudioSaveData {
 }
 
 import type { StructureState } from '../entities/Structure';
+import type { WeedData } from '../entities/Weed';
 
 /** TLDR: Persisted garden data (grid size + placed structures) */
 export interface GardenSaveData {
   gridRows: number;
   gridCols: number;
   structures: StructureState[];
+  weeds?: WeedData[];
+  compostPoints?: number;
 }
 
 /** TLDR: Persisted achievement state (unlock status + cumulative counters) */
@@ -78,6 +81,8 @@ export interface AchievementSaveData {
     synergiesActivated: number;
     runsCompleted: number;
     discoveredSpecies: number;
+    weedsRemoved: number;
+    compostApplied: number;
   };
   cosmeticRewards: string[];
 }
