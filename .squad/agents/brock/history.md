@@ -54,3 +54,15 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Impact:** Title screen was blank (alpha animations never completed in reasonable time), particles barely moved, screen shake and sky lerp were imperceptible
 - **Convention:** dt from GameLoop is ALWAYS in seconds. Never divide by 60.
 - **Key files:** src/core/GameLoop.ts (source of truth for dt units), src/scenes/MenuScene.ts, src/scenes/GardenScene.ts, src/systems/AnimationSystem.ts, src/systems/ParticleSystem.ts
+
+### Smooth Scene Transitions (Issue #200, Branch squad/200-scene-transitions)
+- **Four transition types**: fade (fade-to-black with 0.1s hold), crossfade (simultaneous alpha blending), slide (slide-in from right with background dim), loading (progress bar with custom message)
+- **Easing functions**: Implemented easeInOutCubic, easeOut, easeIn, easeLinear for smooth non-linear motion
+- **Input blocking**: SceneManager.update() checks transitioning flag and blocks scene updates during transitions
+- **Configurable durations**: Each transition type has sensible defaults (fade: 0.4s, crossfade: 0.6s, slide: 0.5s, loading: 0.8s) but accepts duration override
+- **Scene routing**: Boot to Menu uses loading transition, Menu to SeedSelection uses crossfade, all Garden entries use fade
+- **Container alpha animation**: Updated animateAlpha to accept Container or Graphics and configurable easing function
+- **Progress bar animation**: Loading transition animates progress bar fill from 0 to 100% using easeInOutCubic, runs in parallel with actual scene init
+- **Stage container swapping**: Crossfade and slide transitions create temporary containers, render new scene into them, then move children back to main stage after animation completes
+- **Convention**: All transitions return Promises that resolve when animation completes, allowing await-based sequencing
+- **Key files**: src/core/SceneManager.ts, src/core/index.ts, src/scenes/BootScene.ts, src/scenes/MenuScene.ts, src/scenes/SeedSelectionScene.ts
