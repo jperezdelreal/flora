@@ -42,3 +42,36 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Parallelization:** Items 1+2 parallel (no shared new files). Items 3+4 share SaveManager schema extension — coordinate.
 - **Files involved:** roadmap.md (rewritten), .squad/decisions/inbox/oak-next-roadmap.md (created).
 - **Issue:** #73 closed.
+
+### Phase 4 Roadmap Definition (2026-03-14)
+- **Context:** Phases 1-3 fully delivered (17 items total). Flora has: 22 plants, full roguelite loop, synergies (positive + negative), 12 achievements, daily challenges, touch/mobile, accessibility, title screen, object pooling, 3 structures, grid expansion, tutorial, save system. Game is feature-complete prototype.
+- **Strategic thesis:** Phase 4 must prove "I want to come back tomorrow." Replayability comes from three vectors: **variety** (runs feel different), **depth** (decisions have consequences), **identity** (Flora has a visual soul, not just primitives).
+- **Codebase audit findings (gaps vs GDD):**
+  - MenuScene Encyclopedia/Achievements buttons are empty placeholders (lines 566-567: `break;`)
+  - No weed mechanic (GDD §5), no compost as player action, no rest mechanic (GDD §3)
+  - Only 3 tools (Water, Harvest, Remove Pest) — GDD §7 promises soil tester, watering can upgrades, pest spray, trellis
+  - All plants are PixiJS primitives, structures are colored containers — no visual identity
+  - 12 achievements unlock cosmetic rewards but rewards never render anywhere
+  - Runs stay single-season, no player season choice
+  - Flora Completionist achievement references "12 plants" but 22 now exist (stale config)
+  - Object pool exists but not integrated into ParticleSystem
+  - Reduced motion preference loaded but not applied to animation systems
+  - High contrast mode schema exists but visual implementation deferred
+- **Roadmap structure:** 6 items (balanced across team):
+  1. Encyclopedia & Achievements Scenes (#192, squad:misty) — Close the biggest UX gap
+  2. Weed & Compost Loop (#193, squad:erika) — Core GDD mechanics, active tending
+  3. Tool Progression (#194, squad:erika) — Primary empowerment vector
+  4. Procedural Visuals (#196, squad:sabrina) — Visual identity, screenshot-worthy
+  5. Cosmetic Rewards (#198, squad:misty) — Close progression loop
+  6. Season Selection (#201, squad:erika) — Run variety and agency
+- **Key architectural decisions:**
+  - **WeedSystem follows existing system pattern:** EventBus subscriber, update(dt), GardenScene wiring. Weed entity with SPROUTING → ESTABLISHED → SPREADING state machine.
+  - **ToolSystem as new system:** Centralizes tool effect logic currently scattered in GardenScene. Tool tiers and unlock conditions in config.
+  - **PlantRenderer + TileRenderer:** Dedicated rendering systems separate from game logic. Procedural sprites cached per plant type + growth stage combo.
+  - **Multi-season runs as GardenScene state extension:** Garden persists across season transitions within a run, only hazards/weather/palette change. No full scene reset.
+  - **Cosmetics extend SettingsSaveData:** Equipped cosmetics stored alongside accessibility preferences.
+  - **EncyclopediaScene/AchievementsScene as full scenes:** Not MenuScene substates. Registered in SceneManager, navigate via `switchTo()`.
+- **Parallelization strategy:** Items 1+4 parallel (no shared files). Items 2+3 share tool config — coordinate. Item 5 depends on Item 1 for preview. Item 6 independent.
+- **Deferred to Phase 5:** Second garden plot (GDD §7 Unlock C at 50 runs), rest mechanic (GDD §3), player character sprite, cloud sync, bundle optimization, reduced motion per-system opt-in, high contrast visual implementation.
+- **Files involved:** roadmap.md (rewritten), 6 GitHub issues created, .squad/decisions/inbox/oak-phase4-roadmap.md (created).
+- **Issue:** #161 closed.
