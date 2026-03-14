@@ -47,7 +47,7 @@ async function main(): Promise<void> {
   // Boot the first scene
   await sceneManager.switchTo(SCENES.BOOT);
 
-  // TLDR: Resume audio on first user interaction
+  // TLDR: Resume audio on first user interaction (mouse, keyboard, or touch)
   let audioResumed = false;
   const resumeAudio = async () => {
     if (!audioResumed) {
@@ -55,10 +55,12 @@ async function main(): Promise<void> {
       audioResumed = true;
       document.removeEventListener('click', resumeAudio);
       document.removeEventListener('keydown', resumeAudio);
+      document.removeEventListener('touchstart', resumeAudio);
     }
   };
   document.addEventListener('click', resumeAudio);
   document.addEventListener('keydown', resumeAudio);
+  document.addEventListener('touchstart', resumeAudio);
 
   // TLDR: FPS monitor — enabled in dev mode only
   const isDev = import.meta.env?.DEV ?? false;

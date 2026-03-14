@@ -36,3 +36,24 @@ export {
   drawFocusRing,
   prefersReducedMotion,
 } from './accessibility';
+
+// TLDR: Responsive viewport utilities
+export {
+  getViewportInfo,
+  getViewportCategory,
+  getOrientation,
+  isTouchDevice,
+  getDevicePixelRatio,
+  calculateUIScale,
+  calculateGridScale,
+  responsiveFontSize,
+  ensureTouchTarget,
+  shouldShowOrientationHint,
+  BREAKPOINTS,
+  MIN_TOUCH_TARGET,
+} from './responsive';
+export type {
+  ViewportCategory,
+  ViewportInfo,
+  Orientation,
+} from './responsive';

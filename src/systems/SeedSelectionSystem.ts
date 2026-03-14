@@ -1,6 +1,7 @@
 import { System } from './index';
 import { PlantConfig } from '../entities/Plant';
 import { ALL_PLANTS, PLANT_BY_ID } from '../config/plants';
+import { Season } from '../config/seasons';
 import { SeededRandom } from '../utils/SeededRandom';
 
 /**
@@ -22,6 +23,8 @@ export interface SeedPoolConfig {
   minSeeds: number;
   maxSeeds: number;
   runSeed: number; // Deterministic run seed
+  /** TLDR: Optional season filter — only include plants available in this season */
+  season?: Season;
 }
 
 /**
@@ -31,6 +34,8 @@ export interface SeedPool {
   seeds: PlantConfig[];
   runSeed: number;
   timestamp: number;
+  /** TLDR: Season used for filtering (if any) */
+  season?: Season;
 }
 
 /**
@@ -51,7 +56,7 @@ export class SeedSelectionSystem implements System {
   /**
    * TLDR: Generate a new seed pool for a run
    * @param unlockedPlantIds - Plant IDs available to player (from UnlockSystem/Encyclopedia)
-   * @param config - Pool generation configuration
+   * @param config - Pool generation configuration (includes optional season filter)
    * @returns Generated seed pool
    */
   generatePool(
@@ -61,10 +66,16 @@ export class SeedSelectionSystem implements System {
     // Initialize RNG with run seed for deterministic generation
     this.rng.reset(config.runSeed);
 
-    // Filter to only unlocked plants (excluding heirlooms from random selection)
-    const availablePlants = unlockedPlantIds
+    // TLDR: Filter to unlocked plants, excluding heirlooms, with optional seasonal filter
+    let availablePlants = unlockedPlantIds
       .map((id) => PLANT_BY_ID[id])
       .filter((plant) => plant && plant.rarity !== 'heirloom');
+
+    if (config.season) {
+      availablePlants = availablePlants.filter((plant) =>
+        plant.availableSeasons.includes(config.season!)
+      );
+    }
 
     if (availablePlants.length === 0) {
       // Fallback: use all common plants if nothing unlocked
@@ -136,6 +147,7 @@ export class SeedSelectionSystem implements System {
       seeds: selectedSeeds,
       runSeed: config.runSeed,
       timestamp: Date.now(),
+      season: config.season,
     };
 
     return this.currentPool;

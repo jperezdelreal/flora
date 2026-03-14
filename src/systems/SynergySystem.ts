@@ -1,14 +1,18 @@
 import { System } from './index';
 import { Plant } from '../entities/Plant';
-import { SynergyTrait, SYNERGY_CONFIG } from '../config/synergies';
+import { SynergyTrait, SYNERGY_CONFIG, NEGATIVE_SYNERGY_EFFECTS } from '../config/synergies';
+import { PLANT_BY_ID } from '../config/plants';
 import { eventBus } from '../core/EventBus';
 
 /**
- * TLDR: SynergySystem manages adjacency bonuses and polyculture detection
+ * TLDR: SynergySystem manages adjacency bonuses, polyculture detection, and negative synergies
  * - Shade: tall plants benefit shade-loving neighbors
  * - Nitrogen: fixers enrich adjacent soil (+20% health)
  * - Pest deterrent: aromatic plants reduce pest spawn in radius
  * - Polyculture: 3+ different types adjacent = +10% growth
+ * - Water competition: heavy drinkers increase neighbor water needs (negative)
+ * - Allelopathy: chemical compounds slow adjacent growth (negative)
+ * - Pest attraction: draws pests to nearby tiles (negative)
  */
 export class SynergySystem implements System {
   readonly name = 'SynergySystem';
@@ -31,7 +35,7 @@ export class SynergySystem implements System {
   }
 
   /**
-   * TLDR: Calculate and apply synergies for all plants
+   * TLDR: Calculate and apply synergies (positive + negative) for all plants
    */
   calculateSynergies(plants: Plant[]): void {
     const activePlants = plants.filter((p) => p.active);
@@ -45,7 +49,7 @@ export class SynergySystem implements System {
     for (const plant of activePlants) {
       const neighbors = this.getAdjacentPlants(plant, activePlants);
       
-      // Check shade bonus
+      // TLDR: Positive synergies
       if (this.hasShadeBonus(plant, neighbors)) {
         plant.applySynergyBonuses(
           { growthSpeedMultiplier: 1 + SYNERGY_CONFIG.shadeBonusMultiplier },
@@ -54,7 +58,6 @@ export class SynergySystem implements System {
         this.emitSynergyActivated(plant, 'shade_bonus');
       }
 
-      // Check nitrogen bonus
       if (this.hasNitrogenBonus(plant, neighbors)) {
         plant.applySynergyBonuses(
           { healthBonus: SYNERGY_CONFIG.nitrogenHealthBonus },
@@ -63,13 +66,31 @@ export class SynergySystem implements System {
         this.emitSynergyActivated(plant, 'nitrogen_bonus');
       }
 
-      // Check polyculture bonus
       if (this.hasPolycultureBonus(plant, neighbors)) {
         plant.applySynergyBonuses(
           { growthSpeedMultiplier: 1 + SYNERGY_CONFIG.polycultureGrowthBonus },
           'polyculture'
         );
         this.emitSynergyActivated(plant, 'polyculture');
+      }
+
+      // TLDR: Negative synergies — applied after positive to allow counterplay
+      if (this.hasWaterCompetition(plant, neighbors)) {
+        const effect = NEGATIVE_SYNERGY_EFFECTS['water_competition'];
+        plant.applyNegativeSynergy(
+          { waterNeedMultiplier: effect.waterNeedMultiplier },
+          'water_competition'
+        );
+        this.emitSynergyWarning(plant, 'water_competition');
+      }
+
+      if (this.hasAllelopathy(plant, neighbors)) {
+        const effect = NEGATIVE_SYNERGY_EFFECTS['allelopathy'];
+        plant.applyNegativeSynergy(
+          { growthSpeedMultiplier: effect.growthSpeedMultiplier },
+          'allelopathy'
+        );
+        this.emitSynergyWarning(plant, 'allelopathy');
       }
     }
 
@@ -134,6 +155,38 @@ export class SynergySystem implements System {
   }
 
   /**
+   * TLDR: Check if plant suffers water competition
+   * Plants adjacent to water competitors need more water
+   * Self-excluded: water competitors don't penalize themselves
+   */
+  private hasWaterCompetition(plant: Plant, neighbors: Plant[]): boolean {
+    const config = plant.getConfig();
+    if (config.synergyTraits?.includes(SynergyTrait.WATER_COMPETITOR)) {
+      return false;
+    }
+
+    return neighbors.some((neighbor) =>
+      neighbor.getConfig().synergyTraits?.includes(SynergyTrait.WATER_COMPETITOR)
+    );
+  }
+
+  /**
+   * TLDR: Check if plant suffers allelopathic slowdown
+   * Plants adjacent to allelopathic plants grow slower
+   * Self-excluded: allelopathic plants don't slow themselves
+   */
+  private hasAllelopathy(plant: Plant, neighbors: Plant[]): boolean {
+    const config = plant.getConfig();
+    if (config.synergyTraits?.includes(SynergyTrait.ALLELOPATHIC)) {
+      return false;
+    }
+
+    return neighbors.some((neighbor) =>
+      neighbor.getConfig().synergyTraits?.includes(SynergyTrait.ALLELOPATHIC)
+    );
+  }
+
+  /**
    * TLDR: Check if plant is protected by pest deterrent
    * Used by HazardSystem to reduce pest spawn
    */
@@ -156,6 +209,93 @@ export class SynergySystem implements System {
   }
 
   /**
+   * TLDR: Check if a tile has increased pest attraction from nearby pest attractors
+   * Used by HazardSystem to increase pest spawn chance
+   */
+  isPestAttractorActive(x: number, y: number, allPlants: Plant[]): boolean {
+    const activePlants = allPlants.filter((p) => p.active);
+
+    for (const plant of activePlants) {
+      const config = plant.getConfig();
+      if (!config.synergyTraits?.includes(SynergyTrait.PEST_ATTRACTOR)) {
+        continue;
+      }
+
+      const distance = Math.abs(plant.x - x) + Math.abs(plant.y - y);
+      if (distance <= SYNERGY_CONFIG.pestAttractionRadius) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * TLDR: Get negative synergy warnings for a plant config at a given position
+   * Used by SynergyTooltip to show warnings BEFORE planting
+   */
+  getPlantingWarnings(
+    plantId: string,
+    x: number,
+    y: number,
+    allPlants: Plant[]
+  ): string[] {
+    const warnings: string[] = [];
+    const activePlants = allPlants.filter((p) => p.active);
+    const neighbors = this.getAdjacentPlantsAt(x, y, activePlants);
+
+    // TLDR: Check if the plant being placed has negative traits that affect neighbors
+    const plantConfig = PLANT_BY_ID[plantId];
+
+    if (plantConfig?.synergyTraits) {
+      if (plantConfig.synergyTraits.includes(SynergyTrait.WATER_COMPETITOR) && neighbors.length > 0) {
+        warnings.push(NEGATIVE_SYNERGY_EFFECTS['water_competition'].warningText);
+      }
+      if (plantConfig.synergyTraits.includes(SynergyTrait.ALLELOPATHIC) && neighbors.length > 0) {
+        warnings.push(NEGATIVE_SYNERGY_EFFECTS['allelopathy'].warningText);
+      }
+      if (plantConfig.synergyTraits.includes(SynergyTrait.PEST_ATTRACTOR)) {
+        warnings.push(NEGATIVE_SYNERGY_EFFECTS['pest_attraction'].warningText);
+      }
+    }
+
+    // TLDR: Check if existing neighbors have negative traits that affect this plant
+    for (const neighbor of neighbors) {
+      const nConfig = neighbor.getConfig();
+      if (nConfig.synergyTraits?.includes(SynergyTrait.WATER_COMPETITOR)) {
+        warnings.push(`${nConfig.displayName} nearby: ${NEGATIVE_SYNERGY_EFFECTS['water_competition'].description}`);
+        break;
+      }
+    }
+
+    for (const neighbor of neighbors) {
+      const nConfig = neighbor.getConfig();
+      if (nConfig.synergyTraits?.includes(SynergyTrait.ALLELOPATHIC)) {
+        warnings.push(`${nConfig.displayName} nearby: ${NEGATIVE_SYNERGY_EFFECTS['allelopathy'].description}`);
+        break;
+      }
+    }
+
+    return [...new Set(warnings)];
+  }
+
+  /**
+   * TLDR: Get adjacent plants at a position (for pre-planting checks)
+   */
+  private getAdjacentPlantsAt(x: number, y: number, allPlants: Plant[]): Plant[] {
+    const adjacentPositions = [
+      { x: x - 1, y },
+      { x: x + 1, y },
+      { x, y: y - 1 },
+      { x, y: y + 1 },
+    ];
+
+    return allPlants.filter((p) =>
+      adjacentPositions.some((pos) => p.x === pos.x && p.y === pos.y)
+    );
+  }
+
+  /**
    * TLDR: Emit synergy activation event for scoring/UI
    */
   private emitSynergyActivated(plant: Plant, synergyId: string): void {
@@ -174,6 +314,18 @@ export class SynergySystem implements System {
   }
 
   /**
+   * TLDR: Emit negative synergy warning event for UI
+   */
+  private emitSynergyWarning(plant: Plant, synergyId: string): void {
+    eventBus.emit('synergy:warning', {
+      plantId: plant.id,
+      synergyId,
+      x: plant.x,
+      y: plant.y,
+    });
+  }
+
+  /**
    * TLDR: Get all plants with active synergies (for visual indicators)
    */
   getPlantsWithSynergies(plants: Plant[]): Array<{ plant: Plant; synergies: Set<string> }> {
@@ -182,6 +334,18 @@ export class SynergySystem implements System {
       .map((plant) => ({
         plant,
         synergies: plant.getActiveSynergies(),
+      }));
+  }
+
+  /**
+   * TLDR: Get plants affected by negative synergies (for penalty visual indicators)
+   */
+  getPlantsWithNegativeSynergies(plants: Plant[]): Array<{ plant: Plant; penalties: Set<string> }> {
+    return plants
+      .filter((p) => p.active && p.getNegativeSynergies().size > 0)
+      .map((plant) => ({
+        plant,
+        penalties: plant.getNegativeSynergies(),
       }));
   }
 
