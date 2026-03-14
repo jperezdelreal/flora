@@ -4,6 +4,29 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Harvest Particle Effects and Game Feel Juice (Issue #199, PR #208)
+- **Architecture**: Enhanced ParticleSystem with object pooling and new particle types
+- **Pattern**: Object pooling (ObjectPool<Graphics>, ObjectPool<Text>) to reduce GC pressure
+- **Key file updated**:
+  - `src/systems/ParticleSystem.ts` — Added object pools (50 graphics, 10 text pre-allocated), floatingText(), waterDroplets(), deceleration/oval shape support
+  - `src/config/animations.ts` — Added 11 new constants (HARVEST_SEED_*, HARVEST_PULSE_*, WATER_DROPLET_COUNT, PEST_SQUISH_*, PLANT_BRIGHTEN_*)
+  - `src/scenes/GardenScene.ts` — Enhanced triggerHarvestBurst() with seed drops and floating text, enhanced triggerWaterRipple() with droplets and plant brightness, added triggerScreenPulse() and triggerPestSquish()
+- **Harvest effects**:
+  - Colorful particle burst (16 particles in plant color with deceleration)
+  - Seed drops (3 brown oval particles with gravity arc)
+  - Floating "+X Seeds" text in gold
+  - Brief screen pulse (10% white overlay, 150ms fade)
+- **Watering effects**:
+  - Water droplets (7 blue particles falling downward)
+  - Plant brightness animation (scale 1.0 → 1.1 → 1.0)
+  - Ripple rings (unchanged)
+- **Pest removal**:
+  - Squish particle burst (4 brown particles)
+  - Relief glow (green pulse, 0.5s duration)
+- **Performance optimization**: Max 200 graphics, 30 text objects pooled; objects recycled instead of destroyed
+- **New ParticleSystem methods**: floatingText(x, y, message, color), waterDroplets(x, y, count)
+- **Branch cleanup issue**: Experienced branch context switching when git checkout accidentally reverted working changes; used create file workaround to preserve completed code
+
 ### Plant Growth Animations System (Issue #197, PR #207)
 - **Architecture**: Per-plant visual definitions in `src/config/plantVisuals.ts` define unique appearances for all 22 plant types
 - **Pattern**: Keyframe-based animation with smooth interpolation (scale, alpha, saturation, yOffset) between growth stages

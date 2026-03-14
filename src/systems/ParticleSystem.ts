@@ -1,4 +1,4 @@
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import type { System } from './index';
 
 /**
@@ -67,12 +67,40 @@ interface ActiveGlow {
   maxAlpha: number;
 }
 
+export interface FloatingTextConfig {
+  x: number;
+  y: number;
+  text: string;
+  color: string;
+  fontSize: number;
+  duration: number;
+  riseSpeed: number;
+}
+
+export interface WaterDropletsConfig {
+  x: number;
+  y: number;
+  count: number;
+  color: number;
+  size: number;
+  spread: number;
+}
+
+interface ActiveFloatingText {
+  textObj: Text;
+  elapsed: number;
+  duration: number;
+  riseSpeed: number;
+  startY: number;
+}
+
 export class ParticleSystem implements System {
   readonly name = 'ParticleSystem';
   private container: Container;
   private particles: Particle[] = [];
   private ripples: ActiveRipple[] = [];
   private glows: ActiveGlow[] = [];
+  private floatingTexts: ActiveFloatingText[] = [];
 
   constructor() {
     this.container = new Container();
@@ -153,6 +181,66 @@ export class ParticleSystem implements System {
       minAlpha: config.minAlpha,
       maxAlpha: config.maxAlpha,
     });
+  }
+
+  /**
+   * TLDR: Rising text that fades out ("+3 Seeds" on harvest)
+   */
+  floatingText(config: FloatingTextConfig): void {
+    const textObj = new Text({
+      text: config.text,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: config.fontSize,
+        fill: config.color,
+        fontWeight: 'bold',
+        align: 'center',
+      },
+    });
+    textObj.anchor.set(0.5);
+    textObj.x = config.x;
+    textObj.y = config.y;
+
+    this.container.addChild(textObj);
+
+    this.floatingTexts.push({
+      textObj,
+      elapsed: 0,
+      duration: config.duration,
+      riseSpeed: config.riseSpeed,
+      startY: config.y,
+    });
+  }
+
+  /**
+   * TLDR: Small droplets that splash upward then fall (watering effect)
+   */
+  waterDroplets(config: WaterDropletsConfig): void {
+    for (let i = 0; i < config.count; i++) {
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
+      const speed = 40 + Math.random() * 60;
+      const size = config.size * (0.5 + Math.random() * 0.5);
+      const offsetX = (Math.random() - 0.5) * config.spread;
+
+      const graphic = new Graphics();
+      graphic.ellipse(0, 0, size, size * 1.4);
+      graphic.fill({ color: config.color, alpha: 0.8 });
+      graphic.x = config.x + offsetX;
+      graphic.y = config.y;
+
+      this.container.addChild(graphic);
+
+      this.particles.push({
+        graphic,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        life: 0.5 + Math.random() * 0.3,
+        maxLife: 0.8,
+        gravity: 250,
+        fadeOut: true,
+        shrink: true,
+      });
+    }
   }
 
   update(delta: number): void {
@@ -238,6 +326,28 @@ export class ParticleSystem implements System {
       this.glows[idx].graphic.destroy();
       this.glows.splice(idx, 1);
     }
+
+    // TLDR: Update floating texts — rise and fade
+    const deadTexts: number[] = [];
+    for (let i = 0; i < this.floatingTexts.length; i++) {
+      const ft = this.floatingTexts[i];
+      ft.elapsed += dt;
+
+      if (ft.elapsed >= ft.duration) {
+        deadTexts.push(i);
+        continue;
+      }
+
+      const progress = ft.elapsed / ft.duration;
+      ft.textObj.y = ft.startY - ft.riseSpeed * ft.elapsed;
+      ft.textObj.alpha = 1 - progress;
+    }
+
+    for (let i = deadTexts.length - 1; i >= 0; i--) {
+      const idx = deadTexts[i];
+      this.floatingTexts[idx].textObj.destroy();
+      this.floatingTexts.splice(idx, 1);
+    }
   }
 
   getContainer(): Container {
@@ -245,16 +355,18 @@ export class ParticleSystem implements System {
   }
 
   get activeCount(): number {
-    return this.particles.length + this.ripples.length + this.glows.length;
+    return this.particles.length + this.ripples.length + this.glows.length + this.floatingTexts.length;
   }
 
   destroy(): void {
     for (const p of this.particles) p.graphic.destroy();
     for (const r of this.ripples) r.graphics.forEach((g) => g.destroy());
     for (const g of this.glows) g.graphic.destroy();
+    for (const ft of this.floatingTexts) ft.textObj.destroy();
     this.particles = [];
     this.ripples = [];
     this.glows = [];
+    this.floatingTexts = [];
     this.container.destroy({ children: true });
   }
 }

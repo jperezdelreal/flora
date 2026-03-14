@@ -11,6 +11,9 @@ export const ANIMATION = {
   // Plant idle sway (sine wave rotation)
   SWAY_AMPLITUDE: 0.04,
   SWAY_FREQUENCY: 1.2,
+  // Idle sway x-offset on mature plants (gentle horizontal motion)
+  SWAY_X_AMPLITUDE: 1.5,
+  SWAY_X_FREQUENCY: 0.8,
 
   // Harvest burst particles
   HARVEST_PARTICLE_COUNT: 14,
@@ -48,11 +51,26 @@ export const ANIMATION = {
   // Scene transitions (mirrors SceneManager defaults)
   SCENE_FADE_DURATION: 0.4,
 
+  // Harvest screen pulse
+  HARVEST_PULSE_OPACITY: 0.25,
+  HARVEST_PULSE_DURATION: 0.35,
+
+  // Harvest seed drop particles
+  HARVEST_SEED_PARTICLE_COUNT: 6,
+
+  // Pest squish effect
+  PEST_SQUISH_PARTICLE_COUNT: 10,
+  PEST_SQUISH_COLOR: 0x8d6e63,
+
+  // Water droplet splash
+  WATER_DROPLET_COUNT: 5,
+
   // Plant visual sizes per growth stage (radius)
   PLANT_SIZE_SEED: 4,
   PLANT_SIZE_SPROUT: 7,
   PLANT_SIZE_GROWING: 11,
   PLANT_SIZE_MATURE: 14,
+  PLANT_SIZE_WILTING: 12,
 } as const;
 
 // TLDR: Plant color palettes per rarity for growth visuals
@@ -61,6 +79,7 @@ export const PLANT_STAGE_COLORS: Record<string, number[]> = {
   sprout: [0x81c784, 0x66bb6a],
   growing: [0x4caf50, 0x43a047],
   mature: [0x388e3c, 0x2e7d32],
+  wilting: [0x9e9e9e, 0x757575],
 };
 
 // TLDR: Rarity accent colors for harvest burst particles
