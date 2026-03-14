@@ -1,9 +1,10 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { System } from './index';
+import { ObjectPool } from '../utils/objectPool';
 
 /**
  * TLDR: Reusable particle emitter — burst, ripple, and glow effects
- * Lightweight: raw Graphics objects, auto-cleanup on death.
+ * Uses ObjectPool for Graphics to reduce GC pressure.
  */
 
 interface Particle {
@@ -123,8 +124,27 @@ export class ParticleSystem implements System {
   private ambientConfig: AmbientParticleConfig | null = null;
   private ambientSpawnTimer = 0;
 
+  // TLDR: Object pool for Graphics to avoid new/destroy churn
+  private graphicsPool: ObjectPool<Graphics>;
+
   constructor() {
     this.container = new Container();
+
+    this.graphicsPool = new ObjectPool<Graphics>({
+      create: () => new Graphics(),
+      reset: (g) => {
+        g.clear();
+        g.alpha = 1;
+        g.scale.set(1);
+        g.x = 0;
+        g.y = 0;
+        g.visible = true;
+        g.removeFromParent();
+      },
+      destroy: (g) => g.destroy(),
+      initialSize: 80,
+      maxSize: 256,
+    });
   }
 
   /**
@@ -137,7 +157,7 @@ export class ParticleSystem implements System {
       const color = config.colors[Math.floor(Math.random() * config.colors.length)];
       const size = config.size * (0.5 + Math.random() * 0.5);
 
-      const graphic = new Graphics();
+      const graphic = this.graphicsPool.acquire();
       graphic.circle(0, 0, size);
       graphic.fill({ color });
       graphic.x = config.x;
@@ -164,7 +184,7 @@ export class ParticleSystem implements System {
   ripple(config: RippleConfig): void {
     const graphics: Graphics[] = [];
     for (let i = 0; i < config.rings; i++) {
-      const ring = new Graphics();
+      const ring = this.graphicsPool.acquire();
       ring.x = config.x;
       ring.y = config.y;
       ring.alpha = 0;
@@ -185,7 +205,7 @@ export class ParticleSystem implements System {
    * TLDR: Pulsing glow circle (synergy aura)
    */
   glow(config: GlowConfig): void {
-    const graphic = new Graphics();
+    const graphic = this.graphicsPool.acquire();
     graphic.circle(0, 0, config.radius);
     graphic.fill({ color: config.color, alpha: 0.5 });
     graphic.x = config.x;
@@ -243,7 +263,7 @@ export class ParticleSystem implements System {
       const size = config.size * (0.5 + Math.random() * 0.5);
       const offsetX = (Math.random() - 0.5) * config.spread;
 
-      const graphic = new Graphics();
+      const graphic = this.graphicsPool.acquire();
       graphic.ellipse(0, 0, size, size * 1.4);
       graphic.fill({ color: config.color, alpha: 0.8 });
       graphic.x = config.x + offsetX;
@@ -281,7 +301,7 @@ export class ParticleSystem implements System {
    */
   stopAmbientParticles(): void {
     for (const p of this.ambientParticles) {
-      p.graphic.destroy();
+      this.graphicsPool.release(p.graphic);
     }
     this.ambientParticles = [];
     this.ambientConfig = null;
@@ -293,7 +313,7 @@ export class ParticleSystem implements System {
     const color = cfg.colors[Math.floor(Math.random() * cfg.colors.length)];
     const size = 2 + Math.random() * 3;
 
-    const graphic = new Graphics();
+    const graphic = this.graphicsPool.acquire();
     switch (cfg.type) {
       case 'petals':
         graphic.ellipse(0, 0, size, size * 0.6);
@@ -386,7 +406,7 @@ export class ParticleSystem implements System {
 
     for (let i = deadParticles.length - 1; i >= 0; i--) {
       const idx = deadParticles[i];
-      this.particles[idx].graphic.destroy();
+      this.graphicsPool.release(this.particles[idx].graphic);
       this.particles.splice(idx, 1);
     }
 
@@ -419,7 +439,7 @@ export class ParticleSystem implements System {
 
     for (let i = deadRipples.length - 1; i >= 0; i--) {
       const idx = deadRipples[i];
-      for (const g of this.ripples[idx].graphics) g.destroy();
+      for (const g of this.ripples[idx].graphics) this.graphicsPool.release(g);
       this.ripples.splice(idx, 1);
     }
 
@@ -440,7 +460,7 @@ export class ParticleSystem implements System {
 
     for (let i = deadGlows.length - 1; i >= 0; i--) {
       const idx = deadGlows[i];
-      this.glows[idx].graphic.destroy();
+      this.graphicsPool.release(this.glows[idx].graphic);
       this.glows.splice(idx, 1);
     }
 
@@ -502,7 +522,7 @@ export class ParticleSystem implements System {
 
     for (let i = deadAmbient.length - 1; i >= 0; i--) {
       const idx = deadAmbient[i];
-      this.ambientParticles[idx].graphic.destroy();
+      this.graphicsPool.release(this.ambientParticles[idx].graphic);
       this.ambientParticles.splice(idx, 1);
     }
   }
@@ -517,14 +537,15 @@ export class ParticleSystem implements System {
 
   destroy(): void {
     this.stopAmbientParticles();
-    for (const p of this.particles) p.graphic.destroy();
-    for (const r of this.ripples) r.graphics.forEach((g) => g.destroy());
-    for (const g of this.glows) g.graphic.destroy();
+    for (const p of this.particles) this.graphicsPool.release(p.graphic);
+    for (const r of this.ripples) r.graphics.forEach((g) => this.graphicsPool.release(g));
+    for (const g of this.glows) this.graphicsPool.release(g.graphic);
     for (const ft of this.floatingTexts) ft.textObj.destroy();
     this.particles = [];
     this.ripples = [];
     this.glows = [];
     this.floatingTexts = [];
+    this.graphicsPool.drain();
     this.container.destroy({ children: true });
   }
 }

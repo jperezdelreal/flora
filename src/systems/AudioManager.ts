@@ -262,6 +262,18 @@ export class AudioManager {
       case 'PEST_APPEAR':
         this._playPestSFX(now);
         break;
+      case 'WEED_PULL':
+        this._playWeedPullSFX(now);
+        break;
+      case 'COMPOST_SPREAD':
+        this._playCompostSpreadSFX(now);
+        break;
+      case 'TOOL_UPGRADE':
+        this._playToolUpgradeSFX(now);
+        break;
+      case 'TOOL_UNLOCK':
+        this._playToolUnlockSFX(now);
+        break;
     }
   }
   
@@ -590,6 +602,139 @@ export class AudioManager {
   }
   
   // ===== Private Helper Methods =====
+  
+  private _playWeedPullSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.WEED_PULL;
+    
+    // Short earthy pop — filtered noise burst
+    const noise = this._createNoiseBuffer();
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noise;
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(config.noiseFilterFreq, startTime);
+    filter.frequency.exponentialRampToValueAtTime(200, startTime + config.duration);
+    filter.Q.value = 2;
+    
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(0.35, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxBus);
+    noiseSource.start(startTime);
+    noiseSource.stop(startTime + config.duration);
+  }
+  
+  private _playCompostSpreadSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.COMPOST_SPREAD;
+    
+    // Soft crumble — noise + low sine
+    const noise = this._createNoiseBuffer();
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noise;
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = config.noiseFilterFreq;
+    filter.Q.value = 1;
+    
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.2, startTime);
+    noiseGain.gain.linearRampToValueAtTime(0.15, startTime + config.duration * 0.6);
+    noiseGain.gain.linearRampToValueAtTime(0, startTime + config.duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(noiseGain);
+    noiseGain.connect(this.sfxBus);
+    noiseSource.start(startTime);
+    noiseSource.stop(startTime + config.duration);
+    
+    // Low sine for body
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.value = config.sineFreq;
+    
+    const oscGain = this.ctx.createGain();
+    oscGain.gain.setValueAtTime(0.15, startTime);
+    oscGain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    
+    osc.connect(oscGain);
+    oscGain.connect(this.sfxBus);
+    osc.start(startTime);
+    osc.stop(startTime + config.duration);
+  }
+  
+  private _playToolUpgradeSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.TOOL_UPGRADE;
+    
+    // Ascending chime — 3-note sine sweep up
+    for (let i = 0; i < config.frequencies.length; i++) {
+      const noteStart = startTime + i * config.noteSpacing;
+      
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = config.frequencies[i];
+      
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.3, noteStart);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteStart + 0.15);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(noteStart);
+      osc.stop(noteStart + 0.15);
+    }
+  }
+  
+  private _playToolUnlockSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.TOOL_UNLOCK;
+    
+    // Discovery jingle — 4-note melody
+    for (let i = 0; i < config.frequencies.length; i++) {
+      const noteStart = startTime + i * config.noteSpacing;
+      const noteDuration = 0.18;
+      
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = config.frequencies[i];
+      
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.28, noteStart);
+      gain.gain.setValueAtTime(0.28, noteStart + noteDuration * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteStart + noteDuration);
+      
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(noteStart);
+      osc.stop(noteStart + noteDuration);
+    }
+    
+    // Shimmer overlay on last note
+    const shimmerStart = startTime + (config.frequencies.length - 1) * config.noteSpacing;
+    const shimmerOsc = this.ctx.createOscillator();
+    shimmerOsc.type = 'sine';
+    shimmerOsc.frequency.value = config.frequencies[config.frequencies.length - 1] * 2;
+    
+    const shimmerGain = this.ctx.createGain();
+    shimmerGain.gain.setValueAtTime(0.12, shimmerStart);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, shimmerStart + 0.25);
+    
+    shimmerOsc.connect(shimmerGain);
+    shimmerGain.connect(this.sfxBus);
+    shimmerOsc.start(shimmerStart);
+    shimmerOsc.stop(shimmerStart + 0.25);
+  }
   
   private _scheduleRandomChirp(): void {
     if (!this.ambientPlaying) return;
