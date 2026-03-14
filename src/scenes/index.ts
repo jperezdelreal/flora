@@ -1,3 +1,4 @@
+export { AchievementsScene } from './AchievementsScene';
 export { BootScene } from './BootScene';
 export { EncyclopediaScene } from './EncyclopediaScene';
 export { GardenScene } from './GardenScene';

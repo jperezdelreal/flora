@@ -34,3 +34,5 @@ export { WeedSystem } from './WeedSystem';
 export type { WeedSystemConfig } from './WeedSystem';
 export { ToolSystem } from './ToolSystem';
 export type { ToolState } from './ToolSystem';
+export { TileRenderer } from './TileRenderer';
+export type { TileRendererConfig } from './TileRenderer';
