@@ -645,6 +645,9 @@ export class GardenScene implements Scene {
       }
     });
 
+    // Apply seasonal palette (soil color, ambient particles)
+    this.applySeason(false);
+
     // Initial render
     this.gridSystem.update();
     this.updateStatusText();
@@ -2024,6 +2027,60 @@ export class GardenScene implements Scene {
   }
 
   /**
+   * TLDR: Quick shrink-to-nothing animation on plant removal (100ms)
+   */
+  private triggerPlantRemovalAnimation(plantConfigId: string): void {
+    // Find the plant visual that matches this config ID
+    for (const [pid, visual] of this.plantVisuals) {
+      const plant = this.plantSystem.getPlant(pid);
+      if (!plant && visual) {
+        // This is the plant being removed - animate it shrinking
+        this.animationSystem.tween(
+          visual.scale as unknown as Record<string, unknown>,
+          { x: 0, y: 0 },
+          0.1,
+          {
+            easing: Easing.easeIn,
+            onComplete: () => {
+              this.removePlantVisual(pid);
+            },
+          },
+        );
+        break;
+      }
+    }
+  }
+
+  /**
+   * TLDR: Floating score text on harvest (+15 pts)
+   */
+  private triggerScoreText(points: number): void {
+    // Find last harvested plant position
+    let textX = this._ctx.app.screen.width / 2;
+    let textY = this._ctx.app.screen.height / 2;
+
+    for (const [pid, v] of this.plantVisuals) {
+      const p = this.plantSystem.getPlant(pid);
+      if (!p) {
+        const gridPos = this.gridSystem.getContainer().position;
+        textX = gridPos.x + v.x + 20;
+        textY = gridPos.y + v.y - 35;
+        break;
+      }
+    }
+
+    this.particleSystem.floatingText({
+      x: textX,
+      y: textY,
+      text: `+${points} pts`,
+      color: '#ffd54f',
+      fontSize: 16,
+      duration: 1.5,
+      riseSpeed: 20,
+    });
+  }
+
+  /**
    * TLDR: Brief screen shake on harvest for tactile feedback
    */
   private triggerScreenShake(): void {
@@ -2083,12 +2140,41 @@ export class GardenScene implements Scene {
       spread: tileSize * 0.4,
     });
 
+    // Soil darkening overlay (temporary moisture visual)
+    const tile = this.grid.getTile(row, col);
+    if (tile) {
+      tile.setMoisture(100);
+      
+      // Create darkening overlay
+      const overlay = new Graphics();
+      overlay.rect(tilePos.x, tilePos.y, tileSize, tileSize);
+      overlay.fill({ color: 0x000000, alpha: 0.25 });
+      this.gridSystem.getContainer().addChild(overlay);
+      
+      // Fade out soil darkening over 2 seconds
+      this.animationSystem.tween(
+        overlay as unknown as Record<string, unknown>,
+        { alpha: 0 },
+        2.0,
+        {
+          easing: Easing.easeOut,
+          onComplete: () => {
+            this.gridSystem.getContainer().removeChild(overlay);
+            overlay.destroy();
+            tile.setMoisture(50);
+          },
+        },
+      );
+    }
+
     // Brief brightness pulse on the plant visual
     const plant = this.plantSystem.getPlantAt(col, row);
     if (plant) {
       const pVisual = this.plantVisuals.get(plant.id);
       if (pVisual) {
         const originalScale = pVisual.scale.x;
+        
+        // Scale pulse (brightness effect via scale)
         this.animationSystem.tween(
           pVisual.scale as unknown as Record<string, unknown>,
           { x: originalScale * 1.15, y: originalScale * 1.15 },
@@ -2101,6 +2187,25 @@ export class GardenScene implements Scene {
                 { x: originalScale, y: originalScale },
                 0.25,
                 { easing: Easing.elasticOut },
+              );
+            },
+          },
+        );
+        
+        // Saturation/brightness boost via alpha pulse
+        const originalAlpha = pVisual.alpha;
+        this.animationSystem.tween(
+          pVisual as unknown as Record<string, unknown>,
+          { alpha: Math.min(1, originalAlpha * 1.2) },
+          0.2,
+          {
+            easing: Easing.easeOut,
+            onComplete: () => {
+              this.animationSystem.tween(
+                pVisual as unknown as Record<string, unknown>,
+                { alpha: originalAlpha },
+                0.3,
+                { easing: Easing.easeOut },
               );
             },
           },
@@ -2189,6 +2294,40 @@ export class GardenScene implements Scene {
     this.targetSkyColor = (r << 16) | (g << 8) | b;
     this.skyLerpElapsed = 0;
     this.skyLerpDuration = ANIMATION.DAY_SKY_LERP_DURATION;
+    
+    // TLDR: Trigger star twinkle during night phase (days 6-12 in cycle)
+    const isNight = (day % 12) >= 6;
+    if (isNight) {
+      this.triggerStarTwinkle();
+    }
+  }
+  
+  /**
+   * TLDR: Random twinkling stars during night phase
+   */
+  private triggerStarTwinkle(): void {
+    const starCount = 8 + Math.floor(Math.random() * 5);
+    const screenW = this._ctx.app.screen.width;
+    const screenH = this._ctx.app.screen.height;
+    
+    for (let i = 0; i < starCount; i++) {
+      const x = Math.random() * screenW;
+      const y = Math.random() * (screenH * 0.4); // Top 40% of screen
+      const delay = Math.random() * 0.5;
+      
+      setTimeout(() => {
+        this.particleSystem.glow({
+          x,
+          y,
+          radius: 2 + Math.random() * 2,
+          color: 0xffffff,
+          pulseSpeed: 2.0 + Math.random() * 2.0,
+          minAlpha: 0.3,
+          maxAlpha: 0.9,
+          duration: 1.5 + Math.random() * 1.0,
+        });
+      }, delay * 1000);
+    }
   }
 
   /**

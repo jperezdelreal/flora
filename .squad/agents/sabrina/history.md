@@ -35,3 +35,40 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - `plant:died` → removePlantVisual
 - `synergy:activated` → triggerSynergyGlow (color-coded pulse)
 - `day:advanced` → triggerDaySkyLerp (smooth background shift)
+
+### 2025-XX-XX: Seasonal Color Palettes and Ambient Effects (Issue #202, PR #214)
+
+**What I built:**
+- `src/config/seasonalPalettes.ts` — 4 seasonal palettes (Spring/Summer/Fall/Winter) with background, soil, sky, accent colors, and plant saturation multipliers
+- Extended `ParticleSystem` with ambient particle support: `AmbientParticleConfig`, `startAmbientParticles()`, `stopAmbientParticles()`
+- 4 ambient particle types: petals (Spring), fireflies (Summer), leaves (Fall), snow (Winter)
+- Updated `GridSystem` to use seasonal soil colors via `getSeasonalPalette()`
+- Modified `GardenScene.applySeason()` to trigger smooth 2s color transitions and start seasonal ambient particles
+
+**Architecture decisions:**
+- Seasonal palettes are separate from `SEASON_CONFIG` — visual config vs. gameplay config separation
+- Ambient particles spawn continuously at configurable rates (1.5-4 particles/sec depending on season)
+- Each particle type has distinct behavior: petals drift horizontally, fireflies float upward, leaves tumble with rotation, snow falls gently
+- Color transitions use existing `skyLerp` pattern from day/night cycle — smooth easeInOut over 2 seconds
+- Soil colors now vary by season and quality (darker for poor soil, lighter for rich soil, all within seasonal base color)
+
+**Technical gotchas:**
+- Branch management critical: Wrong branch work was lost, needed clean restart on correct branch
+- PixiJS v8 `app.renderer.background.color` is a Color object — can't cast to number, use config value instead
+- Ambient particles need lifetime management — long lifetime (15-25s) for drifting effects
+- Wind drift (windX) and rotation (rotationSpeed) are optional particle properties added to Particle interface
+- Type exports must be explicit: `export type AmbientParticleType`, `export interface AmbientParticleConfig`
+
+**Integration points:**
+- `applySeason()` in GardenScene is the main hook for all seasonal visual changes
+- Existing color lerp system reused for smooth palette transitions
+- ParticleSystem's update loop now checks ambientActive and spawns at timed intervals
+- GridSystem's `setSeason()` triggers `refreshAllTiles()` to repaint soil colors
+
+**Acceptance criteria met:**
+✅ Each of 4 seasons has distinct color palette (Spring pastels, Summer warm, Fall orange, Winter cool)
+✅ Background and soil reflect current season
+✅ Seasonal ambient particles present (petals/fireflies/leaves/snow)
+✅ Palette data in config (easy to tune)
+✅ Color transition smooth (2s lerp, no hard cut)
+✅ Winter feels cold (blues/greys); Summer feels warm (cream/gold)
