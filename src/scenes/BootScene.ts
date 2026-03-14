@@ -130,7 +130,7 @@ export class BootScene implements Scene {
       this.ready = true;
       this.transitioned = true;
       ctx.sceneManager
-        .transitionTo(SCENES.MENU, { type: 'loading', loadingMessage: 'Preparing the garden...' })
+        .transitionTo(SCENES.MENU, { type: 'fade' })
         .catch(console.error);
     }
   }

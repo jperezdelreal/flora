@@ -32,12 +32,12 @@ type EasingFn = (t: number) => number;
 const DEFAULT_DURATIONS: Record<TransitionType, number> = {
   fade: 0.4,
   crossfade: 0.6,
-  slide: 0.5,
+  slide: 0.3,
   loading: 0.8,
 };
 
 const DEFAULT_COLOR = 0x000000;
-const DEFAULT_HOLD = 0.4;
+const DEFAULT_HOLD = 0.1;
 
 export class SceneManager {
   private scenes = new Map<string, Scene>();
@@ -143,11 +143,15 @@ export class SceneManager {
     duration: number,
     color: number,
   ): Promise<void> {
-    const half = duration / 2;
     this.drawOverlay(color);
-    await this.animateAlpha(this.overlay, 0, 1, half, this.easeInOutCubic);
+    // Fade out (400ms default)
+    await this.animateAlpha(this.overlay, 0, 1, duration, this.easeInOutCubic);
+    // Swap scenes during hold
     await this.swapScenes(name);
-    await this.animateAlpha(this.overlay, 1, 0, half, this.easeInOutCubic);
+    // Hold black (100ms default)
+    await this.wait(DEFAULT_HOLD);
+    // Fade in (400ms default)
+    await this.animateAlpha(this.overlay, 1, 0, duration, this.easeInOutCubic);
   }
 
   /** Old scene fades out while new scene fades in simultaneously */
