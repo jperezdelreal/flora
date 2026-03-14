@@ -62,6 +62,9 @@ export class MenuScene implements Scene {
   private titleFadeComplete = false;
   private fireflyCooldown = 0;
 
+  // TLDR: When true, init skips title screen and goes straight to main menu
+  private _returnToMain = false;
+
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private ctx: SceneContext | null = null;
 
@@ -76,6 +79,11 @@ export class MenuScene implements Scene {
     this.saveManager = saveManager;
     this.particleSystem = new ParticleSystem();
     this.animationSystem = new AnimationSystem();
+  }
+
+  /** TLDR: Flag to skip title screen on next init — used when returning from sub-scenes */
+  setReturnToMain(): void {
+    this._returnToMain = true;
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -105,7 +113,15 @@ export class MenuScene implements Scene {
     this.buildMainMenu();
     this.buildSettingsPanel();
     this.buildCreditsPage();
-    this.showState('title');
+
+    // TLDR: Skip title and show main menu directly when returning from sub-scenes
+    if (this._returnToMain) {
+      this._returnToMain = false;
+      this.titleFadeComplete = true;
+      this.showState('main');
+    } else {
+      this.showState('title');
+    }
 
     this.boundOnKeyDown = (e: KeyboardEvent) => this.handleKeyDown(e);
     window.addEventListener('keydown', this.boundOnKeyDown);
@@ -566,7 +582,7 @@ export class MenuScene implements Scene {
     switch (item.action) {
       case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
-      case 'encyclopedia': break;
+      case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
       case 'achievements': break;
       case 'settings': this.showState('settings'); break;
     }
