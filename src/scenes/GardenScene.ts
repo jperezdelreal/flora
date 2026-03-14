@@ -2,7 +2,7 @@ import { Container, Text, Graphics } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { GardenGrid } from '../entities/GardenGrid';
 import { TileState, Tile } from '../entities/Tile';
-import { Player } from '../entities/Player';
+import { Player, ToolType } from '../entities/Player';
 import { Plant, GrowthStage } from '../entities/Plant';
 import { Structure } from '../entities/Structure';
 import { GridSystem } from '../systems/GridSystem';
@@ -14,6 +14,8 @@ import { WeatherSystem, WeatherEventType } from '../systems/WeatherSystem';
 import { ScoringSystem } from '../systems/ScoringSystem';
 import { SynergySystem } from '../systems/SynergySystem';
 import { UnlockSystem } from '../systems/UnlockSystem';
+import { ToolSystem } from '../systems/ToolSystem';
+import type { ToolTier } from '../config/tools';
 import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
@@ -94,6 +96,7 @@ export class GardenScene implements Scene {
   private saveManager: SaveManager;
   private saveIndicator!: SaveIndicator;
   private unlockSystem!: UnlockSystem;
+  private toolSystem!: ToolSystem;
   
   // TLDR: Structure placement state
   private structurePlacementMode: StructureType | null = null;
@@ -193,6 +196,9 @@ export class GardenScene implements Scene {
     // TLDR: Initialize unlock system (with SaveManager persistence)
     this.unlockSystem = new UnlockSystem(this.saveManager);
 
+    // TLDR: Initialize tool system (tracks tool tiers, unlocks, selection)
+    this.toolSystem = new ToolSystem(this.saveManager, this.unlockSystem);
+
     // TLDR: Determine grid size from unlock progress
     const gridSize = this.unlockSystem.getUnlockedGridSize();
 
@@ -233,7 +239,7 @@ export class GardenScene implements Scene {
     this.container.addChild(this.playerSystem.getContainer());
 
     // Initialize tool bar
-    this.toolBar = new ToolBar();
+    this.toolBar = new ToolBar(this.toolSystem);
     this.toolBar.position(
       ctx.app.screen.width / 2 - 135,
       ctx.app.screen.height - 100,
@@ -247,6 +253,14 @@ export class GardenScene implements Scene {
       this.updateStatusText();
     });
     this.container.addChild(this.toolBar.getContainer());
+
+    // TLDR: Wire tool unlock/upgrade events to ToolBar UI
+    eventBus.on('tool:unlocked', (data) => {
+      this.toolBar.unlockTool(data.toolType as ToolType);
+    });
+    eventBus.on('tool:upgraded', (data) => {
+      this.toolBar.updateToolTier(data.toolType as ToolType, data.newTier as ToolTier);
+    });
 
     // Hook up grid click to player system
     this.setupGridClickHandling();

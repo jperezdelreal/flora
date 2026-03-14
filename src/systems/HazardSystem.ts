@@ -135,6 +135,21 @@ export class HazardSystem implements System {
     return false;
   }
 
+  /** Remove all pests within the given grid positions (pest spray area effect) */
+  removeAreaPests(positions: Array<{ row: number; col: number }>): number {
+    let removed = 0;
+    for (const pest of this.getActivePests()) {
+      for (const pos of positions) {
+        if (pest.x === pos.col && pest.y === pos.row) {
+          pest.updatePestState(PestState.REMOVED);
+          removed++;
+          break;
+        }
+      }
+    }
+    return removed;
+  }
+
   /** Get pest at specific grid position */
   getPestAt(x: number, y: number): Hazard | undefined {
     const pests = this.getActivePests();

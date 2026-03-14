@@ -43,7 +43,7 @@ export class ToolSystem implements System {
     this.saveManager = saveManager;
     this.unlockSystem = unlockSystem;
 
-    this.boundOnMilestoneUnlocked = (data) => this.onMilestoneUnlocked(data);
+    this.boundOnMilestoneUnlocked = () => this.recheckUpgrades();
     this.boundOnPlantHarvested = () => this.recheckUpgrades();
 
     this.initializeToolStates();
@@ -64,7 +64,7 @@ export class ToolSystem implements System {
         maxAvailableTier: ToolTier.BASIC,
       });
     }
-    // TLDR: Non-progressive tools (harvest, remove_pest, remove_weed, compost) are always unlocked
+    // TLDR: Non-progressive tools always unlocked
     const alwaysUnlocked: ToolType[] = [
       ToolType.HARVEST,
       ToolType.REMOVE_PEST,
@@ -130,7 +130,6 @@ export class ToolSystem implements System {
     this.saveToStorage();
   }
 
-  /** TLDR: Get the current value for a condition type from unlock progress */
   private getConditionValue(
     type: 'harvests' | 'runs',
     progress: { plantsHarvested: number; runsCompleted: number },
@@ -145,36 +144,26 @@ export class ToolSystem implements System {
     }
   }
 
-  /** TLDR: Handle milestone unlocked event — recheck all tool states */
-  private onMilestoneUnlocked(_data: { milestoneId: string; milestoneName: string }): void {
-    this.recheckUpgrades();
-  }
+  // -- Public API --
 
-  // ── Public API ─────────────────────────────────────────────────
-
-  /** TLDR: Check if a tool is unlocked */
   isToolUnlocked(type: ToolType): boolean {
     const state = this.toolStates.get(type);
     return state?.unlocked ?? true;
   }
 
-  /** TLDR: Get the current tier of a tool */
   getToolTier(type: ToolType): ToolTier {
     const state = this.toolStates.get(type);
     return state?.currentTier ?? ToolTier.BASIC;
   }
 
-  /** TLDR: Get tier display name */
   getToolTierName(type: ToolType): string {
     return TIER_NAMES[this.getToolTier(type)];
   }
 
-  /** TLDR: Get tier star indicator */
   getToolTierStars(type: ToolType): string {
     return TIER_STARS[this.getToolTier(type)];
   }
 
-  /** TLDR: Get the current tier config for a tool */
   getCurrentTierConfig(type: ToolType): ToolTierConfig | null {
     const progressive = PROGRESSIVE_TOOL_BY_TYPE[type];
     if (!progressive) return null;
@@ -182,35 +171,29 @@ export class ToolSystem implements System {
     return progressive.tiers.find((t) => t.tier === currentTier) ?? progressive.tiers[0];
   }
 
-  /** TLDR: Get the progressive config for a tool */
   getProgressiveConfig(type: ToolType): ProgressiveToolConfig | null {
     return PROGRESSIVE_TOOL_BY_TYPE[type] ?? null;
   }
 
-  /** TLDR: Get the unlock hint for a locked tool */
   getUnlockHint(type: ToolType): string {
     const config = PROGRESSIVE_TOOL_BY_TYPE[type];
     return config?.unlockHint ?? '';
   }
 
-  /** TLDR: Get all tool states */
   getAllToolStates(): Map<ToolType, ToolState> {
     return new Map(this.toolStates);
   }
 
-  /** TLDR: Get the tile offsets for the current tier of a tool */
   getAffectedTiles(type: ToolType): Array<{ dRow: number; dCol: number }> {
     const tierConfig = this.getCurrentTierConfig(type);
     return tierConfig?.affectedTiles ?? [{ dRow: 0, dCol: 0 }];
   }
 
-  /** TLDR: Check if a tool has multiple tiers */
   hasMultipleTiers(type: ToolType): boolean {
     const config = PROGRESSIVE_TOOL_BY_TYPE[type];
     return (config?.tiers.length ?? 0) > 1;
   }
 
-  /** TLDR: Get/set selected tool (persists across days within a run) */
   getSelectedTool(): ToolType | null {
     return this.selectedTool;
   }
@@ -220,17 +203,13 @@ export class ToolSystem implements System {
     this.saveToStorage();
   }
 
-  // ── Trellis helpers ────────────────────────────────────────────
-
-  /** TLDR: Trellis growth boost value from config */
   getTrellisGrowthBoost(): number {
     const tierConfig = this.getCurrentTierConfig(ToolType.TRELLIS);
     return tierConfig?.effectParams['growthBoost'] ?? 0.25;
   }
 
-  // ── Persistence ────────────────────────────────────────────────
+  // -- Persistence --
 
-  /** TLDR: Load tool progression from SaveManager */
   private loadFromStorage(): void {
     if (!this.saveManager) return;
 
@@ -257,7 +236,6 @@ export class ToolSystem implements System {
     }
   }
 
-  /** TLDR: Save tool progression via SaveManager */
   private saveToStorage(): void {
     if (!this.saveManager) return;
 
@@ -280,7 +258,7 @@ export class ToolSystem implements System {
     this.saveManager.saveTools(data);
   }
 
-  // ── System interface ───────────────────────────────────────────
+  // -- System interface --
 
   update(_delta: number): void {
     // No per-frame update needed

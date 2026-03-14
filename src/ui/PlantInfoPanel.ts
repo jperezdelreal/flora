@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Plant, WaterState } from '../entities/Plant';
+import type { SoilTestResult } from '../config/tools';
 
 /**
  * PlantInfoPanel displays detailed information about a plant on hover/click:
@@ -7,6 +8,7 @@ import { Plant, WaterState } from '../entities/Plant';
  * - Growth stage bar (%)
  * - Water status icon (💧/🏜️)
  * - Health bar
+ * Also supports soil tester data display.
  * Positioned near the hovered tile as a tooltip.
  */
 export class PlantInfoPanel {
@@ -19,6 +21,9 @@ export class PlantInfoPanel {
   private healthBar: Graphics;
   private healthBarBg: Graphics;
   private healthText: Text;
+  private soilInfoContainer!: Container;
+  private soilInfoText!: Text;
+  private soilOptimalText!: Text;
 
   constructor() {
     this.container = new Container();
@@ -103,6 +108,34 @@ export class PlantInfoPanel {
     // Health bar fill
     this.healthBar = new Graphics();
     this.container.addChild(this.healthBar);
+
+    // Soil tester info container (hidden by default)
+    this.soilInfoContainer = new Container();
+    this.soilInfoContainer.visible = false;
+
+    const soilBg = new Graphics();
+    soilBg.roundRect(0, 0, 220, 100, 8);
+    soilBg.fill({ color: 0x1a1a1a, alpha: 0.95 });
+    soilBg.stroke({ color: 0x8d6e63, width: 2 });
+    this.soilInfoContainer.addChild(soilBg);
+
+    this.soilInfoText = new Text({
+      text: '',
+      style: { fontFamily: 'Arial', fontSize: 13, fill: '#c8e6c9' },
+    });
+    this.soilInfoText.x = 10;
+    this.soilInfoText.y = 10;
+    this.soilInfoContainer.addChild(this.soilInfoText);
+
+    this.soilOptimalText = new Text({
+      text: '',
+      style: { fontFamily: 'Arial', fontSize: 11, fill: '#aaaaaa', wordWrap: true, wordWrapWidth: 200 },
+    });
+    this.soilOptimalText.x = 10;
+    this.soilOptimalText.y = 50;
+    this.soilInfoContainer.addChild(this.soilOptimalText);
+
+    this.container.addChild(this.soilInfoContainer);
   }
 
   /**
@@ -184,8 +217,31 @@ export class PlantInfoPanel {
     this.container.visible = true;
   }
 
+  /**
+   * Show soil tester results at a position
+   */
+  showSoilTest(data: SoilTestResult, x: number, y: number): void {
+    this.soilInfoContainer.visible = true;
+    this.soilInfoText.text = `🔬 Soil: ${Math.round(data.soilQuality * 100)}%  💧 Moisture: ${Math.round(data.moisture * 100)}%`;
+    this.soilOptimalText.text = `Best plants: ${data.optimalPlants.join(', ')}`;
+
+    let tooltipX = x + 80;
+    let tooltipY = y - 50;
+    if (tooltipX + 220 > 800) tooltipX = x - 240;
+    if (tooltipY < 0) tooltipY = y + 80;
+
+    this.soilInfoContainer.x = tooltipX - this.container.x;
+    this.soilInfoContainer.y = tooltipY - this.container.y;
+    this.container.visible = true;
+  }
+
+  hideSoilTest(): void {
+    this.soilInfoContainer.visible = false;
+  }
+
   hide(): void {
     this.container.visible = false;
+    this.soilInfoContainer.visible = false;
   }
 
   isVisible(): boolean {
