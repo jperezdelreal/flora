@@ -51,6 +51,22 @@ export const COLORS = {
   BLACK: 0x000000,
 } as const;
 
+/** TLDR: UI component color palette */
+export const UI_COLORS = {
+  BUTTON_BG: 0x2c2c2c,
+  BUTTON_BORDER: 0x4a4a4a,
+  BUTTON_HOVER_BG: 0x3c3c3c,
+  BUTTON_HOVER_BORDER: 0x6a6a6a,
+  BUTTON_SELECTED_BG: 0x4a9eff,
+  BUTTON_SELECTED_BORDER: 0x2d7acc,
+  BUTTON_LOCKED_BG: 0x1a1a1a,
+  BUTTON_LOCKED_BORDER: 0x3a3a3a,
+  BUTTON_UNLOCK_HIGHLIGHT: 0x4caf50,
+  BUTTON_UNLOCK_BORDER: 0x66bb6a,
+  TEXT_PRIMARY: '#ffffff',
+  TEXT_DISABLED: '#666666',
+} as const;
+
 /** TLDR: Touch gesture tuning values */
 export const TOUCH = {
   LONG_PRESS_MS: 500,
