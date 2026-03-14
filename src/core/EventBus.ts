@@ -67,6 +67,9 @@ export interface EventMap {
   // Daily challenge events
   'daily:started': { seed: number; dateString: string; modifiers: string[] };
   'daily:scoreSubmitted': { seed: number; score: number; rank: number };
+  // Tool progression events
+  'tool:upgraded': { toolType: string; newTier: number; tierName: string };
+  'tool:unlocked': { toolType: string; toolName: string };
   // TLDR: Touch/responsive events
   'touch:tap': { x: number; y: number };
   'touch:longpress': { x: number; y: number };

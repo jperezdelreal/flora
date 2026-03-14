@@ -11,6 +11,7 @@ import type {
   SettingsSaveData,
   RunHistorySaveData,
   LeaderboardSaveData,
+  ToolProgressionSaveData,
 } from '../config/saveSchema';
 import { loadJSON, saveJSON, isStorageAvailable } from '../utils/storage';
 
@@ -140,6 +141,16 @@ export class SaveManager {
   /** TLDR: Load leaderboard for a specific seed */
   loadLeaderboard(seed: number): LeaderboardSaveData[] | null {
     return this.load<LeaderboardSaveData[]>(`flora_leaderboard_${seed}`);
+  }
+
+  /** TLDR: Save tool progression data */
+  saveTools(data: ToolProgressionSaveData): boolean {
+    return this.save(SAVE_KEYS.TOOLS, data);
+  }
+
+  /** TLDR: Load tool progression data */
+  loadTools(): ToolProgressionSaveData | null {
+    return this.load<ToolProgressionSaveData>(SAVE_KEYS.TOOLS);
   }
 
   // ------ Save-state notifications ------

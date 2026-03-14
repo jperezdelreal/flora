@@ -12,6 +12,9 @@ export enum ToolType {
   REMOVE_PEST = 'remove_pest',
   REMOVE_WEED = 'remove_weed',
   COMPOST = 'compost',
+  PEST_SPRAY = 'pest_spray',
+  SOIL_TESTER = 'soil_tester',
+  TRELLIS = 'trellis',
 }
 
 export interface PlayerState {

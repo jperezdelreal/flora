@@ -11,6 +11,8 @@ export enum SynergyTrait {
   WATER_COMPETITOR = 'water_competitor',
   ALLELOPATHIC = 'allelopathic',
   PEST_ATTRACTOR = 'pest_attractor',
+  // TLDR: Climbing trait — boosted by Trellis tool
+  CLIMBING = 'climbing',
 }
 
 export interface SynergyBonus {

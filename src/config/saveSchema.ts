@@ -14,6 +14,7 @@ export const SAVE_KEYS = {
   ACHIEVEMENTS: 'flora_achievements',
   SETTINGS: 'flora_settings',
   RUN_HISTORY: 'flora_run_history',
+  TOOLS: 'flora_tools',
 } as const;
 
 /** TLDR: Persisted encyclopedia data (discovered plants + timestamps) */
@@ -113,6 +114,13 @@ export interface LeaderboardSaveData {
   seed: number;
 }
 
+/** TLDR: Persisted tool progression (tiers and unlocked tools) */
+export interface ToolProgressionSaveData {
+  toolTiers: Record<string, number>;
+  unlockedTools: string[];
+  selectedTool: string | null;
+}
+
 /** TLDR: Full save file shape — used for validation and migration */
 export interface SaveSchema {
   version: number;
@@ -124,4 +132,5 @@ export interface SaveSchema {
   achievements: AchievementSaveData;
   settings: SettingsSaveData;
   runHistory: RunHistorySaveData[];
+  tools: ToolProgressionSaveData;
 }
