@@ -34,3 +34,15 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Semantic HTML**: index.html now has `<main role="application">`, skip-to-content link, proper landmark structure
 - **Save schema extended**: `SettingsSaveData` interface with `colorVisionMode`, `reducedMotion`, `highContrast` fields; SaveManager has `saveSettings()`/`loadSettings()` helpers
 - **Key files**: `src/utils/objectPool.ts`, `src/core/FPSMonitor.ts`, `src/config/accessibility.ts`, `src/utils/accessibility.ts`, `src/ui/PauseMenu.ts`, `src/main.ts`, `index.html`
+
+### Touch Controls & Mobile Responsiveness (Issue #119)
+- **TouchController**: Gesture recognizer on PixiJS Container — tap, long-press (500ms), drag (10px threshold), pinch-to-zoom (0.5x–2x). Uses PixiJS v8 pointer events for tap/drag/long-press and raw DOM touch events for multi-touch pinch
+- **Pointer abstraction in InputManager**: Added `PointerState` interface (isDown, justPressed, justReleased, x, y, isTouch) via window PointerEvent listeners. Mouse and touch produce identical state. Existing keyboard API untouched
+- **Responsive utilities**: `src/utils/responsive.ts` — viewport breakpoints (320/480/768/1024/1440), `calculateGridScale()` auto-fits grid to any screen, `responsiveFontSize()`, `ensureTouchTarget()` enforces 44px minimum
+- **GardenScene integration**: TouchController on shakeContainer, responsive relayout on window resize, pinch scales gridSystem container, orientation hint auto-shows in portrait on mobile
+- **Haptic feedback**: `navigator.vibrate()` with light/medium/heavy intensity levels. Visual ripple ring animates at touch point
+- **Mobile viewport**: `index.html` updated with `maximum-scale=1.0, user-scalable=no, viewport-fit=cover`, `touch-action: none`, `-webkit-touch-callout: none`
+- **EventBus events**: Added `touch:tap`, `touch:longpress`, `touch:pinch`, `viewport:resized`, `viewport:orientationChanged`
+- **Config**: `TOUCH` constants in `src/config/index.ts` for tuning gesture thresholds
+- **Audio**: `touchstart` listener added to resume AudioContext on mobile
+- **Key files**: `src/core/TouchController.ts`, `src/utils/responsive.ts`, `src/core/InputManager.ts`, `src/scenes/GardenScene.ts`, `src/config/index.ts`, `src/main.ts`, `index.html`
