@@ -219,6 +219,36 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
     swayIntensity: 1.2,
     glowOnMature: true,
   },
+  strawberry: {
+    plantId: 'strawberry',
+    keyframes: KEYFRAMES,
+    matureShape: 'bush',
+    baseColor: 0xef5350,
+    accentColor: 0x66bb6a,
+    detailColor: 0xffcdd2,
+    swayIntensity: 0.7,
+    glowOnMature: false,
+  },
+  sage: {
+    plantId: 'sage',
+    keyframes: KEYFRAMES,
+    matureShape: 'bush',
+    baseColor: 0x78909c,
+    accentColor: 0x90a4ae,
+    detailColor: 0xb0bec5,
+    swayIntensity: 0.6,
+    glowOnMature: false,
+  },
+  watermelon: {
+    plantId: 'watermelon',
+    keyframes: KEYFRAMES,
+    matureShape: 'wide',
+    baseColor: 0x43a047,
+    accentColor: 0xef5350,
+    detailColor: 0x2e7d32,
+    swayIntensity: 0.3,
+    glowOnMature: true,
+  },
 };
 
 export function getPlantVisual(plantId: string): PlantVisualDef | undefined {
