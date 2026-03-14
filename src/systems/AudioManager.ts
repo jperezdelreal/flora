@@ -368,6 +368,13 @@ export class AudioManager {
   getMuteState(): Readonly<typeof this.muted> {
     return { ...this.muted };
   }
+
+  /**
+   * TLDR: Get current volume levels for all channels
+   */
+  getVolumes(): Readonly<{ master: number; sfx: number; ambient: number; music: number }> {
+    return { ...this.volumePreferences };
+  }
   
   /**
    * Cleanup and disconnect audio graph

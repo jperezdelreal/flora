@@ -26,3 +26,23 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Integration notes**: System ready for GardenScene integration; all tools start unlocked by default (MVP behavior)
 - **Milestone thresholds**: Tier 1: 5 plants, Tier 2: 15 plants, Tier 3: 30 plants (tuned for first 10 runs per GDD §7)
 
+### Title Screen & Main Menu (Issue #117, PR #144)
+- **Architecture**: MenuScene implements Scene interface with state machine (title → main → settings → credits)
+- **Pattern**: Layer-based rendering — each menu state has its own Container, toggled via `visible` property
+- **Key file created**:
+  - `src/scenes/MenuScene.ts` — Full menu scene: title screen, main menu, settings panel, credits
+- **Key files updated**:
+  - `src/scenes/BootScene.ts` — Transitions to 'menu' instead of 'seed-selection'
+  - `src/scenes/index.ts` — Exports MenuScene
+  - `src/main.ts` — Imports and registers MenuScene with SaveManager dependency
+  - `src/systems/AudioManager.ts` — Added `getVolumes()` for settings panel to read current levels
+- **Features**:
+  - Title screen with bloom/glow logo, studio credit fade-in, "press any key" prompt
+  - Firefly particles via ParticleSystem reuse (negative gravity, warm colors)
+  - 5 menu items: New Run → SeedSelection, Continue → Garden (grayed if no save), Encyclopedia, Achievements, Settings
+  - Settings: 4 volume sliders (draggable + keyboard), colorblind toggle, credits page
+  - Full keyboard navigation: arrows, Tab, Enter, Esc across all states
+  - Settings persist via SaveManager (SettingsSaveData with colorblindMode)
+- **Conventions applied**: All comments "TLDR:", bound listener cleanup in destroy(), container lifecycle
+- **Note**: Encyclopedia and Achievements menu items are placeholder — scenes not yet registered
+
