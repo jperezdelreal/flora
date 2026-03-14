@@ -56,6 +56,9 @@ export interface EventMap {
   // Accessibility events
   'accessibility:colorVisionChanged': { mode: string; label: string };
   'accessibility:settingsChanged': { setting: string; value: boolean | string };
+  // Daily challenge events
+  'daily:started': { seed: number; dateString: string; modifiers: string[] };
+  'daily:scoreSubmitted': { seed: number; score: number; rank: number };
 }
 
 type EventName = keyof EventMap & string;

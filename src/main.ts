@@ -2,7 +2,7 @@ import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader, FPSMonitor } from './core';
 import { BootScene, GardenScene, MenuScene, SeedSelectionScene } from './scenes';
 import { GAME, SCENES } from './config';
-import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager } from './systems';
+import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem } from './systems';
 import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';
 import { eventBus } from './core/EventBus';
 
@@ -34,12 +34,13 @@ async function main(): Promise<void> {
   // TLDR: Initialize systems for seed selection (with SaveManager persistence)
   const seedSelectionSystem = new SeedSelectionSystem();
   const encyclopediaSystem = new EncyclopediaSystem(saveManager);
+  const dailyChallengeSystem = new DailyChallengeSystem(saveManager);
 
   // Register all scenes
   sceneManager.register(
     new BootScene(),
     new MenuScene(saveManager),
-    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem),
+    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem),
     new GardenScene(saveManager)
   );
 
