@@ -62,3 +62,4 @@ export * from './scoring';
 export * from './animations';
 export * from './structures';
 export * from './accessibility';
+export * from './modifiers';

@@ -9,6 +9,8 @@ import type {
   GardenSaveData,
   AchievementSaveData,
   SettingsSaveData,
+  RunHistorySaveData,
+  LeaderboardSaveData,
 } from '../config/saveSchema';
 import { loadJSON, saveJSON, isStorageAvailable } from '../utils/storage';
 
@@ -118,6 +120,26 @@ export class SaveManager {
   /** TLDR: Load display/accessibility settings */
   loadSettings(): SettingsSaveData | null {
     return this.load<SettingsSaveData>(SAVE_KEYS.SETTINGS);
+  }
+
+  /** TLDR: Save run history entries */
+  saveRunHistory(data: RunHistorySaveData[]): boolean {
+    return this.save(SAVE_KEYS.RUN_HISTORY, data);
+  }
+
+  /** TLDR: Load run history entries */
+  loadRunHistory(): RunHistorySaveData[] | null {
+    return this.load<RunHistorySaveData[]>(SAVE_KEYS.RUN_HISTORY);
+  }
+
+  /** TLDR: Save leaderboard for a specific seed */
+  saveLeaderboard(seed: number, data: LeaderboardSaveData[]): boolean {
+    return this.save(`flora_leaderboard_${seed}`, data);
+  }
+
+  /** TLDR: Load leaderboard for a specific seed */
+  loadLeaderboard(seed: number): LeaderboardSaveData[] | null {
+    return this.load<LeaderboardSaveData[]>(`flora_leaderboard_${seed}`);
   }
 
   // ------ Save-state notifications ------

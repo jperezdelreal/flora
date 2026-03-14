@@ -1,13 +1,14 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { SeedPacketDisplay } from '../ui/SeedPacketDisplay';
+import { ModifierSelector } from '../ui/ModifierSelector';
 import { SeedSelectionSystem, SeedPool } from '../systems/SeedSelectionSystem';
+import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { COLORS, SCENES } from '../config';
-import { PlantConfig } from '../entities/Plant';
 
 /**
- * TLDR: Pre-run seed selection scene
+ * TLDR: Pre-run seed selection scene with daily challenge toggle and modifier cards
  * Displays randomized seed pool for player review before starting garden
  * Provides strategic preview of available plants for run planning
  */
@@ -18,14 +19,19 @@ export class SeedSelectionScene implements Scene {
   private seedPool: SeedPool | null = null;
   private seedSelectionSystem: SeedSelectionSystem;
   private encyclopediaSystem: EncyclopediaSystem;
+  private dailyChallengeSystem: DailyChallengeSystem;
+  private modifierSelector: ModifierSelector | null = null;
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
+  private isDailyMode = false;
 
   constructor(
     seedSelectionSystem: SeedSelectionSystem,
-    encyclopediaSystem: EncyclopediaSystem
+    encyclopediaSystem: EncyclopediaSystem,
+    dailyChallengeSystem: DailyChallengeSystem,
   ) {
     this.seedSelectionSystem = seedSelectionSystem;
     this.encyclopediaSystem = encyclopediaSystem;
+    this.dailyChallengeSystem = dailyChallengeSystem;
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -81,6 +87,10 @@ export class SeedSelectionScene implements Scene {
       runSeed,
     });
 
+    // TLDR: Store the current seed for potential daily override
+    this.dailyChallengeSystem.setSeed(runSeed, false);
+    this.isDailyMode = false;
+
     // Display seed packets
     const packetSpacing = 180;
     const startX = cx - ((this.seedPool.seeds.length - 1) * packetSpacing) / 2;
@@ -94,6 +104,59 @@ export class SeedSelectionScene implements Scene {
       this.container.addChild(packet.getContainer());
       this.seedPackets.push(packet);
     }
+
+    // TLDR: Daily Challenge button
+    const dailyButton = new Graphics();
+    dailyButton.roundRect(0, 0, 260, 44, 10);
+    dailyButton.fill({ color: 0x1a3a1a, alpha: 0.9 });
+    dailyButton.stroke({ color: 0xffd700, width: 2 });
+    dailyButton.x = cx - 130;
+    dailyButton.y = startY + 210;
+    dailyButton.eventMode = 'static';
+    dailyButton.cursor = 'pointer';
+    this.container.addChild(dailyButton);
+
+    const todayStr = DailyChallengeSystem.todayDateString();
+    const dailyLabel = new Text({
+      text: `📅 Today's Challenge — ${todayStr}`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 15,
+        fill: '#ffd700',
+        fontWeight: 'bold',
+        align: 'center',
+      },
+    });
+    dailyLabel.anchor.set(0.5);
+    dailyLabel.x = cx;
+    dailyLabel.y = startY + 232;
+    this.container.addChild(dailyLabel);
+
+    dailyButton.on('pointerdown', () => {
+      this.activateDailyMode(ctx, unlockedPlantIds, cx, startY);
+    });
+
+    // TLDR: Modifier selector cards
+    this.modifierSelector = new ModifierSelector();
+    const modContainer = this.modifierSelector.getContainer();
+    modContainer.x = cx;
+    modContainer.y = startY + 270;
+    this.container.addChild(modContainer);
+
+    // TLDR: Modifier heading
+    const modLabel = new Text({
+      text: 'Run Modifiers (optional)',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 14,
+        fill: '#88d498',
+        align: 'center',
+      },
+    });
+    modLabel.anchor.set(0.5);
+    modLabel.x = cx;
+    modLabel.y = startY + 255;
+    this.container.addChild(modLabel);
 
     // Run seed info (for testing/debugging determinism)
     const runSeedText = new Text({
@@ -135,11 +198,66 @@ export class SeedSelectionScene implements Scene {
     window.addEventListener('keydown', this.boundOnKeyDown);
   }
 
+  /**
+   * TLDR: Switch to daily challenge mode — regenerate pool with daily seed and lock modifiers
+   */
+  private activateDailyMode(
+    _ctx: SceneContext,
+    unlockedPlantIds: string[],
+    cx: number,
+    startY: number,
+  ): void {
+    if (this.isDailyMode) return;
+    this.isDailyMode = true;
+
+    const challenge = this.dailyChallengeSystem.getDailyChallenge();
+    this.dailyChallengeSystem.setSeed(challenge.seed, true);
+    this.dailyChallengeSystem.setActiveModifiers(challenge.modifiers);
+
+    // TLDR: Regenerate pool with daily seed
+    this.seedPool = this.seedSelectionSystem.generatePool(unlockedPlantIds, {
+      minSeeds: 4,
+      maxSeeds: 6,
+      runSeed: challenge.seed,
+    });
+
+    // TLDR: Refresh seed packet visuals
+    for (const pkt of this.seedPackets) {
+      pkt.destroy();
+    }
+    this.seedPackets = [];
+
+    if (this.seedPool) {
+      const packetSpacing = 180;
+      const pStartX = cx - ((this.seedPool.seeds.length - 1) * packetSpacing) / 2;
+      for (let i = 0; i < this.seedPool.seeds.length; i++) {
+        const seed = this.seedPool.seeds[i];
+        const packet = new SeedPacketDisplay(seed);
+        packet.getContainer().x = pStartX + i * packetSpacing;
+        packet.getContainer().y = startY;
+        this.container.addChild(packet.getContainer());
+        this.seedPackets.push(packet);
+      }
+    }
+
+    // TLDR: Set and lock modifiers to daily preset
+    if (this.modifierSelector) {
+      this.modifierSelector.setActiveIds(challenge.modifiers);
+      this.modifierSelector.setLocked(true);
+    }
+  }
+
   private startGarden(ctx: SceneContext): void {
+    // TLDR: Apply selected modifiers before transitioning
+    if (this.modifierSelector && !this.isDailyMode) {
+      this.dailyChallengeSystem.setActiveModifiers(
+        this.modifierSelector.getActiveIds(),
+      );
+    }
+
     // Store seed pool for garden scene to access
     if (this.seedPool) {
-      // TODO: Pass seed pool to GardenScene via shared state or event
-      // For now, seeds are available via SeedSelectionSystem.getCurrentPool()
+      // TLDR: Seeds available via SeedSelectionSystem.getCurrentPool()
     }
 
     ctx.sceneManager.transitionTo(SCENES.GARDEN, { duration: 0.6 }).catch(console.error);
@@ -162,6 +280,11 @@ export class SeedSelectionScene implements Scene {
       packet.destroy();
     }
     this.seedPackets = [];
+
+    if (this.modifierSelector) {
+      this.modifierSelector.destroy();
+      this.modifierSelector = null;
+    }
 
     this.container.destroy({ children: true });
   }
