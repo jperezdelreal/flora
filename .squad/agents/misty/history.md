@@ -4,6 +4,30 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Plant Growth Animations System (Issue #197, PR #207)
+- **Architecture**: Per-plant visual definitions in `src/config/plantVisuals.ts` define unique appearances for all 22 plant types
+- **Pattern**: Keyframe-based animation with smooth interpolation (scale, alpha, saturation, yOffset) between growth stages
+- **Key file created**:
+  - `src/config/plantVisuals.ts` — Visual definitions with shape types (circle/oval/flower/star/bush/root/tall/wide), colors, and growth keyframes
+- **Key file updated**:
+  - `src/scenes/GardenScene.ts` — Replaced simple circle rendering with shape-specific draw functions (drawFlower, drawStar, drawBush, drawRoot, drawEllipse)
+- **Rendering approach**: Procedural PixiJS Graphics shapes (no sprite assets needed for MVP)
+  - Each plant shape type has custom drawing logic (petals for flowers, clusters for bushes, fronds for roots)
+  - Health-based color desaturation applied via `adjustColorForHealth()` for wilting effect
+  - Accessibility palette integration via `adjustColorForAccessibility()`
+- **Animation details**:
+  - Growth stage transitions use elasticOut easing with per-plant overshoot based on `swayIntensity`
+  - Idle sway applies sine-wave rotation with per-plant intensity multiplier (0.4–1.8x)
+  - Alpha transitions fade in plants as they grow
+  - Health cache tracks changes and refreshes visuals when health drops >5% (prevents per-frame redraw)
+- **Conventions applied**: All comments "TLDR:", lowercase GrowthStage enum values used in Record types
+- **Performance optimization**: Health change detection uses cached values to avoid redrawing every frame
+- **22 plant visual identities**:
+  - Common: tomato (circle), lettuce (wide), carrot (root), radish (root), pea (tall)
+  - Uncommon: sunflower (flower), mint (bush), pepper (oval), basil (bush), cucumber (oval), blueberry (bush)
+  - Rare: frost_willow (tall), lavender (flower), orchid (flower), venus_flytrap (star)
+  - Heirloom: heirloom_squash (wide), golden_marigold (flower), ghost_pepper (oval), moonflower (flower)
+
 ### Event Listener Cleanup Pattern (PR #25 review fix)
 - **Architecture**: Scenes must clean up their own event listeners in `destroy()` to prevent accumulation on scene transitions
 - **Pattern**: Store bound function reference as class field (e.g., `private boundOnKeyDown: (e: KeyboardEvent) => void`), use it in `addEventListener`, and `removeEventListener` in `destroy()`
