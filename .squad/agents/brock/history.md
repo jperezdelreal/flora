@@ -46,3 +46,11 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Config**: `TOUCH` constants in `src/config/index.ts` for tuning gesture thresholds
 - **Audio**: `touchstart` listener added to resume AudioContext on mobile
 - **Key files**: `src/core/TouchController.ts`, `src/utils/responsive.ts`, `src/core/InputManager.ts`, `src/scenes/GardenScene.ts`, `src/config/index.ts`, `src/main.ts`, `index.html`
+
+### GameLoop dt Units Fix (2026-03-14)
+- **Bug:** GameLoop sends dt as seconds (1/60 ≈ 0.01667), but MenuScene, GardenScene.updateVisuals, AnimationSystem, and ParticleSystem all divided by 60 again, making timing 60x too slow
+- **Root cause:** Systems assumed dt was frame-based (1.0 per frame) and converted to seconds manually. But GameLoop.fixedDt is already in seconds.
+- **Fix:** Removed `/ 60` in MenuScene.ts:642, GardenScene.ts:1679, AnimationSystem.ts:108, ParticleSystem.ts:159
+- **Impact:** Title screen was blank (alpha animations never completed in reasonable time), particles barely moved, screen shake and sky lerp were imperceptible
+- **Convention:** dt from GameLoop is ALWAYS in seconds. Never divide by 60.
+- **Key files:** src/core/GameLoop.ts (source of truth for dt units), src/scenes/MenuScene.ts, src/scenes/GardenScene.ts, src/systems/AnimationSystem.ts, src/systems/ParticleSystem.ts
