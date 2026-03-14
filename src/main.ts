@@ -25,6 +25,7 @@ async function main(): Promise<void> {
 
   // TLDR: Initialize audio system (requires user interaction to resume AudioContext)
   audioManager.init(saveManager);
+  audioManager.setupEventListeners();
 
   // Core systems
   const input = new InputManager();

@@ -13,6 +13,7 @@
 
 import { AUDIO, type SFXType } from '../config/audio';
 import type { SaveManager } from './SaveManager';
+import { eventBus } from '../core/EventBus';
 
 export class AudioManager {
   private ctx: AudioContext | null = null;
@@ -96,6 +97,20 @@ export class AudioManager {
     this.musicBus = this.ctx.createGain();
     this.musicBus.gain.value = this.volumePreferences.music;
     this.musicBus.connect(this.masterGain);
+  }
+  
+  /**
+   * Set up EventBus listeners for game events
+   */
+  setupEventListeners(): void {
+    // Plant lifecycle events
+    eventBus.on('plant:created', () => this.playSFX('PLANT'));
+    eventBus.on('plant:watered', () => this.playSFX('WATER'));
+    eventBus.on('plant:harvested', () => this.playSFX('HARVEST'));
+    eventBus.on('plant:died', () => this.playSFX('WILT'));
+    
+    // Hazard events
+    eventBus.on('pest:spawned', () => this.playSFX('PEST_APPEAR'));
   }
   
   /**
