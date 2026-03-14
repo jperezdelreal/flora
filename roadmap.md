@@ -25,7 +25,7 @@ Prioritized by strategic impact (highest first).
 
 ---
 
-## 1. [ ] Encyclopedia & Achievements Standalone Scenes
+## 1. [~] Encyclopedia & Achievements Standalone Scenes *(Sprint 2: #215, #216)*
    - Create EncyclopediaScene as a full scene (not just GardenScene overlay) accessible from main menu
    - Create AchievementsScene as a full scene accessible from main menu with gallery, progress stats, and reward previews
    - Wire MenuScene placeholder buttons (`case 'encyclopedia': break;` and `case 'achievements': break;`) to navigate to these scenes via SceneManager
@@ -38,7 +38,7 @@ Prioritized by strategic impact (highest first).
    - Acceptance: Both menu buttons navigate to functional scenes; Encyclopedia shows all 22 plants with correct discovery state; Achievements shows all 12 achievements with correct unlock state; back navigation works; keyboard + touch accessible; no save data side effects from browsing
    - Files: new src/scenes/EncyclopediaScene.ts, new src/scenes/AchievementsScene.ts, src/scenes/MenuScene.ts (wire navigation), src/scenes/index.ts, src/main.ts (register scenes), src/ui/Encyclopedia.ts (refactor for reuse), src/ui/AchievementGallery.ts (refactor for reuse)
 
-## 2. [ ] Weed & Compost Gameplay Loop
+## 2. [~] Weed & Compost Gameplay Loop *(Sprint 2: #217)*
    - Implement WeedSystem: weeds spawn randomly on empty tiles (configurable frequency, increasing with season progression), occupy planting space, slow adjacent plant growth by 15%, spread to neighboring empty tiles if left unattended for 2+ days
    - Player action: remove weed (click/tap, costs 1 action) or ignore (free compost source later)
    - Weed entity with states: SPROUTING → ESTABLISHED → SPREADING
@@ -53,7 +53,7 @@ Prioritized by strategic impact (highest first).
    - Acceptance: Weeds spawn during tending phase; removal costs action; compost cycle functional (dead plant → compost → soil boost); weed spread creates urgency without frustration; 2+ new achievements; tutorial hints fire; events emitted for scoring integration
    - Files: new src/systems/WeedSystem.ts, new src/entities/Weed.ts, new src/config/weeds.ts, src/config/tools.ts (add Compost tool), src/systems/PlantSystem.ts (compost interaction), src/entities/Tile.ts (weed state), src/scenes/GardenScene.ts (wire WeedSystem), src/ui/ToolBar.ts (Compost tool), src/config/achievements.ts (new achievements), src/core/EventBus.ts (new events)
 
-## 3. [ ] Tool Progression & Advanced Tools
+## 3. [~] Tool Progression & Advanced Tools *(Sprint 2: #218)*
    - Implement tool upgrade system: tools have tiers (Basic → Improved → Advanced) with increasing effectiveness
    - Watering Can tiers: Basic (1 tile), Improved (cross pattern — 5 tiles, unlocked at 15 harvests), Advanced (3×3 area — 9 tiles, unlocked at 40 harvests)
    - Pest Spray tool: removes pest from target tile + adjacent tiles (unlocked at 10 runs), replaces manual 1-at-a-time pest removal
@@ -68,7 +68,7 @@ Prioritized by strategic impact (highest first).
    - Acceptance: 3 watering can tiers functional; Pest Spray clears area; Soil Tester shows tile info; Trellis boosts climbing plants; all tools unlock at correct milestones; ToolBar reflects locked/unlocked/tier state; unlocks persist across sessions; no regression in existing tool behavior
    - Files: src/config/tools.ts (expanded tool definitions), new src/systems/ToolSystem.ts, src/systems/PlantSystem.ts (tool effect integration), src/systems/HazardSystem.ts (pest spray interaction), src/ui/ToolBar.ts (tiers + locked display), src/ui/PlantInfoPanel.ts (soil tester info), src/systems/UnlockSystem.ts (tool milestones), src/config/unlocks.ts (new milestones), src/scenes/GardenScene.ts (wire ToolSystem), src/config/plants.ts (climbing trait for trellis)
 
-## 4. [ ] Procedural Garden Visuals
+## 4. [~] Procedural Garden Visuals *(Sprint 2: #219, #220)*
    - Replace PixiJS primitive shapes with procedural plant sprites: each plant type gets a unique visual generated from configurable parameters (stem shape, leaf pattern, flower/fruit shape, color palette)
    - Growth stage visuals: seed (small mound), sprout (tiny stem + cotyledon), growing (stem + leaves, increasing size), mature (full plant with fruit/flower, glow effect)
    - Seasonal color shifts applied to all garden elements: spring pastels, summer gold, fall warm oranges, winter cool blues (reference GDD §8 palette specifications)

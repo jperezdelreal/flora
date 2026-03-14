@@ -648,6 +648,9 @@ export class GardenScene implements Scene {
     // Apply seasonal palette (soil color, ambient particles)
     this.applySeason(false);
 
+    // Start ambient audio loop
+    audioManager.startAmbient();
+
     // Initial render
     this.gridSystem.update();
     this.updateStatusText();

@@ -75,3 +75,13 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Deferred to Phase 5:** Second garden plot (GDD §7 Unlock C at 50 runs), rest mechanic (GDD §3), player character sprite, cloud sync, bundle optimization, reduced motion per-system opt-in, high contrast visual implementation.
 - **Files involved:** roadmap.md (rewritten), 6 GitHub issues created, .squad/decisions/inbox/oak-phase4-roadmap.md (created).
 - **Issue:** #161 closed.
+
+### Sprint 2 Planning (2025-07-25)
+- **Context:** Sprint 1 "Wow Factor and Deploy" fully delivered (7/7 issues closed: #197, #199, #200, #202, #203, #204, #205). Board was empty. Ralph triggered automated sprint planning ceremony.
+- **Sprint 2 theme:** "Depth & Identity" — gameplay depth (weeds, tools) + visual identity (procedural rendering) + UX completion (encyclopedia/achievements scenes).
+- **Scope:** 7 issues covering 4 of 6 Phase 4 roadmap items (§1-§4). §5 Cosmetic Rewards and §6 Season Selection deferred to Sprint 3.
+- **Team allocation:** Misty (#215, #216 — Encyclopedia + Achievements scenes), Erika (#217, #218 — WeedSystem + ToolSystem), Sabrina (#219, #220 — PlantRenderer + TileRenderer), Brock (#221 — SpriteCache + pool integration + audio SFX).
+- **Key coordination points:** Brock's SpriteCache (#221) ideally lands before Sabrina's renderers (#219, #220). Erika's WeedSystem (#217) and ToolSystem (#218) share tools.ts for Compost tool. Misty's scenes (#215, #216) are fully independent.
+- **Deferred to Sprint 3:** Cosmetic Reward Application (depends on AchievementsScene #216), Season Selection & Run Variety.
+- **Meta issue:** #223.
+- **Files updated:** roadmap.md (§1-§4 marked as in-progress with sprint references).
