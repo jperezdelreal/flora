@@ -277,7 +277,7 @@ export class MenuScene implements Scene {
     navHint.y = this.screenHeight - 30;
     this.mainMenuLayer.addChild(navHint);
 
-    const version = new Text({ text: 'v0.1.0 — Sprint 0', style: { fontFamily: 'Courier New, monospace', fontSize: 11, fill: '#3a5a3a', align: 'center' } });
+    const version = new Text({ text: 'Flora', style: { fontFamily: 'Courier New, monospace', fontSize: 11, fill: '#3a5a3a', align: 'center' } });
     version.anchor.set(0.5);
     version.x = cx;
     version.y = this.screenHeight - 12;

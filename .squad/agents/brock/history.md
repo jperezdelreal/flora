@@ -76,3 +76,9 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Already complete**: AudioManager has full Web Audio API synthesis (ambient loop + 5 SFX), GardenScene has complete event-driven SFX integration via EventBus
 - **Key files**: src/scenes/MenuScene.ts, src/scenes/SeedSelectionScene.ts, src/systems/AudioManager.ts (unchanged)
 
+### Clean Up Redundant Dev UI (Issue #243, PR #254)
+- **Removed**: `infoText` (developer instruction text), `helpText` (HUD-duplicated stats), standalone `encyclopediaButton` + `encyclopediaButtonText` from GardenScene
+- **Updated**: MenuScene version label from stale "v0.1.0 — Sprint 0" to "Flora"
+- **Kept**: `showActionMessage()` and `updateInfoText()` as no-op stubs to avoid breaking callers; encyclopedia still accessible via PauseMenu + MenuScene
+- **Key files**: src/scenes/GardenScene.ts, src/scenes/MenuScene.ts
+
