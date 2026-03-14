@@ -51,6 +51,29 @@ export const AUDIO = {
       alertFreq: 1800,
       whooshFreq: 400,
     },
+    WEED_PULL: {
+      type: 'weed_pull' as const,
+      duration: 0.15,
+      noiseFilterFreq: 800,
+    },
+    COMPOST_SPREAD: {
+      type: 'compost_spread' as const,
+      duration: 0.2,
+      noiseFilterFreq: 600,
+      sineFreq: 120,
+    },
+    TOOL_UPGRADE: {
+      type: 'tool_upgrade' as const,
+      duration: 0.4,
+      frequencies: [523.25, 659.25, 783.99], // C5, E5, G5
+      noteSpacing: 0.12,
+    },
+    TOOL_UNLOCK: {
+      type: 'tool_unlock' as const,
+      duration: 0.5,
+      frequencies: [523.25, 659.25, 783.99, 1046.5], // C5, E5, G5, C6
+      noteSpacing: 0.1,
+    },
   },
 } as const;
 
