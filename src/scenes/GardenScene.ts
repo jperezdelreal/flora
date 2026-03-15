@@ -1177,6 +1177,12 @@ export class GardenScene implements Scene {
       return;
     }
 
+    // TLDR: Route harvest through PlantSystem so plant:harvested event fires
+    if (selectedTool === ToolType.HARVEST) {
+      this.handleHarvestAction();
+      return;
+    }
+
     const result = this.playerSystem.executeToolAction();
     if (result) {
       this.showActionMessage(result.message);
@@ -1245,6 +1251,50 @@ export class GardenScene implements Scene {
 
       this.gridSystem.update();
     }
+  }
+
+  /**
+   * TLDR: Harvest a mature plant via PlantSystem so plant:harvested event fires
+   */
+  private handleHarvestAction(): { success: boolean; message: string } {
+    const pos = this.player.getGridPosition();
+    if (!this.player.hasActionsRemaining()) {
+      this.showActionMessage('No actions remaining');
+      return { success: false, message: 'No actions remaining' };
+    }
+
+    const result = this.plantSystem.harvestPlant(pos.col, pos.row);
+    if (!result.success) {
+      const msg = result.plantId ? 'Plant is not ready to harvest' : 'No plant to harvest here';
+      this.showActionMessage(msg);
+      return { success: false, message: msg };
+    }
+
+    // Clear the tile
+    const tile = this.grid.getTile(pos.row, pos.col);
+    if (tile) tile.state = TileState.EMPTY;
+
+    // Track harvested seeds for results screen
+    const prev = this.harvestedSeeds.get(result.plantId) || 0;
+    this.harvestedSeeds.set(result.plantId, prev + result.seeds);
+
+    this.player.consumeAction();
+    eventBus.emit('action:consumed', {
+      actionsRemaining: this.player.getActionsRemaining(),
+      maxActions: this.player.getMaxActions(),
+    });
+
+    const msg = `Harvested! Got ${result.seeds} seeds`;
+    this.showActionMessage(msg);
+
+    // TLDR: Auto-advance day when no actions remain
+    if (!this.player.hasActionsRemaining()) {
+      this.player.advanceDay();
+      this.onDayAdvance();
+    }
+
+    this.gridSystem.update();
+    return { success: true, message: msg };
   }
 
   private onDayAdvance(): void {
@@ -2430,6 +2480,12 @@ export class GardenScene implements Scene {
       if (!tile || !tile.isEmpty()) return { success: false, message: 'Tile not empty' };
       this.handleSeedPlanting();
       return { success: true, message: 'Planted seed' };
+    }
+
+    // TLDR: Route harvest through PlantSystem so plant:harvested event fires
+    if (selectedTool === ToolType.HARVEST) {
+      const harvestResult = this.handleHarvestAction();
+      return harvestResult;
     }
 
     const result = this.playerSystem.executeToolAction();
