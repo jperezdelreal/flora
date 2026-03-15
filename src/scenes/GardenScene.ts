@@ -16,7 +16,7 @@ import { SynergySystem } from '../systems/SynergySystem';
 import { UnlockSystem } from '../systems/UnlockSystem';
 import { ToolSystem } from '../systems/ToolSystem';
 import type { ToolTier } from '../config/tools';
-import { TOOL_BY_TYPE } from '../config/tools';
+import { TOOL_BY_TYPE, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS } from '../config/tools';
 import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
@@ -25,8 +25,8 @@ import { PlantRenderer } from '../systems/PlantRenderer';
 import { TileRenderer } from '../systems/TileRenderer';
 import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
-import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
-import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
+import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery, ToolUpgradeNotification } from '../ui';
+import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase, ToolUpgradeData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
 import { GAME, TOUCH, SCENES, COLORS, UI_COLORS } from '../config';
@@ -91,6 +91,8 @@ export class GardenScene implements Scene {
   private achievementSystem!: AchievementSystem;
   private achievementNotification!: AchievementNotification;
   private achievementGallery!: AchievementGallery;
+  // TLDR: Tool upgrade notification (#317)
+  private toolUpgradeNotification!: ToolUpgradeNotification;
   private weedSystem!: WeedSystem;
   
   // TLDR: Save system integration
@@ -287,7 +289,7 @@ export class GardenScene implements Scene {
     this.container.addChild(this.playerSystem.getContainer());
 
     // Initialize tool bar
-    this.toolBar = new ToolBar(this.toolSystem);
+    this.toolBar = new ToolBar(this.toolSystem, this.unlockSystem);
     this.toolBar.position(
       ctx.app.screen.width / 2 - 135,
       ctx.app.screen.height - 100,
@@ -316,6 +318,30 @@ export class GardenScene implements Scene {
     });
     this.listenTo('tool:upgraded', (data) => {
       this.toolBar.updateToolTier(data.toolType as ToolType, data.newTier as ToolTier);
+      // TLDR: Show upgrade notification + celebration particles (#317)
+      const toolConfig = TOOL_BY_TYPE[data.toolType as ToolType];
+      const progressive = PROGRESSIVE_TOOL_BY_TYPE[data.toolType as ToolType];
+      const tierConfig = progressive?.tiers.find(t => t.tier === data.newTier);
+      if (toolConfig) {
+        const upgradeData: ToolUpgradeData = {
+          toolName: toolConfig.displayName,
+          toolIcon: toolConfig.icon,
+          newTier: data.newTier as ToolTier,
+          tierName: data.tierName,
+          description: tierConfig?.description ?? `${data.tierName} tier unlocked!`,
+        };
+        this.toolUpgradeNotification.show(upgradeData);
+        // TLDR: Celebration particle burst at screen center
+        this.particleSystem.burst({
+          x: ctx.app.screen.width / 2,
+          y: 120,
+          count: ANIMATION.TOOL_UPGRADE_PARTICLE_COUNT,
+          speed: ANIMATION.TOOL_UPGRADE_PARTICLE_SPEED,
+          lifetime: ANIMATION.TOOL_UPGRADE_PARTICLE_LIFETIME,
+          colors: [0xffc857, 0xffd97d, 0xffe0a0],
+          size: ANIMATION.TOOL_UPGRADE_PARTICLE_SIZE,
+        });
+      }
     });
     
     // TLDR: Wire action consumed event to HUD flash animation (#250)
@@ -526,6 +552,11 @@ export class GardenScene implements Scene {
     this.achievementSystem.onUnlock((config) => {
       this.achievementNotification.show(config);
     });
+
+    // TLDR: Tool upgrade notification popup (#317)
+    this.toolUpgradeNotification = new ToolUpgradeNotification();
+    this.toolUpgradeNotification.setPosition(ctx.app.screen.width, ctx.app.screen.height);
+    this.container.addChild(this.toolUpgradeNotification.getContainer());
 
     // TLDR: Achievement gallery — clamped positioning for small screens (BUG-010)
     this.achievementGallery = new AchievementGallery();
@@ -1568,6 +1599,9 @@ export class GardenScene implements Scene {
 
     // TLDR: Update achievement notification animation
     this.achievementNotification.update(delta * 1000);
+
+    // TLDR: Update tool upgrade notification animation (#317)
+    this.toolUpgradeNotification.update(delta * 1000);
 
     // TLDR: Update hazard UI based on weather system status
     const droughtInfo = this.weatherSystem.getDroughtInfo();
@@ -2741,6 +2775,7 @@ export class GardenScene implements Scene {
     this.tutorialOverlay.destroy();
     this.achievementSystem.destroy();
     this.achievementNotification.destroy();
+    this.toolUpgradeNotification.destroy();
     this.achievementGallery.destroy();
     this.plants.clear();
     this.shakeContainer.destroy({ children: true });

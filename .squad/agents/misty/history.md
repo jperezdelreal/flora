@@ -4,6 +4,17 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Progressive Tool Tier Unlocks + Visual Preview (Issue #317, PR #323)
+- **#317**: Tool progression now visible to players — tier stars, hover tooltips, upgrade notifications
+- **New file**: `src/ui/ToolUpgradeNotification.ts` — Toast-style notification with bouncy scale entrance (easeOutBack), queue support, golden border
+- **ToolBar.ts enhancements**: Added hover tier tooltip showing current tier benefits + next tier progress + next tier preview; passes `UnlockSystem` to get live progress; enhanced `playUpgradeAnimation` with scale bounce
+- **GardenScene.ts wiring**: `tool:upgraded` event triggers ToolUpgradeNotification.show() + ParticleSystem.burst() with golden particles; notification updated each frame
+- **10 new constants** in `src/config/animations.ts`: TOOL_UPGRADE_TOAST_*, TOOL_UPGRADE_PARTICLE_*, TOOL_TOOLTIP_*
+- **Key pattern**: ToolBar constructor now accepts optional `UnlockSystem` to query progress for tooltip display (`getProgress().plantsHarvested / runsCompleted`)
+- **Convention**: All colors from config constants, all comments "TLDR:"
+
+## Learnings
+
 ### Season-End Pacing + Menu Nav Verification (Issues #307 + #308, PR #310)
 - **#307**: Menu navigation already fixed — `MenuScene.ts:632-633` properly calls `transitionTo(SCENES.ENCYCLOPEDIA/ACHIEVEMENTS)`. No code change needed.
 - **#308**: Season-end pacing enhancements:

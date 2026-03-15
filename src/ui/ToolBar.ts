@@ -1,9 +1,10 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { ToolType } from '../entities/Player';
-import { ALL_TOOLS, CORE_TOOLS, ADVANCED_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier, type ToolConfig } from '../config/tools';
+import { ALL_TOOLS, CORE_TOOLS, ADVANCED_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier, type ToolConfig, type ToolTierConfig } from '../config/tools';
 import { ANIMATION } from '../config/animations';
 import { UI_COLORS } from '../config';
 import type { ToolSystem } from '../systems/ToolSystem';
+import type { UnlockSystem } from '../systems/UnlockSystem';
 
 export class ToolBar {
   private container: Container;
@@ -23,13 +24,22 @@ export class ToolBar {
   private unlockedTools: Set<ToolType> = new Set();
   private onToolSelect?: (tool: ToolType | null) => void;
   private toolSystem?: ToolSystem;
+  private unlockSystem?: UnlockSystem;
   private advancedExpanded = false;
+  // TLDR: Tier tooltip container shown on hover (#317)
+  private tierTooltip: Container;
+  private tierTooltipBg: Graphics;
+  private tierTooltipTitle: Text;
+  private tierTooltipDesc: Text;
+  private tierTooltipProgress: Text;
+  private tierTooltipNext: Text;
 
-  constructor(toolSystem?: ToolSystem) {
+  constructor(toolSystem?: ToolSystem, unlockSystem?: UnlockSystem) {
     this.container = new Container();
     this.coreContainer = new Container();
     this.advancedContainer = new Container();
     this.toolSystem = toolSystem;
+    this.unlockSystem = unlockSystem;
     if (toolSystem) {
       for (const tool of ALL_TOOLS) {
         if (toolSystem.isToolUnlocked(tool.type)) this.unlockedTools.add(tool.type);
@@ -39,7 +49,27 @@ export class ToolBar {
     }
     this.expandButton = new Graphics();
     this.expandText = new Text({ text: '\u25b8 More', style: { fontSize: 11, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' } });
+
+    // TLDR: Initialize tier tooltip (#317)
+    this.tierTooltip = new Container();
+    this.tierTooltip.visible = false;
+    this.tierTooltipBg = new Graphics();
+    this.tierTooltip.addChild(this.tierTooltipBg);
+    this.tierTooltipTitle = new Text({ text: '', style: { fontFamily: 'Arial', fontSize: 13, fill: UI_COLORS.TEXT_TIER_STAR, fontWeight: 'bold', wordWrap: true, wordWrapWidth: ANIMATION.TOOL_TOOLTIP_WIDTH - ANIMATION.TOOL_TOOLTIP_PADDING * 2 } });
+    this.tierTooltipTitle.x = ANIMATION.TOOL_TOOLTIP_PADDING; this.tierTooltipTitle.y = ANIMATION.TOOL_TOOLTIP_PADDING;
+    this.tierTooltip.addChild(this.tierTooltipTitle);
+    this.tierTooltipDesc = new Text({ text: '', style: { fontFamily: 'Arial', fontSize: 11, fill: UI_COLORS.TEXT_PRIMARY, wordWrap: true, wordWrapWidth: ANIMATION.TOOL_TOOLTIP_WIDTH - ANIMATION.TOOL_TOOLTIP_PADDING * 2 } });
+    this.tierTooltipDesc.x = ANIMATION.TOOL_TOOLTIP_PADDING; this.tierTooltipDesc.y = 30;
+    this.tierTooltip.addChild(this.tierTooltipDesc);
+    this.tierTooltipProgress = new Text({ text: '', style: { fontFamily: 'Arial', fontSize: 11, fill: UI_COLORS.TEXT_HINT, wordWrap: true, wordWrapWidth: ANIMATION.TOOL_TOOLTIP_WIDTH - ANIMATION.TOOL_TOOLTIP_PADDING * 2 } });
+    this.tierTooltipProgress.x = ANIMATION.TOOL_TOOLTIP_PADDING; this.tierTooltipProgress.y = 52;
+    this.tierTooltip.addChild(this.tierTooltipProgress);
+    this.tierTooltipNext = new Text({ text: '', style: { fontFamily: 'Arial', fontSize: 11, fill: '#a8e6a0', wordWrap: true, wordWrapWidth: ANIMATION.TOOL_TOOLTIP_WIDTH - ANIMATION.TOOL_TOOLTIP_PADDING * 2 } });
+    this.tierTooltipNext.x = ANIMATION.TOOL_TOOLTIP_PADDING; this.tierTooltipNext.y = 74;
+    this.tierTooltip.addChild(this.tierTooltipNext);
+
     this.initializeToolBar();
+    this.container.addChild(this.tierTooltip);
   }
 
   private initializeToolBar(): void {
@@ -68,8 +98,8 @@ export class ToolBar {
     const bw = 80, bh = 80, bc = new Container();
     const btn = new Graphics(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); btn.eventMode = 'static'; btn.cursor = 'pointer';
     btn.on('pointerdown', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_CLICK_SCALE); setTimeout(() => bc.scale.set(1), ANIMATION.BUTTON_BOUNCE_DURATION * 1000); this.selectTool(tool.type); } });
-    btn.on('pointerover', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_HOVER_SCALE); btn.clear(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_HOVER_BG }); btn.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 }); } const h = this.toolHintTexts.get(tool.type); if (h && !this.unlockedTools.has(tool.type)) h.visible = true; });
-    btn.on('pointerout', () => { bc.scale.set(1); if (this.selectedTool !== tool.type) this.updateButtonAppearance(tool.type); const h = this.toolHintTexts.get(tool.type); if (h) h.visible = false; });
+    btn.on('pointerover', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_HOVER_SCALE); btn.clear(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_HOVER_BG }); btn.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 }); this.showTierTooltip(tool.type, bc); } const h = this.toolHintTexts.get(tool.type); if (h && !this.unlockedTools.has(tool.type)) h.visible = true; });
+    btn.on('pointerout', () => { bc.scale.set(1); if (this.selectedTool !== tool.type) this.updateButtonAppearance(tool.type); const h = this.toolHintTexts.get(tool.type); if (h) h.visible = false; this.tierTooltip.visible = false; });
     bc.addChild(btn); this.toolButtons.set(tool.type, btn);
     const ic = new Text({ text: tool.icon, style: { fontSize: 36, align: 'center' } }); ic.anchor.set(0.5); ic.x = bw / 2; ic.y = bh / 2 - 16; bc.addChild(ic); this.toolIcons.set(tool.type, ic);
     const lk = new Text({ text: '\ud83d\udd12', style: { fontSize: 28, align: 'center' } }); lk.anchor.set(0.5); lk.x = bw / 2; lk.y = bh / 2 - 14; lk.visible = false; bc.addChild(lk); this.toolLockIcons.set(tool.type, lk);
@@ -131,8 +161,74 @@ export class ToolBar {
   }
 
   private playUpgradeAnimation(tool: ToolType): void {
-    const btn = this.toolButtons.get(tool); if (!btn) return; let c = 0;
-    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 4) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 250);
+    const btn = this.toolButtons.get(tool), bc = this.toolButtonContainers.get(tool); if (!btn) return; let c = 0;
+    // TLDR: Scale bounce celebration on upgrade (#317)
+    if (bc) { bc.scale.set(1.2); setTimeout(() => { if (bc) bc.scale.set(1); }, 300); }
+    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 250);
+  }
+
+  // TLDR: Show tier tooltip on hover with current benefits + next tier info (#317)
+  private showTierTooltip(tool: ToolType, buttonContainer: Container): void {
+    if (!this.toolSystem) { this.tierTooltip.visible = false; return; }
+    const progressive = this.toolSystem.getProgressiveConfig(tool);
+    if (!progressive || progressive.tiers.length <= 1) { this.tierTooltip.visible = false; return; }
+
+    const currentTier = this.toolSystem.getToolTier(tool);
+    const currentTierConfig = this.toolSystem.getCurrentTierConfig(tool);
+    const stars = TIER_STARS[currentTier];
+
+    // TLDR: Title with stars
+    this.tierTooltipTitle.text = `${stars} ${currentTierConfig?.displayName ?? progressive.name}`;
+
+    // TLDR: Current tier description
+    this.tierTooltipDesc.text = currentTierConfig?.description ?? '';
+
+    // TLDR: Find next tier and show progress
+    const nextTier = progressive.tiers.find((t: ToolTierConfig) => t.tier > currentTier);
+    if (nextTier && nextTier.unlockCondition) {
+      const progress = this.unlockSystem?.getProgress();
+      const currentValue = this.getProgressValue(nextTier.unlockCondition.type, progress);
+      const threshold = nextTier.unlockCondition.threshold;
+      const label = nextTier.unlockCondition.type === 'harvests' ? 'harvests' : 'runs';
+      this.tierTooltipProgress.text = `Progress: ${currentValue}/${threshold} ${label}`;
+      this.tierTooltipNext.text = `Next: ${nextTier.displayName} — ${nextTier.description}`;
+      this.tierTooltipNext.visible = true;
+      this.tierTooltipProgress.visible = true;
+    } else {
+      this.tierTooltipProgress.text = currentTier === ToolTier.ADVANCED ? 'Max tier reached!' : '';
+      this.tierTooltipProgress.visible = currentTier === ToolTier.ADVANCED;
+      this.tierTooltipNext.text = '';
+      this.tierTooltipNext.visible = false;
+    }
+
+    // TLDR: Compute tooltip height from content
+    const lastVisibleY = this.tierTooltipNext.visible
+      ? this.tierTooltipNext.y + this.tierTooltipNext.height
+      : this.tierTooltipProgress.visible
+        ? this.tierTooltipProgress.y + this.tierTooltipProgress.height
+        : this.tierTooltipDesc.y + this.tierTooltipDesc.height;
+    const tooltipH = lastVisibleY + ANIMATION.TOOL_TOOLTIP_PADDING;
+
+    this.tierTooltipBg.clear();
+    this.tierTooltipBg.roundRect(0, 0, ANIMATION.TOOL_TOOLTIP_WIDTH, tooltipH, 8);
+    this.tierTooltipBg.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.95 });
+    this.tierTooltipBg.stroke({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT, width: 1.5 });
+
+    // TLDR: Position above the button
+    const globalPos = buttonContainer.getGlobalPosition();
+    const containerPos = this.container.getGlobalPosition();
+    this.tierTooltip.x = (globalPos.x - containerPos.x) + 40 - ANIMATION.TOOL_TOOLTIP_WIDTH / 2;
+    this.tierTooltip.y = -tooltipH - 8;
+    this.tierTooltip.visible = true;
+  }
+
+  private getProgressValue(type: 'harvests' | 'runs', progress?: { plantsHarvested: number; runsCompleted: number }): number {
+    if (!progress) return 0;
+    return type === 'harvests' ? progress.plantsHarvested : progress.runsCompleted;
+  }
+
+  setUnlockSystem(unlockSystem: UnlockSystem): void {
+    this.unlockSystem = unlockSystem;
   }
 
   position(x: number, y: number): void { this.container.x = x; this.container.y = y; }
