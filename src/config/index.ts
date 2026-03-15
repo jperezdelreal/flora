@@ -63,8 +63,12 @@ export const UI_COLORS = {
   BUTTON_LOCKED_BORDER: 0x3a3a3a,
   BUTTON_UNLOCK_HIGHLIGHT: 0x4caf50,
   BUTTON_UNLOCK_BORDER: 0x66bb6a,
+  BUTTON_UPGRADE_HIGHLIGHT: 0xffd700,
+  BUTTON_UPGRADE_BORDER: 0xffeb3b,
   TEXT_PRIMARY: '#ffffff',
   TEXT_DISABLED: '#666666',
+  TEXT_TIER_STAR: '#ffd700',
+  TEXT_HINT: '#aaaaaa',
 } as const;
 
 /** TLDR: Touch gesture tuning values */
