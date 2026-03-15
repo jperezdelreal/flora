@@ -7,7 +7,7 @@
 import { Container, Graphics } from 'pixi.js';
 import { GrowthStage } from '../entities/Plant';
 import { Season } from '../config/seasons';
-import { ANIMATION, PLANT_STAGE_COLORS } from '../config/animations';
+import { ANIMATION, PLANT_STAGE_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
 import { COLORS } from '../config';
 import { AnimationSystem, Easing } from './AnimationSystem';
 import type { PlantSystem } from './PlantSystem';
@@ -66,6 +66,9 @@ export class PlantRenderer implements System {
   private synergyShimmerPhases = new Map<string, number>();
   private maturityGlows = new Map<string, Graphics>();
   private soilQualityGlows = new Map<string, Graphics>();
+  private synergyAuras = new Map<string, Graphics>();
+  private connectionLinesLayer: Graphics;
+  private previewLinesLayer: Graphics;
   private currentSeason: Season = Season.SPRING;
 
   private animationSystem: AnimationSystem;
@@ -77,6 +80,11 @@ export class PlantRenderer implements System {
     this.plantSystem = config.plantSystem;
     this.grid = config.grid;
     this.plantVisualLayer = new Container();
+    this.connectionLinesLayer = new Graphics();
+    this.plantVisualLayer.addChild(this.connectionLinesLayer);
+    this.previewLinesLayer = new Graphics();
+    this.previewLinesLayer.alpha = ANIMATION.SYNERGY_PREVIEW_LINE_ALPHA;
+    this.plantVisualLayer.addChild(this.previewLinesLayer);
   }
 
   // ─── Public API ──────────────────────────────────────────────────────
@@ -191,6 +199,7 @@ export class PlantRenderer implements System {
       this.synergyShimmerPhases.delete(plantId);
       this.removeMaturityGlow(plantId);
       this.removeSoilQualityGlow(plantId);
+      this.removeSynergyAura(plantId);
     }
   }
 
@@ -243,6 +252,66 @@ export class PlantRenderer implements System {
     }
   }
 
+  addSynergyAura(plantId: string, synergyId: string): void {
+    this.removeSynergyAura(plantId);
+    const visual = this.plantVisuals.get(plantId);
+    if (!visual) return;
+    const color = SYNERGY_GLOW_COLORS[synergyId] ?? 0xffd700;
+    const aura = new Graphics();
+    aura.circle(0, 0, ANIMATION.SYNERGY_AURA_RADIUS);
+    aura.fill({ color, alpha: 0.25 });
+    aura.alpha = ANIMATION.SYNERGY_AURA_MIN_ALPHA;
+    visual.addChildAt(aura, 0);
+    this.synergyAuras.set(plantId, aura);
+  }
+
+  removeSynergyAura(plantId: string): void {
+    const aura = this.synergyAuras.get(plantId);
+    if (aura) {
+      aura.destroy();
+      this.synergyAuras.delete(plantId);
+    }
+  }
+
+  drawConnectionLines(synergizedPairs: Array<{ fromId: string; toId: string; synergyId: string }>): void {
+    this.connectionLinesLayer.clear();
+    if (synergizedPairs.length === 0) return;
+    const time = performance.now() / 1000;
+    for (const pair of synergizedPairs) {
+      const fromVisual = this.plantVisuals.get(pair.fromId);
+      const toVisual = this.plantVisuals.get(pair.toId);
+      if (!fromVisual || !toVisual) continue;
+      const color = SYNERGY_GLOW_COLORS[pair.synergyId] ?? 0xffd700;
+      const pulse = 0.7 + 0.3 * Math.sin(time * ANIMATION.SYNERGY_LINE_DASH_SPEED);
+      this.connectionLinesLayer.moveTo(fromVisual.x, fromVisual.y);
+      this.connectionLinesLayer.lineTo(toVisual.x, toVisual.y);
+      this.connectionLinesLayer.stroke({ color, width: ANIMATION.SYNERGY_LINE_WIDTH, alpha: ANIMATION.SYNERGY_LINE_ALPHA * pulse });
+    }
+  }
+
+  showPlacementPreview(col: number, row: number, previewPairs: Array<{ neighborId: string; synergyId: string; isNegative: boolean }>): void {
+    this.previewLinesLayer.clear();
+    if (previewPairs.length === 0) return;
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+    const cx = tilePos.x + tileSize / 2;
+    const cy = tilePos.y + tileSize / 2;
+    for (const pair of previewPairs) {
+      const neighborVisual = this.plantVisuals.get(pair.neighborId);
+      if (!neighborVisual) continue;
+      const color = pair.isNegative ? (SYNERGY_GLOW_COLORS[pair.synergyId] ?? 0xff4444) : (SYNERGY_GLOW_COLORS[pair.synergyId] ?? 0xffd700);
+      this.previewLinesLayer.moveTo(cx, cy);
+      this.previewLinesLayer.lineTo(neighborVisual.x, neighborVisual.y);
+      this.previewLinesLayer.stroke({ color, width: ANIMATION.SYNERGY_LINE_WIDTH, alpha: ANIMATION.SYNERGY_PREVIEW_ALPHA });
+      this.previewLinesLayer.circle(neighborVisual.x, neighborVisual.y, 6);
+      this.previewLinesLayer.stroke({ color, width: 1, alpha: ANIMATION.SYNERGY_PREVIEW_ALPHA });
+    }
+  }
+
+  clearPlacementPreview(): void {
+    this.previewLinesLayer.clear();
+  }
+
   /** Rebuild all plant visuals (after season change / restart) */
   rebuildAllVisuals(): void {
     for (const [, visual] of this.plantVisuals) {
@@ -257,6 +326,9 @@ export class PlantRenderer implements System {
     this.synergyShimmerPhases.clear();
     this.maturityGlows.clear();
     this.soilQualityGlows.clear();
+    this.synergyAuras.clear();
+    this.connectionLinesLayer.clear();
+    this.previewLinesLayer.clear();
 
     const activePlants = this.plantSystem.getActivePlants();
     for (const plant of activePlants) {
@@ -431,6 +503,14 @@ export class PlantRenderer implements System {
           (ANIMATION.MATURE_GLOW_MAX_ALPHA - ANIMATION.MATURE_GLOW_MIN_ALPHA) * (pulse * 0.5 + 0.5);
       }
 
+      // TLDR: Synergy aura pulse (#316)
+      const synergyAura = this.synergyAuras.get(plantId);
+      if (synergyAura) {
+        const auraPulse = Math.sin(time * ANIMATION.SYNERGY_AURA_PULSE_SPEED * Math.PI * 2 + phase);
+        synergyAura.alpha = ANIMATION.SYNERGY_AURA_MIN_ALPHA +
+          (ANIMATION.SYNERGY_AURA_MAX_ALPHA - ANIMATION.SYNERGY_AURA_MIN_ALPHA) * (auraPulse * 0.5 + 0.5);
+      }
+
       // Health-based visual refresh (only when health changes by >5%)
       const currentHealth = plant.getHealth();
       const cachedHealth = this.plantHealthCache.get(plantId);
@@ -461,6 +541,7 @@ export class PlantRenderer implements System {
     this.synergyShimmerPhases.clear();
     this.maturityGlows.clear();
     this.soilQualityGlows.clear();
+    this.synergyAuras.clear();
     this.plantVisualLayer.destroy({ children: true });
   }
 

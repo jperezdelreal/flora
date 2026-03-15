@@ -1617,28 +1617,41 @@ export class GardenScene implements Scene {
             const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
             const gridPos = this.gridSystem.getContainer().position;
             this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+            const synergies = plant.getActiveSynergies();
+            const negSynergies = plant.getNegativeSynergies();
+            if (synergies.size > 0 || negSynergies.size > 0) {
+              this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
+            } else { this.synergyTooltip.hide(); }
           } else {
             this.plantInfoPanel.hide();
+            this.synergyTooltip.hide();
           }
         } else {
           this.plantInfoPanel.hide();
+          this.synergyTooltip.hide();
         }
       } else if (selectedTile.state === TileState.OCCUPIED) {
-        // Show plant info when on occupied tile
         const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
         if (plant) {
-          // Show plant info panel
           const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
           const gridPos = this.gridSystem.getContainer().position;
           this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+          const synergies = plant.getActiveSynergies();
+          const negSynergies = plant.getNegativeSynergies();
+          if (synergies.size > 0 || negSynergies.size > 0) {
+            this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
+          } else { this.synergyTooltip.hide(); }
         } else {
           this.plantInfoPanel.hide();
+          this.synergyTooltip.hide();
         }
       } else {
         this.plantInfoPanel.hide();
+        this.synergyTooltip.hide();
       }
     } else {
       this.plantInfoPanel.hide();
+      this.synergyTooltip.hide();
     }
     
     // TLDR: Per-frame visual polish updates (sway, shake, sky lerp, particles)
@@ -1972,6 +1985,11 @@ export class GardenScene implements Scene {
 
     this.listenTo('synergy:activated', (data) => {
       this.triggerSynergyGlow(data.x, data.y, data.synergyId);
+      this.plantRenderer.addSynergyAura(data.plantId, data.synergyId);
+    });
+
+    this.listenTo('synergy:warning', (data) => {
+      this.triggerNegativeSynergyFlash(data.x, data.y, data.synergyId);
     });
 
     this.listenTo('day:advanced', () => {
@@ -2264,8 +2282,54 @@ export class GardenScene implements Scene {
     });
   }
 
+  private triggerNegativeSynergyFlash(col: number, row: number, synergyId: string): void {
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+    const gridPos = this.gridSystem.getContainer().position;
+    const color = SYNERGY_GLOW_COLORS[synergyId] ?? 0xff4444;
+    this.particleSystem.glow({
+      x: gridPos.x + tilePos.x + tileSize / 2,
+      y: gridPos.y + tilePos.y + tileSize / 2,
+      radius: ANIMATION.SYNERGY_GLOW_RADIUS,
+      color,
+      pulseSpeed: 4.0,
+      minAlpha: 0.1,
+      maxAlpha: ANIMATION.NEGATIVE_SYNERGY_FLASH_ALPHA,
+      duration: ANIMATION.NEGATIVE_SYNERGY_FLASH_DURATION,
+    });
+  }
+
+  private updateSynergyConnectionLines(): void {
+    if (this.frameCounter % 6 !== 0) return;
+    const activePlants = Array.from(this.plants.values()).filter((p) => p.active);
+    const pairs = this.synergySystem.getSynergyPairs(activePlants);
+    this.plantRenderer.drawConnectionLines(pairs);
+  }
+
+  private updatePlacementPreview(): void {
+    const selectedTool = this.player.getSelectedTool();
+    if (selectedTool !== ToolType.SEED) { this.plantRenderer.clearPlacementPreview(); return; }
+    const pos = this.player.getGridPosition();
+    const tile = this.grid.getTile(pos.row, pos.col);
+    if (!tile || !tile.isEmpty()) { this.plantRenderer.clearPlacementPreview(); return; }
+    const pool = this.seedSelectionSystem.getCurrentPool();
+    if (!pool || pool.seeds.length === 0) { this.plantRenderer.clearPlacementPreview(); return; }
+    const seedConfig = pool.seeds[0];
+    const activePlants = Array.from(this.plants.values()).filter((p) => p.active);
+    const previewPairs = this.synergySystem.getPlacementPreview(seedConfig.id, pos.col, pos.row, activePlants);
+    if (previewPairs.length > 0) {
+      this.plantRenderer.showPlacementPreview(pos.col, pos.row, previewPairs);
+      const warnings = this.synergySystem.getPlantingWarnings(seedConfig.id, pos.col, pos.row, activePlants);
+      if (warnings.length > 0) { this.synergyTooltip.showPlantingWarnings(warnings); }
+      else { this.synergyTooltip.hideWarning(); }
+    } else {
+      this.plantRenderer.clearPlacementPreview();
+      this.synergyTooltip.hideWarning();
+    }
+  }
+
   /**
-   * TLDR: Full maturity celebration — bounce, particles, glow, floating text
+   * TLDR: Full maturity celebration— bounce, particles, glow, floating text
    */
   private triggerMaturityCelebration(plantId: string, plantConfigId: string): void {
     const visual = getPlantVisual(plantConfigId);
@@ -2390,7 +2454,10 @@ export class GardenScene implements Scene {
     this.plantRenderer.update(delta);
     this.tileRenderer.update(delta);
 
-    // TLDR: Smooth seasonal color transition (2s crossfade)
+    this.updateSynergyConnectionLines();
+    this.updatePlacementPreview();
+
+    // TLDR: Smooth seasonal color transition(2s crossfade)
     if (this.seasonTransitionFrom && this.seasonTransitionTarget) {
       this.seasonTransitionElapsed += dt;
       const t = Math.min(1, this.seasonTransitionElapsed / this.SEASON_TRANSITION_DURATION);
