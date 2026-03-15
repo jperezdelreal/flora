@@ -25,6 +25,8 @@ export { TutorialOverlay } from './TutorialOverlay';
 export type { OverlayDismissCallback, OverlaySkipCallback } from './TutorialOverlay';
 export { AchievementNotification } from './AchievementNotification';
 export { AchievementGallery } from './AchievementGallery';
+export { ToolUpgradeNotification } from './ToolUpgradeNotification';
+export type { ToolUpgradeData } from './ToolUpgradeNotification';
 export { ModifierSelector } from './ModifierSelector';
 export type { ModifierChangeCallback } from './ModifierSelector';
 export { Leaderboard } from './Leaderboard';
