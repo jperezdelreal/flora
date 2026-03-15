@@ -1,22 +1,45 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
+import { eventBus } from '../core/EventBus';
 import { SeedPacketDisplay } from '../ui/SeedPacketDisplay';
 import { ModifierSelector } from '../ui/ModifierSelector';
 import { SeedSelectionSystem, SeedPool } from '../systems/SeedSelectionSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
+import { UnlockSystem } from '../systems/UnlockSystem';
 import { audioManager } from '../systems/AudioManager';
-import { GAME, UI_COLORS, COLORS, SCENES } from '../config';
-import { SEASON_CONFIG, getRandomSeason } from '../config/seasons';
-import type { Season } from '../config/seasons';
+import { GAME, UI_COLORS, SCENES } from '../config';
+import {
+  Season,
+  SEASON_CONFIG,
+  SEASON_ORDER,
+  MULTI_SEASON_UNLOCK_THRESHOLD,
+  getRandomSeason,
+  loadSeasonPreference,
+  saveSeasonPreference,
+} from '../config/seasons';
+import { getSeedSkin, type SeedSkinConfig } from '../config/cosmetics';
 
-/** Y coordinate where seed packets begin */
-const PACKET_START_Y = 98;
+/** TLDR: Y coordinate where seed packets begin */
+const PACKET_START_Y = 148;
+
+/** TLDR: Season card dimensions */
+const SEASON_CARD_W = 150;
+const SEASON_CARD_H = 100;
+const SEASON_CARD_GAP = 12;
+
+/** TLDR: Difficulty badge colors */
+const DIFFICULTY_COLORS: Record<string, number> = {
+  Easy: 0x4caf50,
+  Medium: 0xffa726,
+  Hard: 0xef5350,
+  Expert: 0x7e57c2,
+};
 
 /**
- * TLDR: Redesigned pre-run seed selection scene
- * Shows season indicator, responsive seed packets, daily challenge with explanation,
- * modifier cards, and a prominent clickable Start Season button.
+ * TLDR: Pre-run seed selection scene with season selector (#201)
+ * Shows season cards for player selection, responsive seed packets,
+ * daily challenge, modifier cards, multi-season option, and Start button.
  */
 export class SeedSelectionScene implements Scene {
   readonly name = 'seed-selection';
@@ -24,26 +47,46 @@ export class SeedSelectionScene implements Scene {
   private bgLayer = new Container();
   private contentLayer = new Container();
   private packetContainer = new Container();
+  private seasonCardsContainer = new Container();
   private seedPackets: SeedPacketDisplay[] = [];
   private seedPool: SeedPool | null = null;
   private seedSelectionSystem: SeedSelectionSystem;
   private encyclopediaSystem: EncyclopediaSystem;
   private dailyChallengeSystem: DailyChallengeSystem;
+  private unlockSystem: UnlockSystem;
   private modifierSelector: ModifierSelector | null = null;
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private isDailyMode = false;
-  private currentSeason: Season = 'spring' as Season;
+  private currentSeason: Season = Season.SPRING;
+  private isMultiSeason = false;
   private screenWidth: number = GAME.WIDTH;
   private screenHeight: number = GAME.HEIGHT;
+  private startBtnLabel: Text | null = null;
+  private seasonCards: Graphics[] = [];
+  private multiSeasonCard: Graphics | null = null;
+  private seasonCardHighlights: Graphics[] = [];
+  // TLDR: Active seed skin cosmetic (loaded from settings)
+  private activeSkin: SeedSkinConfig | null = null;
 
   constructor(
     seedSelectionSystem: SeedSelectionSystem,
     encyclopediaSystem: EncyclopediaSystem,
     dailyChallengeSystem: DailyChallengeSystem,
+    activeSeedSkinOrUnlockSystem?: string | null | UnlockSystem,
+    unlockSystem?: UnlockSystem,
   ) {
     this.seedSelectionSystem = seedSelectionSystem;
     this.encyclopediaSystem = encyclopediaSystem;
     this.dailyChallengeSystem = dailyChallengeSystem;
+
+    // TLDR: Handle both old and new constructor signatures
+    if (activeSeedSkinOrUnlockSystem instanceof UnlockSystem) {
+      this.unlockSystem = activeSeedSkinOrUnlockSystem;
+      this.activeSkin = null;
+    } else {
+      this.activeSkin = activeSeedSkinOrUnlockSystem ? getSeedSkin(activeSeedSkinOrUnlockSystem) : null;
+      this.unlockSystem = unlockSystem ?? new UnlockSystem();
+    }
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -57,8 +100,10 @@ export class SeedSelectionScene implements Scene {
     const h = this.screenHeight;
     const cx = w / 2;
 
-    this.currentSeason = getRandomSeason();
-    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+    // TLDR: Load persisted season preference, fall back to random
+    const saved = loadSeasonPreference();
+    this.currentSeason = saved ?? getRandomSeason();
+    this.isMultiSeason = false;
 
     this.container.addChild(this.bgLayer);
     this.container.addChild(this.contentLayer);
@@ -67,34 +112,12 @@ export class SeedSelectionScene implements Scene {
     // ── Warm background (cozy gradient with soft hills) ──
     this.buildBackground(w, h);
 
-    // ── Season indicator bar (warm, inviting) ──
-    const seasonBar = new Graphics();
-    seasonBar.roundRect(cx - 160, 12, 320, 42, 16);
-    seasonBar.fill({ color: UI_COLORS.BG_WARM_CREAM, alpha: 0.95 });
-    seasonBar.stroke({ color: seasonCfg.backgroundColor, width: 3 });
-    this.contentLayer.addChild(seasonBar);
-
-    const seasonLabel = new Text({
-      text: `${seasonCfg.emoji}  ${seasonCfg.displayName} Season`,
-      style: {
-        fontFamily: 'Georgia, serif',
-        fontSize: 20,
-        fill: UI_COLORS.TEXT_FOREST_GREEN,
-        fontWeight: 'bold',
-        align: 'center',
-      },
-    });
-    seasonLabel.anchor.set(0.5);
-    seasonLabel.x = cx;
-    seasonLabel.y = 33;
-    this.contentLayer.addChild(seasonLabel);
-
-    // ── Title (larger, clearer) ──
+    // ── Title ──
     const title = new Text({
-      text: '🌱 Choose Your Seeds',
+      text: '🌱 Choose Your Season & Seeds',
       style: {
         fontFamily: 'Georgia, serif',
-        fontSize: 32,
+        fontSize: 28,
         fill: UI_COLORS.TEXT_FOREST_GREEN,
         fontWeight: 'bold',
         align: 'center',
@@ -102,31 +125,35 @@ export class SeedSelectionScene implements Scene {
     });
     title.anchor.set(0.5);
     title.x = cx;
-    title.y = 70;
+    title.y = 20;
     this.contentLayer.addChild(title);
 
-    // ── Instructional subtitle (warmer, clearer) ──
+    // ── Season selector cards ──
+    this.buildSeasonSelector(cx, 44);
+
+    // ── Instructional subtitle ──
     const subtitle = new Text({
       text: 'Select seeds for your garden run — each has unique traits!',
       style: {
         fontFamily: 'Arial',
-        fontSize: 15,
+        fontSize: 14,
         fill: UI_COLORS.TEXT_MID_GREEN,
         align: 'center',
       },
     });
     subtitle.anchor.set(0.5);
     subtitle.x = cx;
-    subtitle.y = 94;
+    subtitle.y = PACKET_START_Y - 8;
     this.contentLayer.addChild(subtitle);
 
-    // ── Generate seed pool ──
+    // ── Generate seed pool (season-filtered) ──
     const unlockedPlantIds = this.encyclopediaSystem.getDiscoveredPlantIds();
     const runSeed = Date.now();
     this.seedPool = this.seedSelectionSystem.generatePool(unlockedPlantIds, {
       minSeeds: 4,
       maxSeeds: 6,
       runSeed,
+      season: this.currentSeason,
     });
     this.dailyChallengeSystem.setSeed(runSeed, false);
     this.isDailyMode = false;
@@ -142,7 +169,8 @@ export class SeedSelectionScene implements Scene {
     const modY = dailyY + 56;
     this.buildModifiers(cx, modY, w);
 
-    // ── Start Season button (large, green, prominent) ──
+    // ── Start Season button ──
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
     this.buildStartButton(ctx, cx, h - 68, seasonCfg);
 
     // ── Navigation hint ──
@@ -169,6 +197,295 @@ export class SeedSelectionScene implements Scene {
     window.addEventListener('keydown', this.boundOnKeyDown);
 
     audioManager.startAmbient();
+  }
+
+  /** TLDR: Build season selector with 4 season cards + multi-season option */
+  private buildSeasonSelector(cx: number, y: number): void {
+    this.seasonCardsContainer.removeChildren();
+    this.seasonCards = [];
+    this.seasonCardHighlights = [];
+    this.contentLayer.addChild(this.seasonCardsContainer);
+
+    const runsCompleted = this.unlockSystem.getRunsCompleted();
+    const multiSeasonUnlocked = runsCompleted >= MULTI_SEASON_UNLOCK_THRESHOLD;
+
+    // TLDR: Calculate total width for centering
+    const cardCount = 4;
+    const totalCardWidth = cardCount * SEASON_CARD_W + (cardCount - 1) * SEASON_CARD_GAP;
+    const startX = cx - totalCardWidth / 2;
+
+    for (let i = 0; i < SEASON_ORDER.length; i++) {
+      const season = SEASON_ORDER[i];
+      const cfg = SEASON_CONFIG[season];
+      const cardX = startX + i * (SEASON_CARD_W + SEASON_CARD_GAP);
+
+      // TLDR: Card background with season palette preview
+      const card = new Graphics();
+      card.roundRect(0, 0, SEASON_CARD_W, SEASON_CARD_H, 10);
+      card.fill({ color: cfg.backgroundColor, alpha: 0.95 });
+      card.stroke({
+        color: this.currentSeason === season ? UI_COLORS.START_BUTTON_GREEN : 0xaaaaaa,
+        width: this.currentSeason === season ? 3 : 1.5,
+      });
+      card.x = cardX;
+      card.y = y;
+      card.eventMode = 'static';
+      card.cursor = 'pointer';
+      this.seasonCardsContainer.addChild(card);
+      this.seasonCards.push(card);
+
+      // TLDR: Selection highlight ring
+      const highlight = new Graphics();
+      highlight.roundRect(-2, -2, SEASON_CARD_W + 4, SEASON_CARD_H + 4, 12);
+      highlight.stroke({ color: UI_COLORS.START_BUTTON_GREEN, width: 3 });
+      highlight.x = cardX;
+      highlight.y = y;
+      highlight.visible = this.currentSeason === season && !this.isMultiSeason;
+      this.seasonCardsContainer.addChild(highlight);
+      this.seasonCardHighlights.push(highlight);
+
+      // TLDR: Season emoji (large, centered)
+      const emoji = new Text({
+        text: cfg.emoji,
+        style: { fontSize: 24, align: 'center' },
+      });
+      emoji.anchor.set(0.5);
+      emoji.x = cardX + SEASON_CARD_W / 2;
+      emoji.y = y + 18;
+      this.seasonCardsContainer.addChild(emoji);
+
+      // TLDR: Season name
+      const nameText = new Text({
+        text: cfg.displayName,
+        style: {
+          fontFamily: 'Georgia, serif',
+          fontSize: 14,
+          fill: UI_COLORS.TEXT_FOREST_GREEN,
+          fontWeight: 'bold',
+          align: 'center',
+        },
+      });
+      nameText.anchor.set(0.5);
+      nameText.x = cardX + SEASON_CARD_W / 2;
+      nameText.y = y + 38;
+      this.seasonCardsContainer.addChild(nameText);
+
+      // TLDR: Difficulty badge
+      const diffColor = DIFFICULTY_COLORS[cfg.difficulty] ?? 0x888888;
+      const diffBadge = new Graphics();
+      diffBadge.roundRect(0, 0, 56, 16, 6);
+      diffBadge.fill({ color: diffColor, alpha: 0.85 });
+      diffBadge.x = cardX + SEASON_CARD_W / 2 - 28;
+      diffBadge.y = y + 50;
+      this.seasonCardsContainer.addChild(diffBadge);
+
+      const diffLabel = new Text({
+        text: cfg.difficulty,
+        style: {
+          fontFamily: 'Arial',
+          fontSize: 10,
+          fill: '#ffffff',
+          fontWeight: 'bold',
+          align: 'center',
+        },
+      });
+      diffLabel.anchor.set(0.5);
+      diffLabel.x = cardX + SEASON_CARD_W / 2;
+      diffLabel.y = y + 58;
+      this.seasonCardsContainer.addChild(diffLabel);
+
+      // TLDR: Hazard warning (first one, truncated)
+      if (cfg.hazardWarnings.length > 0) {
+        const warnText = new Text({
+          text: `⚠ ${cfg.hazardWarnings[0]}`,
+          style: {
+            fontFamily: 'Arial',
+            fontSize: 9,
+            fill: '#8a6b3a',
+            align: 'center',
+          },
+        });
+        warnText.anchor.set(0.5);
+        warnText.x = cardX + SEASON_CARD_W / 2;
+        warnText.y = y + 76;
+        this.seasonCardsContainer.addChild(warnText);
+      }
+
+      // TLDR: Hover + click handlers
+      card.on('pointerover', () => { card.alpha = 0.85; });
+      card.on('pointerout', () => { card.alpha = 1.0; });
+      card.on('pointerdown', () => {
+        if (this.isDailyMode) return;
+        this.selectSeason(season);
+      });
+
+      // TLDR: Color tint preview strip at bottom of card
+      const tintStrip = new Graphics();
+      tintStrip.roundRect(10, SEASON_CARD_H - 14, SEASON_CARD_W - 20, 8, 4);
+      tintStrip.fill({ color: cfg.gridTint });
+      tintStrip.x = cardX;
+      tintStrip.y = y;
+      this.seasonCardsContainer.addChild(tintStrip);
+    }
+
+    // TLDR: Multi-season option below season cards
+    const multiY = y + SEASON_CARD_H + 6;
+    const multiCard = new Graphics();
+    const multiW = totalCardWidth;
+    multiCard.roundRect(0, 0, multiW, 28, 8);
+
+    if (multiSeasonUnlocked) {
+      multiCard.fill({ color: this.isMultiSeason ? 0xd4edda : UI_COLORS.BG_WARM_CREAM, alpha: 0.95 });
+      multiCard.stroke({
+        color: this.isMultiSeason ? UI_COLORS.START_BUTTON_GREEN : 0xaaaaaa,
+        width: this.isMultiSeason ? 2.5 : 1.5,
+      });
+      multiCard.eventMode = 'static';
+      multiCard.cursor = 'pointer';
+
+      multiCard.on('pointerover', () => { multiCard.alpha = 0.85; });
+      multiCard.on('pointerout', () => { multiCard.alpha = 1.0; });
+      multiCard.on('pointerdown', () => {
+        if (this.isDailyMode) return;
+        this.toggleMultiSeason();
+      });
+    } else {
+      multiCard.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.7 });
+      multiCard.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 1.5 });
+    }
+
+    multiCard.x = startX;
+    multiCard.y = multiY;
+    this.seasonCardsContainer.addChild(multiCard);
+    this.multiSeasonCard = multiCard;
+
+    const multiLabel = new Text({
+      text: multiSeasonUnlocked
+        ? `🌍 Multi-Season Run (Spring→Summer→Fall→Winter) — 2× Score${this.isMultiSeason ? '  ✓' : ''}`
+        : `🔒 Multi-Season Mode — Complete ${MULTI_SEASON_UNLOCK_THRESHOLD} runs to unlock (${runsCompleted}/${MULTI_SEASON_UNLOCK_THRESHOLD})`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: multiSeasonUnlocked ? UI_COLORS.TEXT_FOREST_GREEN : UI_COLORS.TEXT_DISABLED,
+        fontWeight: multiSeasonUnlocked ? '600' : 'normal',
+        align: 'center',
+      },
+    });
+    multiLabel.anchor.set(0.5);
+    multiLabel.x = startX + multiW / 2;
+    multiLabel.y = multiY + 14;
+    this.seasonCardsContainer.addChild(multiLabel);
+  }
+
+  /** TLDR: Select a single season and refresh seed pool */
+  private selectSeason(season: Season): void {
+    this.currentSeason = season;
+    this.isMultiSeason = false;
+
+    // TLDR: Persist preference
+    saveSeasonPreference(season);
+
+    // TLDR: Emit event
+    eventBus.emit('season:selected', { season, isMultiSeason: false });
+
+    // TLDR: Refresh highlights
+    for (let i = 0; i < SEASON_ORDER.length; i++) {
+      const isSel = SEASON_ORDER[i] === season;
+      this.seasonCardHighlights[i].visible = isSel;
+      const card = this.seasonCards[i];
+      card.clear();
+      card.roundRect(0, 0, SEASON_CARD_W, SEASON_CARD_H, 10);
+      card.fill({ color: SEASON_CONFIG[SEASON_ORDER[i]].backgroundColor, alpha: 0.95 });
+      card.stroke({ color: isSel ? UI_COLORS.START_BUTTON_GREEN : 0xaaaaaa, width: isSel ? 3 : 1.5 });
+    }
+
+    // TLDR: Update multi-season card to deselected
+    if (this.multiSeasonCard) {
+      this.multiSeasonCard.clear();
+      const totalW = 4 * SEASON_CARD_W + 3 * SEASON_CARD_GAP;
+      this.multiSeasonCard.roundRect(0, 0, totalW, 28, 8);
+      this.multiSeasonCard.fill({ color: UI_COLORS.BG_WARM_CREAM, alpha: 0.95 });
+      this.multiSeasonCard.stroke({ color: 0xaaaaaa, width: 1.5 });
+    }
+
+    // TLDR: Regenerate seed pool with new season filter
+    this.regenerateSeedPool();
+
+    // TLDR: Update start button text
+    this.updateStartButtonLabel();
+  }
+
+  /** TLDR: Toggle multi-season mode on/off */
+  private toggleMultiSeason(): void {
+    this.isMultiSeason = !this.isMultiSeason;
+
+    if (this.isMultiSeason) {
+      // TLDR: Multi-season starts with Spring
+      this.currentSeason = Season.SPRING;
+
+      // TLDR: Deselect individual season cards
+      for (let i = 0; i < this.seasonCardHighlights.length; i++) {
+        this.seasonCardHighlights[i].visible = false;
+        const card = this.seasonCards[i];
+        card.clear();
+        card.roundRect(0, 0, SEASON_CARD_W, SEASON_CARD_H, 10);
+        card.fill({ color: SEASON_CONFIG[SEASON_ORDER[i]].backgroundColor, alpha: 0.95 });
+        card.stroke({ color: 0xaaaaaa, width: 1.5 });
+      }
+
+      // TLDR: Highlight multi-season card
+      if (this.multiSeasonCard) {
+        this.multiSeasonCard.clear();
+        const totalW = 4 * SEASON_CARD_W + 3 * SEASON_CARD_GAP;
+        this.multiSeasonCard.roundRect(0, 0, totalW, 28, 8);
+        this.multiSeasonCard.fill({ color: 0xd4edda, alpha: 0.95 });
+        this.multiSeasonCard.stroke({ color: UI_COLORS.START_BUTTON_GREEN, width: 2.5 });
+      }
+    } else {
+      // TLDR: Fall back to selecting Spring
+      this.selectSeason(Season.SPRING);
+      return;
+    }
+
+    eventBus.emit('season:selected', { season: this.currentSeason, isMultiSeason: this.isMultiSeason });
+    this.regenerateSeedPool();
+    this.updateStartButtonLabel();
+  }
+
+  /** TLDR: Regenerate seed pool after season change */
+  private regenerateSeedPool(): void {
+    const unlockedPlantIds = this.encyclopediaSystem.getDiscoveredPlantIds();
+    const runSeed = Date.now();
+
+    this.seedPool = this.seedSelectionSystem.generatePool(unlockedPlantIds, {
+      minSeeds: 4,
+      maxSeeds: 6,
+      runSeed,
+      season: this.currentSeason,
+    });
+    this.dailyChallengeSystem.setSeed(runSeed, false);
+
+    // TLDR: Clear old packets and re-layout
+    for (const pkt of this.seedPackets) {
+      pkt.destroy();
+    }
+    this.seedPackets = [];
+    this.packetContainer.removeChildren();
+
+    if (this.seedPool) {
+      this.layoutSeedPackets(this.screenWidth / 2, this.screenWidth);
+    }
+  }
+
+  /** TLDR: Update start button label to match current selection */
+  private updateStartButtonLabel(): void {
+    if (!this.startBtnLabel) return;
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+    if (this.isMultiSeason) {
+      this.startBtnLabel.text = '🌍 Start Multi-Season Run';
+    } else {
+      this.startBtnLabel.text = `🌿 Start ${seasonCfg.displayName} Run`;
+    }
   }
 
   /** Warm cozy background: soft gradient + rolling hills + flowers */
@@ -249,7 +566,7 @@ export class SeedSelectionScene implements Scene {
       const idx = i;
       const packet = new SeedPacketDisplay(seed, () => {
         this.onPacketTapped(idx);
-      });
+      }, this.activeSkin);
       const pc = packet.getContainer();
       pc.scale.set(scale);
       pc.x = startX + i * (scaledW + gap);
@@ -388,6 +705,7 @@ export class SeedSelectionScene implements Scene {
     btnLabel.x = cx;
     btnLabel.y = y + btnH / 2;
     this.contentLayer.addChild(btnLabel);
+    this.startBtnLabel = btnLabel;
 
     btn.on('pointerover', () => {
       btn.scale.set(1.03);
@@ -402,10 +720,11 @@ export class SeedSelectionScene implements Scene {
     });
   }
 
-  /** Switch to daily challenge mode — regenerate pool with daily seed and lock modifiers */
+  /** TLDR: Switch to daily challenge mode — regenerate pool with daily seed, lock modifiers & season */
   private activateDailyMode(unlockedPlantIds: string[]): void {
     if (this.isDailyMode) return;
     this.isDailyMode = true;
+    this.isMultiSeason = false;
 
     const challenge = this.dailyChallengeSystem.getDailyChallenge();
     this.dailyChallengeSystem.setSeed(challenge.seed, true);
@@ -431,9 +750,24 @@ export class SeedSelectionScene implements Scene {
       this.modifierSelector.setActiveIds(challenge.modifiers);
       this.modifierSelector.setLocked(true);
     }
+
+    // TLDR: Disable season selector during daily challenge
+    for (const card of this.seasonCards) {
+      card.eventMode = 'none';
+      card.alpha = 0.5;
+    }
+    if (this.multiSeasonCard) {
+      this.multiSeasonCard.eventMode = 'none';
+      this.multiSeasonCard.alpha = 0.5;
+    }
   }
 
+  /** TLDR: Store season selection on SeedSelectionSystem and transition to garden */
   private startGarden(ctx: SceneContext): void {
+    // TLDR: Pass selected season to SeedSelectionSystem so GardenScene reads it
+    this.seedSelectionSystem.setSelectedSeason(this.currentSeason);
+    this.seedSelectionSystem.setMultiSeasonMode(this.isMultiSeason);
+
     if (this.modifierSelector && !this.isDailyMode) {
       this.dailyChallengeSystem.setActiveModifiers(
         this.modifierSelector.getActiveIds(),
@@ -460,6 +794,10 @@ export class SeedSelectionScene implements Scene {
       packet.destroy();
     }
     this.seedPackets = [];
+    this.seasonCards = [];
+    this.seasonCardHighlights = [];
+    this.multiSeasonCard = null;
+    this.startBtnLabel = null;
 
     if (this.modifierSelector) {
       this.modifierSelector.destroy();

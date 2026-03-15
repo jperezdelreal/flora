@@ -49,8 +49,34 @@ export class SeedSelectionSystem implements System {
   private currentPool: SeedPool | null = null;
   private rng: SeededRandom;
 
+  /** TLDR: Selected season for the upcoming run (set by SeedSelectionScene) */
+  private selectedSeason: Season = Season.SPRING;
+
+  /** TLDR: Whether multi-season mode is active for the upcoming run */
+  private multiSeasonMode = false;
+
   constructor() {
     this.rng = new SeededRandom(Date.now());
+  }
+
+  /** TLDR: Set the season chosen by the player in SeedSelectionScene */
+  setSelectedSeason(season: Season): void {
+    this.selectedSeason = season;
+  }
+
+  /** TLDR: Get the season selected for the upcoming run */
+  getSelectedSeason(): Season {
+    return this.selectedSeason;
+  }
+
+  /** TLDR: Set multi-season mode for the upcoming run */
+  setMultiSeasonMode(enabled: boolean): void {
+    this.multiSeasonMode = enabled;
+  }
+
+  /** TLDR: Check if multi-season mode is active */
+  isMultiSeasonMode(): boolean {
+    return this.multiSeasonMode;
   }
 
   /**

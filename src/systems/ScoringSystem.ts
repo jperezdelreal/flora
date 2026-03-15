@@ -55,6 +55,9 @@ export class ScoringSystem implements System {
   private highScores: HighScoreEntry[] = [];
   private saveManager?: SaveManager;
 
+  /** TLDR: Score multiplier applied at end of run (2× for multi-season) (#201) */
+  private scoreMultiplier = 1;
+
   // TLDR: Store bound listeners for cleanup
   private boundPlantHarvested!: (data: { plantId: string; isNewDiscovery: boolean }) => void;
   private boundPlantDied!: () => void;
@@ -204,7 +207,7 @@ export class ScoringSystem implements System {
       this.stats.pestsRemoved * SCORE_CONFIG.hazards.pestRemoved +
       this.stats.droughtsSurvived * SCORE_CONFIG.hazards.droughtSurvived;
 
-    const total = harvests + diversity + perfection + hazards;
+    const total = Math.round((harvests + diversity + perfection + hazards) * this.scoreMultiplier);
 
     return { harvests, diversity, perfection, hazards, total };
   }
@@ -217,6 +220,20 @@ export class ScoringSystem implements System {
       this.stats.plantsDied === 0 &&
       this.stats.plantsHarvested > 0
     );
+  }
+
+  /**
+   * TLDR: Set score multiplier for multi-season runs (#201)
+   */
+  setScoreMultiplier(multiplier: number): void {
+    this.scoreMultiplier = multiplier;
+  }
+
+  /**
+   * TLDR: Get current score multiplier
+   */
+  getScoreMultiplier(): number {
+    return this.scoreMultiplier;
   }
 
   /**
@@ -345,6 +362,7 @@ export class ScoringSystem implements System {
   reset(): void {
     this.stats = this.resetStats();
     this.lastActionPoints = 0;
+    this.scoreMultiplier = 1;
   }
 
   /**

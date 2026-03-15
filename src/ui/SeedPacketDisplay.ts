@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { PlantConfig } from '../entities/Plant';
+import { type SeedSkinConfig } from '../config/cosmetics';
 
 /**
  * TLDR: Rarity colors (color-blind friendly palette)
@@ -55,16 +56,26 @@ export class SeedPacketDisplay {
   private plant: PlantConfig;
   private isSelected = false;
   private onSelectCallback?: (plantId: string) => void;
+  // TLDR: Optional seed skin cosmetic
+  private skin: SeedSkinConfig | null = null;
 
-  constructor(plant: PlantConfig, onSelect?: (plantId: string) => void) {
+  constructor(plant: PlantConfig, onSelect?: (plantId: string) => void, skin?: SeedSkinConfig | null) {
     this.plant = plant;
     this.onSelectCallback = onSelect;
+    this.skin = skin ?? null;
     this.container = new Container();
     this.render();
     this.makeInteractive();
   }
 
   private render(): void {
+    // TLDR: Determine colors — use skin overrides when active
+    const borderColor = this.skin ? this.skin.borderColor : RARITY_COLORS[this.plant.rarity];
+    const bgColor = this.skin ? this.skin.bgColor : 0xfff8e7;
+    const bgAlpha = this.skin ? this.skin.bgAlpha : 0.98;
+    const bannerColor = this.skin ? this.skin.bannerColor : RARITY_COLORS[this.plant.rarity];
+    const bannerAlpha = this.skin ? this.skin.bannerAlpha : 0.25;
+
     // Shadow for depth (drawn first, behind card)
     const shadow = new Graphics();
     shadow.roundRect(3, 3, PACKET_WIDTH, PACKET_HEIGHT, 12);
@@ -74,18 +85,30 @@ export class SeedPacketDisplay {
     // Packet background (vintage seed packet style)
     const bg = new Graphics();
     bg.roundRect(0, 0, PACKET_WIDTH, PACKET_HEIGHT, 12);
-    bg.fill({ color: 0xfff8e7, alpha: 0.98 }); // Warm cream
+    bg.fill({ color: bgColor, alpha: bgAlpha });
     bg.stroke({
-      color: RARITY_COLORS[this.plant.rarity],
+      color: borderColor,
       width: 3,
     });
     this.container.addChild(bg);
 
-    // Decorative top banner (rarity color, more vibrant)
+    // Decorative top banner (rarity/skin color)
     const banner = new Graphics();
     banner.roundRect(0, 0, PACKET_WIDTH, 44, 12);
-    banner.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.25 });
+    banner.fill({ color: bannerColor, alpha: bannerAlpha });
     this.container.addChild(banner);
+
+    // TLDR: Skin badge indicator (top-right corner)
+    if (this.skin) {
+      const skinBadge = new Text({
+        text: this.skin.emoji,
+        style: { fontSize: 18, align: 'center' },
+      });
+      skinBadge.anchor.set(1, 0);
+      skinBadge.x = PACKET_WIDTH - 8;
+      skinBadge.y = 4;
+      this.container.addChild(skinBadge);
+    }
 
     // TLDR: Plant icon (large, centered)
     const icon = new Text({

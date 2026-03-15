@@ -2,6 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { PlantConfig } from '../entities/Plant';
 import { eventBus } from '../core/EventBus';
 import { UI_COLORS } from '../config';
+import { type SeedSkinConfig } from '../config/cosmetics';
 
 const RARITY_COLORS: Record<string, number> = {
   common: 0x4caf50,
@@ -47,6 +48,8 @@ export class SeedInventory {
   // TLDR: Track screen height for full-height overlay
   private screenHeight: number;
   private overlay: Graphics;
+  // TLDR: Active seed skin cosmetic
+  private activeSkin: SeedSkinConfig | null = null;
 
   constructor(screenHeight: number = 600) {
     this.screenHeight = screenHeight;
@@ -105,6 +108,14 @@ export class SeedInventory {
    */
   setAvailableSeeds(seeds: PlantConfig[]): void {
     this.availableSeeds = seeds;
+    this.renderCards();
+  }
+
+  /**
+   * TLDR: Set active seed skin cosmetic for card border accents
+   */
+  setSeedSkin(skin: SeedSkinConfig | null): void {
+    this.activeSkin = skin;
     this.renderCards();
   }
 
@@ -169,6 +180,18 @@ export class SeedInventory {
     icon.x = CARD_WIDTH / 2;
     icon.y = 25;
     card.addChild(icon);
+
+    // TLDR: Skin indicator badge (top-right corner of card)
+    if (this.activeSkin) {
+      const skinBadge = new Text({
+        text: this.activeSkin.emoji,
+        style: { fontSize: 12, align: 'center' },
+      });
+      skinBadge.anchor.set(1, 0);
+      skinBadge.x = CARD_WIDTH - 4;
+      skinBadge.y = 2;
+      card.addChild(skinBadge);
+    }
 
     // Plant name
     const name = new Text({

@@ -1,5 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Season, SEASON_CONFIG } from '../config/seasons';
+import { type HudThemeConfig, DEFAULT_HUD_THEME, getHudTheme } from '../config/cosmetics';
 
 export type GamePhase = 'planting' | 'tending' | 'harvest' | 'day_end';
 
@@ -62,6 +63,9 @@ export class HUD {
   private actionFlashAlpha = 0;
   private actionFlashBg!: Graphics;
 
+  // TLDR: Active HUD theme (cosmetic reward)
+  private activeTheme: HudThemeConfig = DEFAULT_HUD_THEME;
+
   constructor() {
     this.container = new Container();
 
@@ -75,7 +79,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#f5e6d3',
+        fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
     });
@@ -88,7 +92,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#a8e6cf',
+        fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
     });
@@ -99,7 +103,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#a8e6cf',
+        fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
     });
@@ -111,7 +115,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 14,
-        fill: '#d4a574',
+        fill: this.activeTheme.secondaryTextColor,
       },
     });
     this.scoreText.x = 16;
@@ -171,7 +175,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 12,
-        fill: '#d4a574',
+        fill: this.activeTheme.secondaryTextColor,
       },
     });
     this.unlockProgressText.visible = false;
@@ -190,7 +194,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 12,
-        fill: '#8a7a6a',
+        fill: this.activeTheme.tertiaryTextColor,
       },
     });
     this.gridInfoText.visible = false;
@@ -268,12 +272,13 @@ export class HUD {
   private layoutPanel(width: number): void {
     this.panelWidth = width;
     const primaryHeight = 60;
+    const theme = this.activeTheme;
 
     // Redraw main background
     this.bg.clear();
     this.bg.roundRect(0, 0, width, primaryHeight, 10);
-    this.bg.fill({ color: 0x2a2520, alpha: 0.92 });
-    this.bg.stroke({ color: 0x6b5b4e, width: 1.5 });
+    this.bg.fill({ color: theme.panelBg, alpha: theme.panelBgAlpha });
+    this.bg.stroke({ color: theme.panelBorder, width: 1.5 });
 
     // Primary: Season centered
     this.seasonText.x = width / 2 - 50;
@@ -316,8 +321,8 @@ export class HUD {
     // Tertiary background
     this.tertiaryBg.clear();
     this.tertiaryBg.roundRect(0, 0, width, 28, 6);
-    this.tertiaryBg.fill({ color: 0x2a2520, alpha: 0.85 });
-    this.tertiaryBg.stroke({ color: 0x6b5b4e, width: 1 });
+    this.tertiaryBg.fill({ color: theme.panelBg, alpha: 0.85 });
+    this.tertiaryBg.stroke({ color: theme.panelBorder, width: 1 });
 
     this.weatherWarningText.x = 12;
     this.weatherWarningText.y = 6;
@@ -339,13 +344,13 @@ export class HUD {
     this.phaseContainer.y = phaseY;
     this.phaseBg.clear();
     this.phaseBg.roundRect(0, 0, width, 32, 6);
-    this.phaseBg.fill({ color: 0x2a2520, alpha: 0.85 });
+    this.phaseBg.fill({ color: theme.phaseBarBg, alpha: 0.85 });
     this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
 
     // Hint positioning
     this.hintBg.clear();
     this.hintBg.roundRect(0, 0, Math.min(360, width - 40), 28, 6);
-    this.hintBg.fill({ color: 0x2e7d32, alpha: 0.85 });
+    this.hintBg.fill({ color: theme.hintBgColor, alpha: 0.85 });
     this.hintBg.x = 20;
     this.hintBg.y = phaseY + 36;
 
@@ -396,7 +401,7 @@ export class HUD {
         barHeight,
         3,
       );
-      this.dayProgressBar.fill({ color: 0xa8e6cf });
+      this.dayProgressBar.fill({ color: this.activeTheme.progressBarColor });
     }
 
     // Primary: Actions with color coding
@@ -586,7 +591,7 @@ export class HUD {
       }
       this.phaseBg.clear();
       this.phaseBg.roundRect(0, 0, this.panelWidth, 32, 6);
-      this.phaseBg.fill({ color: 0x2a2520, alpha: 0.85 });
+      this.phaseBg.fill({ color: this.activeTheme.phaseBarBg, alpha: 0.85 });
       if (this.phaseTransitionAlpha > 0) {
         const cfg = PHASE_CONFIG[this.currentPhase];
         const flashColor = parseInt(cfg.color.replace('#', ''), 16);
@@ -615,6 +620,30 @@ export class HUD {
         this.actionFlashBg.stroke({ color: 0xffd54f, width: 2, alpha: this.actionFlashAlpha });
       }
     }
+  }
+
+  /**
+   * TLDR: Apply a HUD theme by ID. Pass null to revert to default.
+   */
+  applyTheme(themeId: string | null): void {
+    this.activeTheme = getHudTheme(themeId);
+
+    // TLDR: Refresh all text colors to match the new theme
+    this.dayText.style.fill = this.activeTheme.primaryTextColor;
+    this.scoreText.style.fill = this.activeTheme.secondaryTextColor;
+    this.unlockProgressText.style.fill = this.activeTheme.secondaryTextColor;
+    this.gridInfoText.style.fill = this.activeTheme.tertiaryTextColor;
+    this.dayProgressLabel.style.fill = this.activeTheme.tertiaryTextColor;
+
+    // TLDR: Re-layout with the new theme colors
+    this.layoutPanel(this.panelWidth);
+  }
+
+  /**
+   * TLDR: Get the currently active theme ID (or null for default)
+   */
+  getActiveThemeId(): string | null {
+    return this.activeTheme.id === 'default' ? null : this.activeTheme.id;
   }
 
   getContainer(): Container {

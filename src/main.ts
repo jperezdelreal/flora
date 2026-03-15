@@ -2,7 +2,7 @@ import { Application } from 'pixi.js';
 import { SceneManager, GameLoop, InputManager, AssetLoader, FPSMonitor } from './core';
 import { AchievementsScene, BootScene, EncyclopediaScene, GardenScene, MenuScene, SeedSelectionScene } from './scenes';
 import { GAME, SCENES } from './config';
-import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem, AchievementSystem } from './systems';
+import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem, AchievementSystem, UnlockSystem } from './systems';
 import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';
 import { setupTestHooks } from './utils/testHooks';
 import { eventBus } from './core/EventBus';
@@ -41,6 +41,11 @@ async function main(): Promise<void> {
   const encyclopediaSystem = new EncyclopediaSystem(saveManager);
   const dailyChallengeSystem = new DailyChallengeSystem(saveManager);
   const achievementSystem = new AchievementSystem(saveManager);
+  const unlockSystem = new UnlockSystem(saveManager);
+
+  // TLDR: Load active cosmetic settings for SeedSelectionScene
+  const savedSettings = saveManager.loadSettings();
+  const activeSeedSkin = savedSettings?.activeSeedSkin ?? null;
 
   // Register all scenes
   sceneManager.register(
@@ -48,7 +53,7 @@ async function main(): Promise<void> {
     new MenuScene(saveManager),
     new EncyclopediaScene(encyclopediaSystem),
     new AchievementsScene(achievementSystem),
-    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem),
+    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem, activeSeedSkin, unlockSystem),
     new GardenScene(saveManager, seedSelectionSystem)
   );
 

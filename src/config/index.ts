@@ -129,3 +129,4 @@ export * from './animations';
 export * from './structures';
 export * from './accessibility';
 export * from './modifiers';
+export * from './cosmetics';

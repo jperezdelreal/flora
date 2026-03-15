@@ -118,6 +118,12 @@ export class Player implements Entity {
     this.state.actionsRemaining = this.state.maxActions;
   }
 
+  /** TLDR: Reset day counter for multi-season transitions (#201) */
+  resetDay(): void {
+    this.state.currentDay = 1;
+    this.state.actionsRemaining = this.state.maxActions;
+  }
+
   getCurrentDay(): number {
     return this.state.currentDay;
   }
