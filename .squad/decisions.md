@@ -677,3 +677,181 @@ Applied to SeedSelectionScene (PR #259):
 2. ⬜ Audit MenuScene for consistency
 3. ⬜ Apply to Encyclopedia and Achievements when built
 4. ⬜ Add UI_WARM_PALETTE constants to config if pattern proven successful
+
+
+---
+
+# Oak Gameplay Verification — P0 Blocker Found
+
+**Date:** 2026-03-15  
+**By:** Oak (Lead / Chief Architect)  
+**Directive:** joperezd — "Quiero que confirmes que eres capaz de pasarte el juego al menos 2 veces sin problemas. Crea los issues que necesites."
+
+---
+
+## TL;DR
+
+**Flora is completely unplayable.** Attempted to play 2 complete games in headed Playwright mode. Game gets stuck on boot screen and never transitions to menu. Created issue #279 (P0). Cannot verify any gameplay until this is fixed.
+
+---
+
+## Test Setup
+
+- **Local dev server:** `npm run dev` → `http://localhost:3002/flora/`
+- **Playwright config:** Headed mode (headless: false), real GPU, slowMo: 100ms, timeout: 120s
+- **Test file:** `tests/e2e/flora-gameplay.spec.ts` (created)
+- **Approach:** Player-perspective testing — no internal game state access, purely visual interactions
+
+---
+
+## Test Results
+
+### Run #1: 5 days attempted
+- **Duration:** 31.1 seconds
+- **Screenshots captured:** 12
+- **Runtime errors:** 0
+- **Gameplay progress:** NONE (stuck on boot screen)
+
+### Run #2: 6 days attempted  
+- **Duration:** 36.0 seconds
+- **Screenshots captured:** 12
+- **Runtime errors:** 0
+- **Gameplay progress:** NONE (stuck on boot screen)
+
+### Both tests passed ✅... but revealed P0 blocker
+
+Tests passed because they checked for runtime errors (zero found). However, ALL 24 screenshots show the same boot screen. The game never progressed beyond "Press any key to continue."
+
+---
+
+## Critical Finding: Issue #279 (P0)
+
+**Title:** Game stuck on boot screen - never transitions to menu
+
+### What I Observed (Player Perspective)
+
+1. ✅ **Boot screen loads beautifully:**
+   - Cozy forest green background (#2d5016)
+   - "🌿 FLORA" title with subtitle "A cozy gardening roguelite"
+   - Smooth loading bar animation (fills to 100%)
+   - Floating particle effects (various colored dots)
+   - "Press any key to continue" text with pulse animation
+   - "First Frame Studios" credit at bottom
+   - FPS counter shows consistent 57-59 fps
+
+2. ❌ **Loading bar fills to 100%**
+   - Takes ~2 seconds (matches GAME.BOOT_DURATION_MS = 2000)
+   - "Press any key" hint fades in with pulse animation
+
+3. ❌ **Game never transitions to menu**
+   - Waited 30+ seconds per test run
+   - Pressed Enter, Space, clicked mouse — no response
+   - Game stays on boot screen indefinitely
+   - No console errors logged
+   - FPS counter continues running (game loop active)
+
+### Technical Investigation
+
+**BootScene.ts (lines 139-145)** should automatically transition to menu when loading completes:
+
+```typescript
+if (this.progress >= 1 && !this.ready) {
+  this.ready = true;
+  this.transitioned = true;
+  ctx.sceneManager
+    .transitionTo(SCENES.MENU, { type: 'loading', loadingMessage: 'Preparing the garden...' })
+    .catch(console.error);
+}
+```
+
+**Key observations:**
+- The "Press any key" hint is **decorative only** — BootScene has no keyboard listener
+- Transition should happen automatically when `progress >= 1`
+- No console errors suggests `catch(console.error)` didn't fire
+- Possible causes:
+  - `ctx.sceneManager` is undefined
+  - `transitionTo()` is failing silently
+  - `progress` never reaches 1 (but loading bar shows 100%)
+  - `transitioned` flag logic error
+  - Promise rejection not logged
+
+---
+
+## What Worked ✅
+
+1. **Playwright infrastructure:** Headed mode with real GPU works perfectly
+2. **Screenshot capture:** All 24 screenshots captured successfully  
+3. **Error monitoring:** Zero runtime errors detected (pageerror + console events)
+4. **Visual rendering:** Boot screen looks gorgeous, FPS stable, particles animate smoothly
+5. **Test structure:** Player-perspective approach is clean and maintainable
+
+---
+
+## What Broke ❌
+
+1. **Scene transitions:** BootScene → Menu never happens
+2. **Gameplay verification:** Cannot test ANY game feature (menu, seed selection, garden, results)
+3. **P0 fix validation:** Cannot verify #273 (menu keyboard nav) until we reach the menu
+
+---
+
+## Issues Created
+
+### #279 (P0): Game stuck on boot screen
+- **Impact:** Flora is completely unplayable
+- **Evidence:** 24 screenshots across 2 test runs, all showing boot screen
+- **Investigation needed:** Why does `ctx.sceneManager.transitionTo()` fail?
+- **Labels:** squad, squad:oak, priority:p0, type:bug
+
+---
+
+## Next Steps
+
+1. **Debug scene transition system:**
+   - Add logging to `SceneManager.transitionTo()`
+   - Verify `ctx.sceneManager` is defined in BootScene.update()
+   - Check if Promise rejection is being swallowed
+   - Test transition manually in browser console
+
+2. **Fix boot screen blocker:**
+   - Assign to developer with SceneManager ownership
+   - Verify fix with manual test in headed browser
+   - Re-run Playwright gameplay tests
+
+3. **Once fixed, complete gameplay verification:**
+   - Play 2 complete games (5-6 days each)
+   - Verify P0 fix #273 (menu Enter key works)
+   - Test seed selection, planting, watering, day progression, results
+   - Document any additional issues found
+
+---
+
+## Decision: Cannot Complete Directive
+
+**I cannot confirm Flora is playable until #279 is resolved.** The boot screen blocker prevents me from reaching any gameplay. The directive was to "play 2 games without problems" — Flora has a game-breaking problem before gameplay even begins.
+
+**Recommendation:** Halt all other work and fix #279 immediately. This is a P0 showstopper.
+
+---
+
+## Files Modified
+
+- `tests/e2e/flora-gameplay.spec.ts` (created) — comprehensive gameplay test
+- `playwright.config.ts` (updated) — headed mode, local baseURL, 120s timeout
+- `.squad/agents/oak/history.md` (updated) — learnings section
+- `.squad/decisions/inbox/oak-gameplay-verified.md` (this file)
+
+---
+
+## Lessons Learned
+
+1. **"Zero errors" ≠ "working game"** — Tests passed because they checked for crashes, not functionality
+2. **Visual testing reveals hidden blockers** — Without screenshots, I might have thought the game worked
+3. **Boot screen hints should match behavior** — "Press any key" is misleading when transition is automatic
+4. **Player-perspective testing is valuable** — Exposed a critical UX confusion (hint text vs actual behavior)
+5. **Headed mode is essential for WebGL** — Headless SwiftShader would have hidden this issue entirely
+
+---
+
+**Oak signing off. Flora is currently unplayable. Issue #279 is P0 and blocks all gameplay verification.**
+

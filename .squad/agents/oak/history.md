@@ -149,3 +149,26 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Strategic Assessment:** Flora's deployment pipeline is production-ready. Tests exist but visual validation is blocked by WebGL rendering issues. Short-term: manual QA required. Medium-term: headed CI with Xvfb. Long-term: full E2E coverage with visual regression testing.
 - **Lessons Learned:** (1) Playwright + WebGL + headless is non-trivial — SwiftShader may not support all GPU features. (2) baseURL path resolution gotcha: `'/'` is absolute, `''` is relative. (3) Deployment success ≠ functional game — workflow passed 90 times but only now confirmed game loads correctly.
 - **Files:** .squad/decisions/inbox/oak-playwright-qa-findings.md (created), tests/e2e/flora-game.spec.ts (fixed), #268 and #269 created.
+
+### Complete Gameplay Verification - P0 Blocker Found (2026-03-15)
+- **Context:** User directive (joperezd): "Quiero que confirmes que eres capaz de pasarte el juego al menos 2 veces sin problemas. Crea los issues que necesites." P0 menu fix (#273) merged. Task: Play Flora end-to-end 2 times in headed Playwright mode.
+- **Setup:** Local Vite dev server on port 3002 (`npm run dev`), Playwright headed mode (headless:false, slowMo:100, real GPU), comprehensive gameplay test with screenshot capture at every step.
+- **Test Infrastructure:** Created tests/e2e/flora-gameplay.spec.ts with 2 complete game run tests (5 days + 6 days). Player-perspective approach: no internal game state access, purely visual interactions (click, keyboard, wait for transitions).
+- **CRITICAL FINDING - Issue #279 (P0):** **Game is completely stuck on boot screen.** BootScene shows "Press any key to continue" hint text that pulses, but game NEVER transitions to menu. Loading bar fills to 100%, FPS counter shows 57-59 fps (game loop running), zero console errors, but scene transition never occurs.
+- **Test Results:** Both tests passed with 0 runtime errors, but ALL 24 screenshots (12 per run) show the same boot screen. Game never progressed past boot. Tests ran 31s (run 1) and 36s (run 2) — far exceeds the 2-second GAME.BOOT_DURATION_MS.
+- **Root Cause Investigation:** BootScene.ts lines 139-145 should auto-transition to menu when `progress >= 1` via `ctx.sceneManager.transitionTo(SCENES.MENU)`. The "Press any key" hint is misleading — it has no keyboard listener, it's just decorative. Something is preventing the automatic transition.
+- **Impact:** Flora is UNPLAYABLE. Cannot verify P0 fix #273 (menu navigation) until boot screen works. Cannot test seed selection, garden gameplay, results screen, or any other feature. This blocks all gameplay verification.
+- **Player Perspective Observations (from screenshots):**
+  - ✅ Boot screen aesthetic is EXCELLENT: Cozy forest green background, subtle particle effects (various colored dots floating), clean typography, smooth loading bar animation.
+  - ✅ FPS counter in top-right shows consistent 57-59 fps — no performance issues.
+  - ✅ "Press any key to continue" text has nice pulse animation (visibility + scale).
+  - ❌ Pressing keys/clicking does nothing (expected — BootScene has no input handler).
+  - ❌ Game never progresses beyond boot screen despite loading completion.
+- **Playwright Config Updates:** Set baseURL to `http://localhost:3002/flora/` (Vite uses port 3002 when 5173/3000/3001 occupied), enabled headed mode with real GPU, increased timeout to 120s for long gameplay sessions.
+- **Next Steps:** 
+  1. Debug why `ctx.sceneManager.transitionTo()` fails in BootScene.update()
+  2. Add error logging to scene transition system
+  3. Verify SceneManager is properly initialized before boot scene runs
+  4. Once fixed, re-run gameplay tests to verify full game flow
+- **Files:** tests/e2e/flora-gameplay.spec.ts (created), playwright.config.ts (updated), #279 created.
+- **Decision:** Cannot complete "play 2 games without problems" directive until #279 is resolved. Boot screen blocker prevents any gameplay verification.
