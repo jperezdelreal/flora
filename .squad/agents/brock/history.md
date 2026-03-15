@@ -90,3 +90,17 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Convention**: ALL dimensions via GAME.WIDTH/HEIGHT or proportional calculations. Hardcoded pixel values only acceptable for internal spacing (<50px).
 - **Key insight**: TypeScript strict mode enforces literal types for numeric fields; changed TutorialOverlay screenWidth/Height from literal types to `number` type annotations.
 
+### Playwright E2E Testing for WebGL Games (Issue #266, PR #267)
+- **WebGL canvas screenshot**: Playwright's `canvas.screenshot()` works directly with WebGL canvases — no need for getContext('2d') fallback
+- **Visual content detection**: Check PNG screenshot buffer size (>2KB = real content, not pixel data analysis)
+- **Canvas selector**: Flora uses PixiJS v8 which appends `<canvas>` to document.body with no ID — use `page.locator('canvas')`
+- **Frame synchronization**: Inject `requestAnimationFrame` ticker via `page.evaluate()` to wait for N rendered frames before assertions
+- **WebGL context validation**: Verify `canvas.getContext('webgl2') || canvas.getContext('webgl')` returns valid context with `drawingBufferWidth > 0`
+- **GPU in headless**: Chromium needs `--use-gl=angle --use-angle=swiftshader` launch args for WebGL rendering in headless mode
+- **Error collection pattern**: Subscribe to `page.on('pageerror')` and `page.on('console', msg => msg.type() === 'error')` before navigation
+- **Game flow testing**: Boot (loading bar) → Menu (60 frames ~1s) → keyboard navigation → visual diff via screenshot comparison
+- **Configuration**: baseURL points to GitHub Pages deployment, retries in CI, HTML reporter, trace on first retry
+- **npm scripts**: `test:e2e` for headless run, `test:e2e:ui` for Playwright UI mode
+- **Key files**: playwright.config.ts, tests/e2e/flora-game.spec.ts, package.json (test scripts), .gitignore (test artifacts)
+
+

@@ -5,3 +5,6 @@ dist/
 tools/.ralph-heartbeat.json
 tools/logs/
 tools/scheduler/.state.json
+test-results/
+playwright-report/
+blob-report/
