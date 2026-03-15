@@ -16,9 +16,11 @@ export interface PlantKeyframe {
 export type SeedShape = 'round' | 'oval' | 'flat' | 'pointed';
 export type LeafShape = 'round' | 'pointed' | 'serrated' | 'narrow';
 export type StemStyle = 'thin' | 'medium' | 'thick';
+export type PlantFamily = 'flower' | 'herb' | 'vegetable' | 'root_veg' | 'leafy' | 'vine' | 'tree' | 'berry' | 'melon' | 'exotic';
 
 export interface PlantVisualDef {
   plantId: string;
+  plantFamily: PlantFamily;
   keyframes: Record<GrowthStage, PlantKeyframe>;
   matureShape: 'circle' | 'oval' | 'tall' | 'wide' | 'star' | 'bush' | 'flower' | 'root';
   baseColor: number;
@@ -45,6 +47,7 @@ const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
 export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   tomato: {
     plantId: 'tomato',
+    plantFamily: 'vegetable',
     keyframes: KEYFRAMES,
     matureShape: 'circle',
     baseColor: 0xe74c3c,
@@ -60,6 +63,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   lettuce: {
     plantId: 'lettuce',
+    plantFamily: 'leafy',
     keyframes: KEYFRAMES,
     matureShape: 'wide',
     baseColor: 0x81c784,
@@ -74,6 +78,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   carrot: {
     plantId: 'carrot',
+    plantFamily: 'root_veg',
     keyframes: KEYFRAMES,
     matureShape: 'root',
     baseColor: 0xff9800,
@@ -89,6 +94,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   radish: {
     plantId: 'radish',
+    plantFamily: 'root_veg',
     keyframes: KEYFRAMES,
     matureShape: 'root',
     baseColor: 0xe91e63,
@@ -103,6 +109,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   pea: {
     plantId: 'pea',
+    plantFamily: 'vine',
     keyframes: KEYFRAMES,
     matureShape: 'tall',
     baseColor: 0x8bc34a,
@@ -118,6 +125,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   sunflower: {
     plantId: 'sunflower',
+    plantFamily: 'flower',
     keyframes: KEYFRAMES,
     matureShape: 'flower',
     baseColor: 0xffd54f,
@@ -133,6 +141,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   mint: {
     plantId: 'mint',
+    plantFamily: 'herb',
     keyframes: KEYFRAMES,
     matureShape: 'bush',
     baseColor: 0x4db6ac,
@@ -147,6 +156,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   pepper: {
     plantId: 'pepper',
+    plantFamily: 'vegetable',
     keyframes: KEYFRAMES,
     matureShape: 'oval',
     baseColor: 0xff5722,
@@ -162,6 +172,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   basil: {
     plantId: 'basil',
+    plantFamily: 'herb',
     keyframes: KEYFRAMES,
     matureShape: 'bush',
     baseColor: 0x388e3c,
@@ -176,6 +187,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   cucumber: {
     plantId: 'cucumber',
+    plantFamily: 'vine',
     keyframes: KEYFRAMES,
     matureShape: 'oval',
     baseColor: 0x4caf50,
@@ -191,6 +203,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   blueberry: {
     plantId: 'blueberry',
+    plantFamily: 'berry',
     keyframes: KEYFRAMES,
     matureShape: 'bush',
     baseColor: 0x5c6bc0,
@@ -206,6 +219,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   frost_willow: {
     plantId: 'frost_willow',
+    plantFamily: 'tree',
     keyframes: KEYFRAMES,
     matureShape: 'tall',
     baseColor: 0xb3e5fc,
@@ -221,6 +235,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   lavender: {
     plantId: 'lavender',
+    plantFamily: 'herb',
     keyframes: KEYFRAMES,
     matureShape: 'flower',
     baseColor: 0x9c27b0,
@@ -236,6 +251,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   orchid: {
     plantId: 'orchid',
+    plantFamily: 'flower',
     keyframes: KEYFRAMES,
     matureShape: 'flower',
     baseColor: 0xf06292,
@@ -251,6 +267,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   venus_flytrap: {
     plantId: 'venus_flytrap',
+    plantFamily: 'exotic',
     keyframes: KEYFRAMES,
     matureShape: 'star',
     baseColor: 0x8bc34a,
@@ -266,6 +283,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   heirloom_squash: {
     plantId: 'heirloom_squash',
+    plantFamily: 'melon',
     keyframes: KEYFRAMES,
     matureShape: 'wide',
     baseColor: 0xff9800,
@@ -281,6 +299,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   golden_marigold: {
     plantId: 'golden_marigold',
+    plantFamily: 'flower',
     keyframes: KEYFRAMES,
     matureShape: 'flower',
     baseColor: 0xffc107,
@@ -296,6 +315,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   ghost_pepper: {
     plantId: 'ghost_pepper',
+    plantFamily: 'exotic',
     keyframes: KEYFRAMES,
     matureShape: 'oval',
     baseColor: 0xff1744,
@@ -311,6 +331,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   moonflower: {
     plantId: 'moonflower',
+    plantFamily: 'flower',
     keyframes: KEYFRAMES,
     matureShape: 'flower',
     baseColor: 0xe1f5fe,
@@ -326,6 +347,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   strawberry: {
     plantId: 'strawberry',
+    plantFamily: 'berry',
     keyframes: KEYFRAMES,
     matureShape: 'bush',
     baseColor: 0xef5350,
@@ -341,6 +363,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   sage: {
     plantId: 'sage',
+    plantFamily: 'herb',
     keyframes: KEYFRAMES,
     matureShape: 'bush',
     baseColor: 0x78909c,
@@ -356,6 +379,7 @@ export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
   },
   watermelon: {
     plantId: 'watermelon',
+    plantFamily: 'melon',
     keyframes: KEYFRAMES,
     matureShape: 'wide',
     baseColor: 0x43a047,
