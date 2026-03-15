@@ -107,10 +107,10 @@ export const ACHIEVEMENTS: readonly AchievementConfig[] = [
   {
     id: 'flora_completionist',
     displayName: 'Flora Completionist',
-    description: 'Discover all 12 plant species in the encyclopedia.',
+    description: 'Discover all 22 plant species in the encyclopedia.',
     category: 'exploration',
     icon: '📚',
-    threshold: 12,
+    threshold: 22,
     reward: { type: 'hud_theme', id: 'theme_frost_blue', displayName: 'Frost Blue Theme' },
   },
 
