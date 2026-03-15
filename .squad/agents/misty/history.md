@@ -138,3 +138,16 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Conventions applied**: All comments "TLDR:", timer cleanup in destroy(), container lifecycle, no hardcoded dimensions
 - **Concurrent development note**: Had to rebase onto main mid-task to pick up #241/#243 changes; phase indicator methods added to maintain compatibility
 
+### Sprint 3 First Impressions UI Polish (Issue #250, PR #257)
+- **Architecture**: Sprint 3 cleanup targeting P0-P2 items for improved first-player experience
+- **Pattern**: Verification of existing implementations + minimal cleanup
+- **Key findings**:
+  - **P0: PauseMenu Main Menu navigation** — Already properly implemented in GardenScene.ts (lines 374-379); saves garden state and transitions to MenuScene with skipTitle flag
+  - **P1: HUD information hierarchy** — Already simplified in PR #256 with 3-tier system (Primary: Day/Season/Actions; Secondary: Score/Progress bar; Tertiary: Event-driven auto-hide)
+  - **P2: Debug UI cleanup** — Removed single TODO comment from pest removal code (line 964), updated to TLDR convention
+- **Verification process**: Searched codebase for debug/dev-facing text patterns (TODO, FIXME, console.log, DEBUG, [DEV]) across src/ui/ and src/scenes/
+- **Result**: Most Sprint 3 UI work already complete from PRs #239, #243, #256; only minor cleanup needed
+- **Conventions applied**: TLDR comments, git trailer in commit message
+- **Workflow note**: Branch naming confusion resolved by rebasing correct branch (squad/250-sprint3-ui-fixes) onto main after fetch
+
+
