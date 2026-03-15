@@ -13,6 +13,7 @@ export class ToolBar {
   private toolLockIcons: Map<ToolType, Text>;
   private toolTierTexts: Map<ToolType, Text>;
   private toolHintTexts: Map<ToolType, Text>;
+  private toolShortcutTexts: Map<ToolType, Text>;
   private selectedTool: ToolType | null = null;
   private unlockedTools: Set<ToolType> = new Set();
   private onToolSelect?: (tool: ToolType | null) => void;
@@ -26,6 +27,7 @@ export class ToolBar {
     this.toolLockIcons = new Map();
     this.toolTierTexts = new Map();
     this.toolHintTexts = new Map();
+    this.toolShortcutTexts = new Map();
     this.toolSystem = toolSystem;
 
     if (toolSystem) {
@@ -47,6 +49,19 @@ export class ToolBar {
     const buttonWidth = 80;
     const buttonHeight = 80;
     const padding = 10;
+
+    // TLDR: Keyboard shortcut key mapping — matches GardenScene keyToolMap (#283)
+    const toolShortcutKey: Record<string, string> = {
+      [ToolType.SEED]: '1',
+      [ToolType.WATER]: '2',
+      [ToolType.HARVEST]: '3',
+      [ToolType.REMOVE_PEST]: '4',
+      [ToolType.REMOVE_WEED]: '5',
+      [ToolType.COMPOST]: '6',
+      [ToolType.PEST_SPRAY]: '7',
+      [ToolType.SOIL_TESTER]: '8',
+      [ToolType.TRELLIS]: '9',
+    };
 
     ALL_TOOLS.forEach((tool, index) => {
       const buttonContainer = new Container();
@@ -172,6 +187,28 @@ export class ToolBar {
       hintText.visible = false;
       buttonContainer.addChild(hintText);
       this.toolHintTexts.set(tool.type, hintText);
+
+      // TLDR: Keyboard shortcut badge — top-left corner (#283)
+      const shortcutKey = toolShortcutKey[tool.type] ?? '';
+      if (shortcutKey) {
+        const shortcutBg = new Graphics();
+        shortcutBg.roundRect(0, 0, 16, 16, 3);
+        shortcutBg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 });
+        shortcutBg.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 1 });
+        shortcutBg.x = 2;
+        shortcutBg.y = 2;
+        buttonContainer.addChild(shortcutBg);
+
+        const shortcutText = new Text({
+          text: shortcutKey,
+          style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' },
+        });
+        shortcutText.anchor.set(0.5);
+        shortcutText.x = 10;
+        shortcutText.y = 10;
+        buttonContainer.addChild(shortcutText);
+        this.toolShortcutTexts.set(tool.type, shortcutText);
+      }
 
       buttonContainer.x = x;
       this.container.addChild(buttonContainer);
@@ -407,6 +444,7 @@ export class ToolBar {
     this.toolLockIcons.clear();
     this.toolTierTexts.clear();
     this.toolHintTexts.clear();
+    this.toolShortcutTexts.clear();
     this.unlockedTools.clear();
   }
 }
