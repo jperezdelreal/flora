@@ -165,4 +165,33 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Testing**: TypeScript compilation passed with `npx tsc --noEmit`
 - **Conventions applied**: TLDR comment explaining purpose of new method, git trailer in commit
 
+### UI Polish Triple Fix (Issue #274, #275, #276, PR #278)
+- **Architecture**: Sprint 3 UI polish targeting first impressions and player feedback
+- **Pattern**: Animation-driven feedback with config-based colors, Ticker-based shake animation, tooltip with auto-hide
+- **Key files updated**:
+  - `src/scenes/BootScene.ts` — Enhanced "Press any key" hint with larger font (22px), UI_COLORS.TEXT_PRIMARY, and pulse animation
+  - `src/scenes/MenuScene.ts` — Added hover states to menu buttons with warm glow (UI_COLORS.MENU_ITEM_HOVER_BG/BORDER) and subtle scale (1.03x)
+  - `src/ui/AchievementGallery.ts` — Added locked achievement click feedback with shake animation + tooltip
+- **Issue #274: Boot screen hint visibility**:
+  - Increased font size from 14px to 22px, made bold
+  - Changed color from hardcoded green to UI_COLORS.TEXT_PRIMARY (#f5e6d3) for better contrast
+  - Added gentle pulse animation: `alpha = sin(time * 2.5) * 0.3 + 0.7` after loading completes
+  - Stored as instance variable `hintText` for animation access
+- **Issue #275: Locked achievement feedback**:
+  - Added `pointerdown` listener to locked achievement cards
+  - Shake animation: 0.3s duration with decay, sine-wave oscillation (6px max intensity), handled via Ticker
+  - Tooltip shows "Complete [category] goals to unlock" positioned above card
+  - Tooltip auto-hides after 3s using setTimeout
+  - Tooltip uses UI_COLORS.PANEL_BG and BUTTON_LOCKED_BORDER for consistency
+  - Achievement categories: harvest, survival, synergy, exploration, mastery (verified from config)
+- **Issue #276: Menu button hover states**:
+  - Added `pointerover` and `pointerout` listeners to enabled menu items
+  - Hover triggers `scale.set(1.03)` for subtle lift effect
+  - Pointer out resets `scale.set(1.0)`
+  - Used UI_COLORS.MENU_ITEM_HOVER_BG (0x7a9b5c) and MENU_ITEM_HOVER_BORDER (0x9bc077) for warm glow
+  - Updated `highlightMenuItem()` to use UI_COLORS constants throughout
+- **Cleanup pattern**: Added Ticker cleanup in AchievementGallery.destroy(), tooltip timer clearTimeout
+- **Performance note**: Shake animation only runs when active (shakeTarget !== null), minimal overhead
+- **Conventions applied**: All comments start with TLDR, UI_COLORS used for all colors (no inline hex), git trailer in commit
+- **Testing**: TypeScript compilation passed with `npx tsc --noEmit`
 
