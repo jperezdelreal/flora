@@ -49,8 +49,8 @@ export class EncyclopediaScene implements Scene {
   private encyclopediaSystem: EncyclopediaSystem;
 
   private ctx: SceneContext | null = null;
-  private screenWidth: number = GAME.WIDTH;
-  private screenHeight: number = GAME.HEIGHT;
+  private screenWidth = GAME.WIDTH;
+  private screenHeight = GAME.HEIGHT;
   private elapsed = 0;
   private fireflyCooldown = 0;
 
