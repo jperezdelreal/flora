@@ -24,6 +24,13 @@ import {
 import { getSeasonalPalette, lerpColor, adjustSaturation } from '../config/seasonalPalettes';
 import type { System } from './index';
 
+// ─── Soil quality visual constants ────────────────────────────────────────
+const SOIL_QUALITY_HIGH_THRESHOLD = 75;
+const SOIL_QUALITY_LOW_THRESHOLD = 25;
+const SOIL_QUALITY_BRIGHTEN_FACTOR = 0.12;
+const SOIL_QUALITY_DULL_FACTOR = 0.18;
+const SOIL_QUALITY_LOW_DROOP_PX = 1.5;
+
 export interface PlantRendererConfig {
   animationSystem: AnimationSystem;
   plantSystem: PlantSystem;
@@ -36,8 +43,14 @@ function makeCacheKey(
   stage: GrowthStage,
   healthBucket: number,
   season: Season,
+  sqBucket: number,
 ): string {
-  return `${plantType}_${stage}_${healthBucket}_${season}`;
+  return `${plantType}_${stage}_${healthBucket}_${season}_sq${sqBucket}`;
+}
+
+/** Bucket soil quality into discrete levels for caching */
+function soilQualityBucket(quality: number): number {
+  return Math.floor(quality / 25) * 25;
 }
 
 export class PlantRenderer implements System {
@@ -48,9 +61,11 @@ export class PlantRenderer implements System {
   private swayPhases = new Map<string, number>();
   private plantBaseX = new Map<string, number>();
   private plantHealthCache = new Map<string, number>();
+  private plantSoilQualityCache = new Map<string, number>();
   private visualStateCache = new Map<string, string>();
   private synergyShimmerPhases = new Map<string, number>();
   private maturityGlows = new Map<string, Graphics>();
+  private soilQualityGlows = new Map<string, Graphics>();
   private currentSeason: Season = Season.SPRING;
 
   private animationSystem: AnimationSystem;
@@ -97,7 +112,9 @@ export class PlantRenderer implements System {
 
     const gfx = new Graphics();
     const configId = plant.getConfig().id;
-    this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth());
+    const tile = this.grid.getTile(row, col);
+    const sq = tile?.soilQuality ?? 50;
+    this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth(), sq);
     visual.addChild(gfx);
 
     this.plantVisualLayer.addChild(visual);
@@ -137,7 +154,9 @@ export class PlantRenderer implements System {
 
     const gfx = visual.children[0] as Graphics;
     if (gfx) {
-      this.drawPlantShape(gfx, configId, stage, plant.getHealth());
+      const tile = this.grid.getTile(plant.y, plant.x);
+      const sq = tile?.soilQuality ?? 50;
+      this.drawPlantShape(gfx, configId, stage, plant.getHealth(), sq);
     }
 
     const swayIntensity = visualDef?.swayIntensity ?? 1.0;
@@ -167,9 +186,11 @@ export class PlantRenderer implements System {
       this.swayPhases.delete(plantId);
       this.plantBaseX.delete(plantId);
       this.plantHealthCache.delete(plantId);
+      this.plantSoilQualityCache.delete(plantId);
       this.visualStateCache.delete(plantId);
       this.synergyShimmerPhases.delete(plantId);
       this.removeMaturityGlow(plantId);
+      this.removeSoilQualityGlow(plantId);
     }
   }
 
@@ -199,6 +220,29 @@ export class PlantRenderer implements System {
     }
   }
 
+  /** TLDR: Add a persistent green glow behind plants on high-quality soil (>75%) */
+  private addSoilQualityGlow(plantId: string): void {
+    if (this.soilQualityGlows.has(plantId)) return;
+    const visual = this.plantVisuals.get(plantId);
+    if (!visual) return;
+
+    const glow = new Graphics();
+    glow.circle(0, 0, ANIMATION.MATURE_GLOW_RADIUS * 0.9);
+    glow.fill({ color: COLORS.PLANT_SOIL_GLOW, alpha: 0.15 });
+    glow.alpha = 0.15;
+    visual.addChildAt(glow, 0);
+    this.soilQualityGlows.set(plantId, glow);
+  }
+
+  /** Remove soil quality glow graphic for a plant */
+  private removeSoilQualityGlow(plantId: string): void {
+    const glow = this.soilQualityGlows.get(plantId);
+    if (glow) {
+      glow.destroy();
+      this.soilQualityGlows.delete(plantId);
+    }
+  }
+
   /** Rebuild all plant visuals (after season change / restart) */
   rebuildAllVisuals(): void {
     for (const [, visual] of this.plantVisuals) {
@@ -208,9 +252,11 @@ export class PlantRenderer implements System {
     this.swayPhases.clear();
     this.plantBaseX.clear();
     this.plantHealthCache.clear();
+    this.plantSoilQualityCache.clear();
     this.visualStateCache.clear();
     this.synergyShimmerPhases.clear();
     this.maturityGlows.clear();
+    this.soilQualityGlows.clear();
 
     const activePlants = this.plantSystem.getActivePlants();
     for (const plant of activePlants) {
@@ -219,15 +265,17 @@ export class PlantRenderer implements System {
       if (visual) {
         const keyframe = getStageKeyframe(plant.getConfig().id, plant.getGrowthStage());
         visual.scale.set(keyframe.scale);
+        const tile = this.grid.getTile(plant.y, plant.x);
+        const sq = tile?.soilQuality ?? 50;
         const gfx = visual.children[0] as Graphics;
         if (gfx) {
-          this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
+          this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth(), sq);
         }
       }
     }
   }
 
-  /** Refresh a single plant's visual (for health changes / wilting) */
+  /** Refresh a single plant's visual (for health changes / wilting / soil quality) */
   refreshPlantVisual(plantId: string): void {
     const visual = this.plantVisuals.get(plantId);
     const plant = this.plantSystem.getPlant(plantId);
@@ -235,7 +283,9 @@ export class PlantRenderer implements System {
 
     const gfx = visual.children[0] as Graphics;
     if (gfx) {
-      this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth());
+      const tile = this.grid.getTile(plant.y, plant.x);
+      const sq = tile?.soilQuality ?? 50;
+      this.drawPlantShape(gfx, plant.getConfig().id, plant.getGrowthStage(), plant.getHealth(), sq);
     }
   }
 
@@ -290,7 +340,7 @@ export class PlantRenderer implements System {
 
   // ─── Per-Frame Update ────────────────────────────────────────────────
 
-  /** Per-frame visual update: idle sway, synergy shimmer, health refresh, orphan cleanup */
+  /** Per-frame visual update: idle sway, synergy shimmer, health refresh, soil quality, orphan cleanup */
   update(_delta: number): void {
     const time = performance.now() / 1000;
 
@@ -303,6 +353,29 @@ export class PlantRenderer implements System {
       const phase = this.swayPhases.get(plantId) ?? 0;
       const stage = plant.getGrowthStage();
       const isMatureOrGrowing = stage === GrowthStage.MATURE || stage === GrowthStage.GROWING;
+
+      // Soil quality tracking for visual refresh + glow management
+      const tile = this.grid.getTile(plant.y, plant.x);
+      const currentSoilQuality = tile?.soilQuality ?? 50;
+      const cachedSoilQuality = this.plantSoilQualityCache.get(plantId);
+      if (cachedSoilQuality === undefined || Math.abs(currentSoilQuality - cachedSoilQuality) > 10) {
+        this.plantSoilQualityCache.set(plantId, currentSoilQuality);
+        this.refreshPlantVisual(plantId);
+      }
+
+      // Soil quality glow management (>75% gets glow, ≤75% removes it)
+      if (currentSoilQuality > SOIL_QUALITY_HIGH_THRESHOLD && stage !== GrowthStage.SEED) {
+        this.addSoilQualityGlow(plantId);
+      } else {
+        this.removeSoilQualityGlow(plantId);
+      }
+
+      // Soil quality glow pulse
+      const soilGlow = this.soilQualityGlows.get(plantId);
+      if (soilGlow) {
+        const pulse = Math.sin(time * 1.5 + phase) * 0.5 + 0.5;
+        soilGlow.alpha = 0.1 + pulse * 0.1;
+      }
 
       // Idle sway: rotation on all non-seed stages
       if (stage !== GrowthStage.SEED) {
@@ -319,6 +392,15 @@ export class PlantRenderer implements System {
         const xSway = Math.sin(time * ANIMATION.SWAY_X_FREQUENCY * Math.PI * 2 + phase * 1.5) *
                        ANIMATION.SWAY_X_AMPLITUDE * swayIntensity;
         visual.x = baseX + xSway;
+      }
+
+      // Low soil quality droop: subtle downward y-offset on plants in depleted soil
+      if (currentSoilQuality < SOIL_QUALITY_LOW_THRESHOLD && stage !== GrowthStage.SEED) {
+        const droopIntensity = 1 - currentSoilQuality / SOIL_QUALITY_LOW_THRESHOLD;
+        const droopSway = Math.sin(time * 0.8 + phase) * droopIntensity * SOIL_QUALITY_LOW_DROOP_PX;
+        visual.pivot.y = -droopSway;
+      } else {
+        visual.pivot.y = 0;
       }
 
       // Mature pulse: subtle scale breathing to signal "harvest me"
@@ -349,7 +431,7 @@ export class PlantRenderer implements System {
           (ANIMATION.MATURE_GLOW_MAX_ALPHA - ANIMATION.MATURE_GLOW_MIN_ALPHA) * (pulse * 0.5 + 0.5);
       }
 
-      // Health-based visual refresh(only when health changes by >5%)
+      // Health-based visual refresh (only when health changes by >5%)
       const currentHealth = plant.getHealth();
       const cachedHealth = this.plantHealthCache.get(plantId);
       if (cachedHealth === undefined || Math.abs(currentHealth - cachedHealth) > 5) {
@@ -374,9 +456,11 @@ export class PlantRenderer implements System {
     this.swayPhases.clear();
     this.plantBaseX.clear();
     this.plantHealthCache.clear();
+    this.plantSoilQualityCache.clear();
     this.visualStateCache.clear();
     this.synergyShimmerPhases.clear();
     this.maturityGlows.clear();
+    this.soilQualityGlows.clear();
     this.plantVisualLayer.destroy({ children: true });
   }
 
@@ -385,11 +469,13 @@ export class PlantRenderer implements System {
   /**
    * Draw plant shape per growth stage — unique visual identity per plant.
    * Uses cache key to skip redundant redraws.
+   * Soil quality adjusts color brightness: high = brighter, low = duller.
    */
-  private drawPlantShape(gfx: Graphics, plantId: string, stage: GrowthStage, health: number): void {
+  private drawPlantShape(gfx: Graphics, plantId: string, stage: GrowthStage, health: number, soilQuality: number = 50): void {
     // Check cache to avoid redundant redraws
     const healthBucket = Math.floor(health / 10) * 10;
-    const cacheKey = makeCacheKey(plantId, stage, healthBucket, this.currentSeason);
+    const sqBucket = soilQualityBucket(soilQuality);
+    const cacheKey = makeCacheKey(plantId, stage, healthBucket, this.currentSeason, sqBucket);
     const existingKey = this.visualStateCache.get(plantId);
     if (existingKey === cacheKey) return;
     this.visualStateCache.set(plantId, cacheKey);
@@ -431,6 +517,11 @@ export class PlantRenderer implements System {
     const accColor = adjustColorForHealth(accentColor, health);
     const detColor = adjustColorForHealth(detailColor, health);
 
+    // TLDR: Soil quality tint — brighten on rich soil, dull on depleted soil
+    const adjustedMainColor = this.adjustColorForSoilQuality(mainColor, soilQuality);
+    const adjustedAccColor = this.adjustColorForSoilQuality(accColor, soilQuality);
+    const adjustedDetColor = this.adjustColorForSoilQuality(detColor, soilQuality);
+
     const alpha = keyframe.alpha * (health > 50 ? 1.0 : 0.7);
 
     // Harvest-ready glow on ALL mature plants; stronger glow for glowOnMature species
@@ -438,26 +529,42 @@ export class PlantRenderer implements System {
       const glowAlpha = visualDef.glowOnMature ? 0.4 : 0.2;
       const glowRadius = shapeData.mainRadius + (visualDef.glowOnMature ? 6 : 4);
       gfx.circle(0, keyframe.yOffset, glowRadius);
-      gfx.fill({ color: accColor, alpha: glowAlpha });
+      gfx.fill({ color: adjustedAccColor, alpha: glowAlpha });
     }
 
     switch (stage) {
       case GrowthStage.SEED:
-        this.drawSeedShape(gfx, visualDef, shapeData, mainColor, accColor, alpha);
+        this.drawSeedShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, alpha);
         break;
       case GrowthStage.SPROUT:
-        this.drawSproutShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+        this.drawSproutShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, adjustedDetColor, alpha, keyframe.yOffset);
         break;
       case GrowthStage.GROWING:
-        this.drawGrowingShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+        this.drawGrowingShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, adjustedDetColor, alpha, keyframe.yOffset);
         break;
       case GrowthStage.MATURE:
-        this.drawMatureShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+        this.drawMatureShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, adjustedDetColor, alpha, keyframe.yOffset);
         break;
       case GrowthStage.WILTING:
-        this.drawWiltingShape(gfx, visualDef, shapeData, mainColor, accColor, detColor, alpha, keyframe.yOffset);
+        this.drawWiltingShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, adjustedDetColor, alpha, keyframe.yOffset);
         break;
     }
+  }
+
+  /**
+   * TLDR: Adjust a plant color based on soil quality.
+   * High quality (>75%) brightens toward lighter green; low quality (<25%) desaturates toward gray.
+   */
+  private adjustColorForSoilQuality(color: number, soilQuality: number): number {
+    if (soilQuality > SOIL_QUALITY_HIGH_THRESHOLD) {
+      const t = (soilQuality - SOIL_QUALITY_HIGH_THRESHOLD) / (100 - SOIL_QUALITY_HIGH_THRESHOLD);
+      return lerpColor(color, COLORS.PLANT_SOIL_GLOW, t * SOIL_QUALITY_BRIGHTEN_FACTOR);
+    }
+    if (soilQuality < SOIL_QUALITY_LOW_THRESHOLD) {
+      const t = 1 - soilQuality / SOIL_QUALITY_LOW_THRESHOLD;
+      return lerpColor(color, 0x808080, t * SOIL_QUALITY_DULL_FACTOR);
+    }
+    return color;
   }
 
   private drawFallbackShape(gfx: Graphics, stage: GrowthStage): void {

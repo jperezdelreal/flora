@@ -94,5 +94,8 @@ export const GREENHOUSE_BONUS_DAYS = 2;
 /** TLDR: Soil quality boost applied by Compost Bin when a plant dies */
 export const COMPOST_SOIL_BOOST = 15;
 
+/** TLDR: Soil quality boost applied by the hand Compost tool per action */
+export const COMPOST_TOOL_BOOST = 15;
+
 /** TLDR: Number of adjacent tiles auto-watered by Rain Barrel each day */
 export const RAIN_BARREL_WATER_COUNT = 2;

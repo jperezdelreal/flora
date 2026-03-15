@@ -13,6 +13,7 @@ import { StructureType } from '../config/structures';
 import { Season } from '../config/seasons';
 import { getSeasonalPalette, lerpColor, adjustSaturation } from '../config/seasonalPalettes';
 import { getActivePalette } from '../utils/accessibility';
+import { COLORS } from '../config';
 import type { System } from './index';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -37,7 +38,8 @@ type RenderableStructure = StructureType | 'trellis';
 const SOIL_COLORS = {
   dry: 0xc4a882,       // Light brown — dry soil
   moist: 0x5c3a1e,     // Dark brown — moist soil
-  richEarth: 0x3d2817, // Rich dark earth — high quality
+  richEarth: COLORS.SOIL_RICH,  // Rich dark earth — high quality
+  depleted: COLORS.SOIL_DEPLETED, // Grayish beige — depleted soil
 } as const;
 
 /** Overlay colors for tile states */
@@ -97,6 +99,18 @@ function makeTileCacheKey(state: TileVisualState, structureType?: RenderableStru
   return structureType ? `${base}_${structureType}` : base;
 }
 
+// ─── Compost animation types ────────────────────────────────────────────────
+
+interface CompostParticle {
+  gfx: Graphics;
+  x: number;
+  y: number;
+  vy: number;
+  alpha: number;
+  life: number;
+  maxLife: number;
+}
+
 // ─── TileRenderer ───────────────────────────────────────────────────────────
 
 export class TileRenderer implements System {
@@ -114,6 +128,9 @@ export class TileRenderer implements System {
 
   /** TLDR: Dirty tracking — only re-render tiles that changed this frame */
   private dirtyTiles = new Set<Tile>();
+
+  /** TLDR: Active compost particle animations */
+  private compostParticles: CompostParticle[] = [];
 
   constructor(config: TileRendererConfig) {
     this.grid = config.grid;
@@ -197,9 +214,14 @@ export class TileRenderer implements System {
       }
     }
     this.dirtyTiles.clear();
+
+    // TLDR: Tick compost particle animations
+    this.updateCompostParticles();
   }
 
   destroy(): void {
+    for (const p of this.compostParticles) p.gfx.destroy();
+    this.compostParticles = [];
     this.tileLayer.destroy({ children: true });
     this.tileGraphics.clear();
     this.visualStateCache.clear();
@@ -264,9 +286,14 @@ export class TileRenderer implements System {
       this.drawPestOverlay(gfx, size, padding);
     }
 
-    // High-quality soil sparkle (quality ≥ 80)
-    if (tile.soilQuality >= 80 && tile.state !== TileState.STRUCTURE) {
+    // High-quality soil sparkle (quality ≥ 75)
+    if (tile.soilQuality >= 75 && tile.state !== TileState.STRUCTURE) {
       this.drawQualityIndicator(gfx, size, padding, tile.soilQuality);
+    }
+
+    // Low-quality soil depleted cracks (quality < 25)
+    if (tile.soilQuality < 25 && tile.state !== TileState.STRUCTURE) {
+      this.drawDepletedIndicator(gfx, size, padding, tile.soilQuality);
     }
   }
 
@@ -275,7 +302,7 @@ export class TileRenderer implements System {
   /**
    * Compute soil color based on moisture and quality.
    * Moisture controls darkness: dry = light brown, moist = dark brown.
-   * Quality adds richness: high quality = darker, richer earth.
+   * Quality shifts the palette: low = depleted gray, high = rich dark earth.
    * Seasonal palette shifts the base color.
    */
   private computeSoilColor(moisture: number, quality: number): number {
@@ -286,10 +313,17 @@ export class TileRenderer implements System {
     const moistureT = Math.min(1, Math.max(0, moisture / 100));
     let baseColor = lerpColor(SOIL_COLORS.dry, SOIL_COLORS.moist, moistureT);
 
-    // Quality enrichment: blend toward rich earth for high quality
     const qualityT = Math.min(1, Math.max(0, quality / 100));
+
+    // Low quality: blend toward depleted grayish tint
+    if (qualityT < 0.25) {
+      const depletedT = 1 - qualityT / 0.25;
+      baseColor = lerpColor(baseColor, SOIL_COLORS.depleted, depletedT * 0.35);
+    }
+
+    // High quality: blend toward rich earth
     if (qualityT > 0.6) {
-      const richT = (qualityT - 0.6) / 0.4; // 0-1 range for quality 60-100
+      const richT = (qualityT - 0.6) / 0.4;
       baseColor = lerpColor(baseColor, SOIL_COLORS.richEarth, richT * 0.4);
     }
 
@@ -361,21 +395,93 @@ export class TileRenderer implements System {
     gfx.fill({ color: palette.danger, alpha: 0.8 });
   }
 
-  /** Subtle sparkle dots for high-quality soil */
+  /** Subtle sparkle dots for high-quality soil (≥75%) */
   private drawQualityIndicator(gfx: Graphics, size: number, padding: number, quality: number): void {
-    const intensity = (quality - 80) / 20; // 0-1 for quality 80-100
+    const intensity = (quality - 75) / 25; // 0-1 for quality 75-100
     const count = Math.floor(2 + intensity * 3);
     const inner = padding * 2 + 4;
     const range = size - inner * 2;
 
-    // Deterministic sparkle positions based on size
     for (let i = 0; i < count; i++) {
       const t = (i + 0.5) / count;
       const sx = inner + (t * 0.7 + 0.15) * range;
       const sy = inner + ((t * 1.3 + 0.3) % 1) * range;
 
       gfx.circle(sx, sy, 1.5);
-      gfx.fill({ color: 0xfff9c4, alpha: 0.3 + intensity * 0.3 });
+      gfx.fill({ color: COLORS.SOIL_QUALITY_GLOW, alpha: 0.3 + intensity * 0.3 });
+    }
+  }
+
+  /** Subtle crack lines on depleted soil (<25%) */
+  private drawDepletedIndicator(gfx: Graphics, size: number, padding: number, quality: number): void {
+    const intensity = 1 - quality / 25; // 1 at 0%, 0 at 25%
+    const inner = padding * 2 + 6;
+    const range = size - inner * 2;
+
+    const crackCount = Math.floor(1 + intensity * 2);
+    for (let i = 0; i < crackCount; i++) {
+      const t = (i + 0.5) / (crackCount + 1);
+      const x1 = inner + t * range * 0.3;
+      const y1 = inner + t * range;
+      const x2 = inner + t * range * 0.7 + range * 0.2;
+      const y2 = inner + t * range * 0.5;
+
+      gfx.moveTo(x1, y1);
+      gfx.lineTo((x1 + x2) / 2, (y1 + y2) / 2 + 2);
+      gfx.lineTo(x2, y2);
+      gfx.stroke({ color: SOIL_COLORS.depleted, width: 0.8, alpha: 0.2 + intensity * 0.2 });
+    }
+  }
+
+  // ─── Compost animation ────────────────────────────────────────────────
+
+  /** TLDR: Spawn compost particles that rise and absorb into the tile */
+  playCompostAnimation(row: number, col: number): void {
+    const pos = this.grid.getTilePosition(row, col);
+    const size = this.grid.config.tileSize;
+    const cx = pos.x + size / 2;
+    const cy = pos.y + size / 2;
+
+    for (let i = 0; i < 8; i++) {
+      const gfx = new Graphics();
+      const particleX = cx + (Math.random() - 0.5) * size * 0.6;
+      const particleY = cy + size * 0.3;
+      const particleSize = 1.5 + Math.random() * 2;
+
+      gfx.circle(0, 0, particleSize);
+      gfx.fill({ color: COLORS.COMPOST_PARTICLE, alpha: 0.8 });
+      gfx.x = particleX;
+      gfx.y = particleY;
+      this.tileLayer.addChild(gfx);
+
+      this.compostParticles.push({
+        gfx,
+        x: particleX,
+        y: particleY,
+        vy: -(0.5 + Math.random() * 1.0),
+        alpha: 0.8,
+        life: 0,
+        maxLife: 40 + Math.random() * 20,
+      });
+    }
+  }
+
+  /** TLDR: Update compost particles — rise, sway, fade, then destroy */
+  private updateCompostParticles(): void {
+    for (let i = this.compostParticles.length - 1; i >= 0; i--) {
+      const p = this.compostParticles[i];
+      p.life++;
+      p.y += p.vy;
+      p.vy *= 0.97;
+      p.alpha = 0.8 * (1 - p.life / p.maxLife);
+      p.gfx.x = p.x + Math.sin(p.life * 0.2) * 2;
+      p.gfx.y = p.y;
+      p.gfx.alpha = p.alpha;
+
+      if (p.life >= p.maxLife) {
+        p.gfx.destroy();
+        this.compostParticles.splice(i, 1);
+      }
     }
   }
 

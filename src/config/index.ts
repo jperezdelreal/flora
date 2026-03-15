@@ -51,6 +51,12 @@ export const COLORS = {
   SKY_BLUE: 0x87ceeb,
   WHITE: 0xffffff,
   BLACK: 0x000000,
+  // Soil quality visual colors
+  SOIL_DEPLETED: 0xb8a88a,     // Grayish beige - depleted soil (<25%)
+  SOIL_RICH: 0x3d2817,         // Rich dark earth - high quality (>75%)
+  SOIL_QUALITY_GLOW: 0xfff9c4, // Warm sparkle for high-quality soil
+  PLANT_SOIL_GLOW: 0xa5d6a7,   // Subtle green glow behind plants on rich soil
+  COMPOST_PARTICLE: 0x5d4037,  // Compost particle color for animation
 } as const;
 
 /** TLDR: UI component color palette */

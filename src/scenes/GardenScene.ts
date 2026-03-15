@@ -30,7 +30,7 @@ import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
 import { GAME, TOUCH, SCENES } from '../config';
 import { MenuScene } from './MenuScene';
-import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
+import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, COMPOST_TOOL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, SEASON_ORDER, MULTI_SEASON_DAYS, MULTI_SEASON_SCORE_MULTIPLIER, getRandomSeason } from '../config/seasons';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus, type EventMap } from '../core/EventBus';
@@ -1007,6 +1007,22 @@ export class GardenScene implements Scene {
     if (result) {
       this.showActionMessage(result.message);
       this.gridSystem.update();
+
+      // TLDR: Compost tool visual feedback — particle animation + event
+      if (result.success && selectedTool === ToolType.COMPOST) {
+        const pos = this.player.getGridPosition();
+        const tile = this.grid.getTile(pos.row, pos.col);
+        if (tile) {
+          this.tileRenderer.playCompostAnimation(pos.row, pos.col);
+          this.tileRenderer.refreshTileAt(pos.row, pos.col);
+          eventBus.emit('compost:applied', {
+            row: pos.row,
+            col: pos.col,
+            soilQualityBefore: tile.soilQuality - COMPOST_TOOL_BOOST,
+            soilQualityAfter: tile.soilQuality,
+          });
+        }
+      }
     }
   }
 
