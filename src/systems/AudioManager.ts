@@ -111,6 +111,14 @@ export class AudioManager {
     
     // Hazard events
     eventBus.on('pest:spawned', () => this.playSFX('PEST_APPEAR'));
+    
+    // Weed & compost events
+    eventBus.on('weed:removed', () => this.playSFX('WEED_PULL'));
+    eventBus.on('compost:applied', () => this.playSFX('COMPOST_SPREAD'));
+    
+    // Tool progression events
+    eventBus.on('tool:upgraded', () => this.playSFX('TOOL_UPGRADE'));
+    eventBus.on('tool:unlocked', () => this.playSFX('TOOL_UNLOCK'));
   }
   
   /**

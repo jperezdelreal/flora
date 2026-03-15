@@ -535,6 +535,15 @@ export class ParticleSystem implements System {
     return this.particles.length + this.ripples.length + this.glows.length + this.floatingTexts.length + this.ambientParticles.length;
   }
 
+  /** TLDR: Pool utilization stats for FPS monitor overlay */
+  getPoolStats(): { active: number; available: number; total: number } {
+    return {
+      active: this.graphicsPool.activeCount,
+      available: this.graphicsPool.availableCount,
+      total: this.graphicsPool.totalCount,
+    };
+  }
+
   destroy(): void {
     this.stopAmbientParticles();
     for (const p of this.particles) this.graphicsPool.release(p.graphic);
