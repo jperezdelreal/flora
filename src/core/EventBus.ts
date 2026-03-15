@@ -64,6 +64,14 @@ export interface EventMap {
   'compost:applied': { row: number; col: number; soilQualityBefore: number; soilQualityAfter: number };
   // Achievement events
   'achievement:unlocked': { achievementId: string; achievementName: string };
+  // Cosmetic events
+  'cosmetic:applied': { cosmeticId: string; cosmeticType: string };
+  'cosmetic:seedSkinChanged': { skinId: string | null };
+  'cosmetic:hudThemeChanged': { themeId: string | null };
+  // Season selection events
+  'season:selected': { season: string; isMultiSeason: boolean };
+  'multiseason:transition': { fromSeason: string; toSeason: string; seasonIndex: number; totalSeasons: number };
+  'multiseason:completed': { finalScore: number; seasonsPlayed: number };
   // Seed selection events
   'seed:selected': { seedId: string };
   // Accessibility events

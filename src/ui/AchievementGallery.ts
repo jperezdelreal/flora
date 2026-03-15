@@ -265,9 +265,10 @@ export class AchievementGallery {
       nameLabel.y = 78;
       card.addChild(nameLabel);
 
-      // TLDR: Reward tag
+      // TLDR: Reward tag with type indicator
+      const unlockedRewardEmoji = entry.config.reward.type === 'seed_skin' ? '🌱' : entry.config.reward.type === 'hud_theme' ? '🎨' : '🏅';
       const rewardLabel = new Text({
-        text: entry.config.reward.displayName,
+        text: `${unlockedRewardEmoji} ${entry.config.reward.displayName}`,
         style: {
           fontFamily: 'Arial',
           fontSize: 11,
@@ -327,9 +328,10 @@ export class AchievementGallery {
       catHint.y = 100;
       card.addChild(catHint);
 
-      // TLDR: Dimmed reward preview for locked achievements
+      // TLDR: Dimmed reward preview for locked achievements (with type icon)
+      const rewardTypeEmoji = entry.config.reward.type === 'seed_skin' ? '🌱' : entry.config.reward.type === 'hud_theme' ? '🎨' : '🏅';
       const rewardPreview = new Text({
-        text: entry.config.reward.displayName,
+        text: `${rewardTypeEmoji} ${entry.config.reward.displayName}`,
         style: {
           fontFamily: 'Arial',
           fontSize: 10,

@@ -94,6 +94,10 @@ export interface SettingsSaveData {
   colorVisionMode?: string;
   reducedMotion?: boolean;
   highContrast?: boolean;
+  /** TLDR: Active cosmetic selections (persisted across sessions) */
+  activeSeedSkin?: string | null;
+  activeHudTheme?: string | null;
+  activeBadges?: string[];
 }
 
 /** TLDR: Persisted run history entry for post-run review */

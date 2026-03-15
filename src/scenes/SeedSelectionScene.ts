@@ -9,6 +9,7 @@ import { audioManager } from '../systems/AudioManager';
 import { GAME, UI_COLORS, COLORS, SCENES } from '../config';
 import { SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import type { Season } from '../config/seasons';
+import { getSeedSkin, type SeedSkinConfig } from '../config/cosmetics';
 
 /** Y coordinate where seed packets begin */
 const PACKET_START_Y = 98;
@@ -35,15 +36,19 @@ export class SeedSelectionScene implements Scene {
   private currentSeason: Season = 'spring' as Season;
   private screenWidth: number = GAME.WIDTH;
   private screenHeight: number = GAME.HEIGHT;
+  // TLDR: Active seed skin cosmetic (loaded from settings)
+  private activeSkin: SeedSkinConfig | null = null;
 
   constructor(
     seedSelectionSystem: SeedSelectionSystem,
     encyclopediaSystem: EncyclopediaSystem,
     dailyChallengeSystem: DailyChallengeSystem,
+    activeSeedSkin?: string | null,
   ) {
     this.seedSelectionSystem = seedSelectionSystem;
     this.encyclopediaSystem = encyclopediaSystem;
     this.dailyChallengeSystem = dailyChallengeSystem;
+    this.activeSkin = activeSeedSkin ? getSeedSkin(activeSeedSkin) : null;
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -249,7 +254,7 @@ export class SeedSelectionScene implements Scene {
       const idx = i;
       const packet = new SeedPacketDisplay(seed, () => {
         this.onPacketTapped(idx);
-      });
+      }, this.activeSkin);
       const pc = packet.getContainer();
       pc.scale.set(scale);
       pc.x = startX + i * (scaledW + gap);

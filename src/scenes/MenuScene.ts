@@ -2,8 +2,18 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { GAME, SCENES, COLORS, UI_COLORS } from '../config';
 import { audioManager, ParticleSystem, AnimationSystem, Easing, SaveManager } from '../systems';
+import { eventBus } from '../core/EventBus';
+import {
+  SEED_SKINS,
+  HUD_THEMES,
+  BADGE_CONFIGS,
+  type SeedSkinConfig,
+  type HudThemeConfig,
+  type BadgeConfig,
+} from '../config/cosmetics';
+import { ACHIEVEMENTS, type CosmeticRewardType } from '../config/achievements';
 
-type MenuState = 'title' | 'main' | 'settings' | 'credits';
+type MenuState = 'title' | 'main' | 'settings' | 'credits' | 'customize';
 type VolumeChannel = 'master' | 'sfx' | 'ambient' | 'music';
 
 interface MenuItem {
@@ -41,6 +51,7 @@ export class MenuScene implements Scene {
   private mainMenuLayer = new Container();
   private settingsLayer = new Container();
   private creditsLayer = new Container();
+  private customizeLayer = new Container();
   private bgLayer = new Container();
   private particleLayer = new Container();
 
@@ -74,6 +85,15 @@ export class MenuScene implements Scene {
   private screenWidth = 800;
   private screenHeight = 600;
 
+  // TLDR: Cosmetic selection state
+  private activeSeedSkin: string | null = null;
+  private activeHudTheme: string | null = null;
+  private activeBadges: string[] = [];
+  private unlockedCosmetics: string[] = [];
+  // TLDR: Sparkle animation for cosmetic application feedback
+  private sparkleTimer = 0;
+  private sparkleTarget: Graphics | null = null;
+
   constructor(saveManager: SaveManager) {
     this.saveManager = saveManager;
     this.particleSystem = new ParticleSystem();
@@ -92,7 +112,14 @@ export class MenuScene implements Scene {
     const savedSettings = this.saveManager.loadSettings();
     if (savedSettings) {
       this.colorblindMode = savedSettings.colorblindMode;
+      this.activeSeedSkin = savedSettings.activeSeedSkin ?? null;
+      this.activeHudTheme = savedSettings.activeHudTheme ?? null;
+      this.activeBadges = savedSettings.activeBadges ?? [];
     }
+
+    // TLDR: Load unlocked cosmetics from achievements
+    const achieveData = this.saveManager.loadAchievements();
+    this.unlockedCosmetics = achieveData?.cosmeticRewards ?? [];
 
     this.container.addChild(this.bgLayer);
     this.container.addChild(this.particleLayer);
@@ -101,12 +128,14 @@ export class MenuScene implements Scene {
     this.container.addChild(this.mainMenuLayer);
     this.container.addChild(this.settingsLayer);
     this.container.addChild(this.creditsLayer);
+    this.container.addChild(this.customizeLayer);
 
     this.buildBackground();
     this.buildTitleScreen();
     this.buildMainMenu();
     this.buildSettingsPanel();
     this.buildCreditsPage();
+    this.buildCustomizePanel();
 
     // TLDR: Skip title screen when returning from sub-scenes (e.g. Encyclopedia)
     if (MenuScene.skipTitle) {
@@ -234,6 +263,7 @@ export class MenuScene implements Scene {
       { label: '🔄  Continue', action: 'continue', enabled: hasSave },
       { label: '📖  Encyclopedia', action: 'encyclopedia', enabled: true },
       { label: '🏆  Achievements', action: 'achievements', enabled: true },
+      { label: '🎨  Customize', action: 'customize', enabled: this.unlockedCosmetics.length > 0 },
       { label: '⚙️  Settings', action: 'settings', enabled: true },
     ];
 
@@ -441,7 +471,12 @@ export class MenuScene implements Scene {
       this.colorblindToggle.bg.fill({ color: this.colorblindMode ? 0x2d5a27 : 0x2a2a2a });
       this.colorblindToggle.bg.stroke({ color: 0x4a4a4a, width: 1 });
     }
-    this.saveManager.saveSettings({ colorblindMode: this.colorblindMode });
+    this.saveManager.saveSettings({
+      colorblindMode: this.colorblindMode,
+      activeSeedSkin: this.activeSeedSkin,
+      activeHudTheme: this.activeHudTheme,
+      activeBadges: this.activeBadges,
+    });
   }
 
   private buildCreditsPage(): void {
@@ -502,6 +537,7 @@ export class MenuScene implements Scene {
     this.mainMenuLayer.visible = state === 'main';
     this.settingsLayer.visible = state === 'settings';
     this.creditsLayer.visible = state === 'credits';
+    this.customizeLayer.visible = state === 'customize';
     if (state === 'main') { this.resetMenuFocus(); }
     if (state === 'settings') { this.settingsSelectedIndex = 0; this.highlightSettingsItem(0); }
   }
@@ -512,6 +548,7 @@ export class MenuScene implements Scene {
       case 'main': this.handleMainMenuKey(e); break;
       case 'settings': this.handleSettingsKey(e); break;
       case 'credits': this.handleCreditsKey(e); break;
+      case 'customize': this.handleCustomizeKey(e); break;
     }
   }
 
@@ -594,6 +631,7 @@ export class MenuScene implements Scene {
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
       case 'achievements': this.ctx.sceneManager.transitionTo(SCENES.ACHIEVEMENTS, { type: 'crossfade' }).catch(console.error); break;
+      case 'customize': this.showState('customize'); break;
       case 'settings': this.showState('settings'); break;
     }
   }
@@ -678,6 +716,16 @@ export class MenuScene implements Scene {
       const pulse = Math.sin(this.elapsed * 1.5) * 0.5 + 0.5;
       this.logoGlow.alpha = 0.08 + pulse * 0.12;
     }
+    // TLDR: Sparkle animation for cosmetic application feedback
+    if (this.sparkleTimer > 0 && this.sparkleTarget) {
+      this.sparkleTimer -= dtSeconds;
+      const intensity = Math.max(0, this.sparkleTimer / 0.5);
+      this.sparkleTarget.alpha = 0.7 + Math.sin(this.elapsed * 20) * 0.3 * intensity;
+      if (this.sparkleTimer <= 0) {
+        this.sparkleTarget.alpha = 1;
+        this.sparkleTarget = null;
+      }
+    }
   }
 
   private updateTitleAnimations(): void {
@@ -707,6 +755,213 @@ export class MenuScene implements Scene {
         fadeOut: true, shrink: false,
       });
     }
+  }
+
+  // TLDR: Handle Escape in customize panel
+  private handleCustomizeKey(e: KeyboardEvent): void {
+    if (e.code === 'Escape') {
+      e.preventDefault();
+      this.showState('main');
+    }
+  }
+
+  // TLDR: Build the cosmetic customization panel
+  private buildCustomizePanel(): void {
+    const cx = this.screenWidth / 2;
+
+    const panel = new Graphics();
+    panel.roundRect(cx - 260, 30, 520, this.screenHeight - 60, 16);
+    panel.fill({ color: 0x111111, alpha: 0.94 });
+    panel.stroke({ color: 0xdaa520, width: 2 });
+    this.customizeLayer.addChild(panel);
+
+    const title = new Text({ text: '🎨  Customize', style: { fontFamily: 'Arial', fontSize: 28, fill: '#daa520', fontWeight: 'bold', align: 'center' } });
+    title.anchor.set(0.5); title.x = cx; title.y = 60;
+    this.customizeLayer.addChild(title);
+
+    let yPos = 100;
+
+    // ── Seed Skins Section ────────────────────────
+    const skinHeader = new Text({ text: '🌱 Seed Packet Skins', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    skinHeader.x = cx - 230; skinHeader.y = yPos;
+    this.customizeLayer.addChild(skinHeader);
+    yPos += 30;
+
+    // TLDR: "None" option + each unlocked skin
+    const skinOptions = [{ id: null, displayName: 'Default', emoji: '🌱' }, ...Object.values(SEED_SKINS).map(s => ({ id: s.id as string | null, displayName: s.displayName, emoji: s.emoji }))];
+    for (const skin of skinOptions) {
+      const isUnlocked = skin.id === null || this.unlockedCosmetics.includes(skin.id);
+      const isActive = this.activeSeedSkin === skin.id;
+      yPos = this.buildCosmeticOption(cx, yPos, skin.emoji, skin.displayName, isUnlocked, isActive, () => {
+        if (!isUnlocked) return;
+        this.activeSeedSkin = skin.id;
+        this.saveCosmeticSettings();
+        eventBus.emit('cosmetic:seedSkinChanged', { skinId: skin.id });
+        this.rebuildCustomizePanel();
+      });
+    }
+    yPos += 12;
+
+    // ── HUD Themes Section ────────────────────────
+    const themeHeader = new Text({ text: '🎨 HUD Themes', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    themeHeader.x = cx - 230; themeHeader.y = yPos;
+    this.customizeLayer.addChild(themeHeader);
+    yPos += 30;
+
+    const themeOptions = [{ id: null, displayName: 'Default', color: 0x6b5b4e }, ...Object.values(HUD_THEMES).map(t => ({ id: t.id as string | null, displayName: t.displayName, color: t.panelBorder }))];
+    for (const theme of themeOptions) {
+      const isUnlocked = theme.id === null || this.unlockedCosmetics.includes(theme.id);
+      const isActive = this.activeHudTheme === theme.id;
+      yPos = this.buildCosmeticOption(cx, yPos, '🎨', theme.displayName, isUnlocked, isActive, () => {
+        if (!isUnlocked) return;
+        this.activeHudTheme = theme.id;
+        this.saveCosmeticSettings();
+        eventBus.emit('cosmetic:hudThemeChanged', { themeId: theme.id });
+        this.rebuildCustomizePanel();
+      }, theme.color);
+    }
+    yPos += 12;
+
+    // ── Badges Section ────────────────────────
+    const badgeHeader = new Text({ text: '🏅 Badges', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    badgeHeader.x = cx - 230; badgeHeader.y = yPos;
+    this.customizeLayer.addChild(badgeHeader);
+    yPos += 30;
+
+    for (const badge of Object.values(BADGE_CONFIGS)) {
+      const isUnlocked = this.unlockedCosmetics.includes(badge.id);
+      const isActive = this.activeBadges.includes(badge.id);
+      yPos = this.buildCosmeticOption(cx, yPos, badge.icon, badge.displayName, isUnlocked, isActive, () => {
+        if (!isUnlocked) return;
+        if (isActive) {
+          this.activeBadges = this.activeBadges.filter(b => b !== badge.id);
+        } else {
+          this.activeBadges = [...this.activeBadges, badge.id];
+        }
+        this.saveCosmeticSettings();
+        this.rebuildCustomizePanel();
+      }, badge.borderColor);
+    }
+
+    // ── Back Button ────────────────────────
+    yPos += 20;
+    const backBg = new Graphics();
+    backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8);
+    backBg.fill({ color: 0x2a2a2a });
+    backBg.stroke({ color: 0x4a4a4a, width: 2 });
+    backBg.eventMode = 'static';
+    backBg.cursor = 'pointer';
+    this.customizeLayer.addChild(backBg);
+    const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+    backText.anchor.set(0.5); backText.x = cx; backText.y = this.screenHeight - 60;
+    this.customizeLayer.addChild(backText);
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: 0x4caf50 }); backBg.stroke({ color: 0x66bb6a, width: 2 }); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: 0x2a2a2a }); backBg.stroke({ color: 0x4a4a4a, width: 2 }); });
+    backBg.on('pointerdown', () => { this.showState('main'); });
+  }
+
+  // TLDR: Build a single cosmetic option row (icon, name, lock/active state)
+  private buildCosmeticOption(
+    cx: number,
+    y: number,
+    emoji: string,
+    displayName: string,
+    isUnlocked: boolean,
+    isActive: boolean,
+    onClick: () => void,
+    accentColor?: number,
+  ): number {
+    const rowWidth = 420;
+    const rowHeight = 34;
+    const x = cx - rowWidth / 2;
+
+    const row = new Graphics();
+    row.roundRect(x, y, rowWidth, rowHeight, 6);
+    if (isActive) {
+      row.fill({ color: 0x2d5a27, alpha: 0.9 });
+      row.stroke({ color: accentColor ?? 0x88d498, width: 2 });
+    } else if (isUnlocked) {
+      row.fill({ color: 0x2a2a2a, alpha: 0.85 });
+      row.stroke({ color: 0x4a4a4a, width: 1 });
+    } else {
+      row.fill({ color: 0x1a1a1a, alpha: 0.7 });
+      row.stroke({ color: 0x333333, width: 1 });
+    }
+    row.eventMode = 'static';
+    row.cursor = isUnlocked ? 'pointer' : 'default';
+    this.customizeLayer.addChild(row);
+
+    // TLDR: Emoji indicator
+    const icon = new Text({ text: emoji, style: { fontSize: 16 } });
+    icon.x = x + 12; icon.y = y + 7;
+    this.customizeLayer.addChild(icon);
+
+    // TLDR: Cosmetic name
+    const name = new Text({ text: displayName, style: { fontFamily: 'Arial', fontSize: 14, fill: isUnlocked ? '#ffffff' : '#555555', fontWeight: isActive ? 'bold' : 'normal' } });
+    name.x = x + 38; name.y = y + 8;
+    this.customizeLayer.addChild(name);
+
+    // TLDR: Active/locked indicator
+    const statusText = new Text({
+      text: !isUnlocked ? '🔒' : (isActive ? '✅' : ''),
+      style: { fontSize: 14, align: 'right' },
+    });
+    statusText.anchor.set(1, 0);
+    statusText.x = x + rowWidth - 12;
+    statusText.y = y + 8;
+    this.customizeLayer.addChild(statusText);
+
+    if (isUnlocked) {
+      row.on('pointerover', () => {
+        if (!isActive) {
+          row.clear();
+          row.roundRect(x, y, rowWidth, rowHeight, 6);
+          row.fill({ color: 0x3a3a3a, alpha: 0.9 });
+          row.stroke({ color: accentColor ?? 0x66bb6a, width: 2 });
+        }
+      });
+      row.on('pointerout', () => {
+        row.clear();
+        row.roundRect(x, y, rowWidth, rowHeight, 6);
+        if (isActive) {
+          row.fill({ color: 0x2d5a27, alpha: 0.9 });
+          row.stroke({ color: accentColor ?? 0x88d498, width: 2 });
+        } else {
+          row.fill({ color: 0x2a2a2a, alpha: 0.85 });
+          row.stroke({ color: 0x4a4a4a, width: 1 });
+        }
+      });
+      row.on('pointerdown', () => {
+        // TLDR: Sparkle animation on application
+        this.triggerSparkle(row);
+        onClick();
+      });
+    }
+
+    return y + rowHeight + 6;
+  }
+
+  // TLDR: Rebuild customize panel after selection changes
+  private rebuildCustomizePanel(): void {
+    this.customizeLayer.removeChildren();
+    this.buildCustomizePanel();
+  }
+
+  // TLDR: Save cosmetic selection to settings
+  private saveCosmeticSettings(): void {
+    const existing = this.saveManager.loadSettings() ?? { colorblindMode: this.colorblindMode };
+    this.saveManager.saveSettings({
+      ...existing,
+      activeSeedSkin: this.activeSeedSkin,
+      activeHudTheme: this.activeHudTheme,
+      activeBadges: this.activeBadges,
+    });
+  }
+
+  // TLDR: Sparkle visual feedback when cosmetic is first applied
+  private triggerSparkle(target: Graphics): void {
+    this.sparkleTarget = target;
+    this.sparkleTimer = 0.5;
   }
 
   destroy(): void {

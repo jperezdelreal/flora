@@ -42,13 +42,17 @@ async function main(): Promise<void> {
   const dailyChallengeSystem = new DailyChallengeSystem(saveManager);
   const achievementSystem = new AchievementSystem(saveManager);
 
+  // TLDR: Load active cosmetic settings for SeedSelectionScene
+  const savedSettings = saveManager.loadSettings();
+  const activeSeedSkin = savedSettings?.activeSeedSkin ?? null;
+
   // Register all scenes
   sceneManager.register(
     new BootScene(),
     new MenuScene(saveManager),
     new EncyclopediaScene(encyclopediaSystem),
     new AchievementsScene(achievementSystem),
-    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem),
+    new SeedSelectionScene(seedSelectionSystem, encyclopediaSystem, dailyChallengeSystem, activeSeedSkin),
     new GardenScene(saveManager, seedSelectionSystem)
   );
 
