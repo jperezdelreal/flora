@@ -6,7 +6,7 @@ import { SeedSelectionSystem, SeedPool } from '../systems/SeedSelectionSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { EncyclopediaSystem } from '../systems/EncyclopediaSystem';
 import { audioManager } from '../systems/AudioManager';
-import { COLORS, SCENES } from '../config';
+import { GAME, UI_COLORS, COLORS, SCENES } from '../config';
 import { SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import type { Season } from '../config/seasons';
 
@@ -33,8 +33,8 @@ export class SeedSelectionScene implements Scene {
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private isDailyMode = false;
   private currentSeason: Season = 'spring' as Season;
-  private screenWidth = 800;
-  private screenHeight = 600;
+  private screenWidth: number = GAME.WIDTH;
+  private screenHeight: number = GAME.HEIGHT;
 
   constructor(
     seedSelectionSystem: SeedSelectionSystem,
@@ -70,7 +70,7 @@ export class SeedSelectionScene implements Scene {
     // ── Season indicator bar (warm, inviting) ──
     const seasonBar = new Graphics();
     seasonBar.roundRect(cx - 160, 12, 320, 42, 16);
-    seasonBar.fill({ color: 0xfff8e7, alpha: 0.95 }); // Warm cream
+    seasonBar.fill({ color: UI_COLORS.BG_WARM_CREAM, alpha: 0.95 });
     seasonBar.stroke({ color: seasonCfg.backgroundColor, width: 3 });
     this.contentLayer.addChild(seasonBar);
 
@@ -79,7 +79,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Georgia, serif',
         fontSize: 20,
-        fill: '#4a7a4a',
+        fill: UI_COLORS.TEXT_FOREST_GREEN,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -95,7 +95,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Georgia, serif',
         fontSize: 32,
-        fill: '#3d5a3d',
+        fill: UI_COLORS.TEXT_FOREST_GREEN,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -111,7 +111,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 15,
-        fill: '#5a8a5a',
+        fill: UI_COLORS.TEXT_MID_GREEN,
         align: 'center',
       },
     });
@@ -151,7 +151,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 12,
-        fill: '#7a9a7a',
+        fill: UI_COLORS.TEXT_GRAY_GREEN,
         align: 'center',
       },
     });
@@ -176,7 +176,7 @@ export class SeedSelectionScene implements Scene {
     // Soft gradient sky (warm cream to light green)
     const bg = new Graphics();
     bg.rect(0, 0, w, h);
-    bg.fill({ color: 0xfff8e7 }); // Warm cream
+    bg.fill({ color: UI_COLORS.BG_WARM_CREAM });
     this.bgLayer.addChild(bg);
 
     // Sky gradient overlay (subtle)
@@ -194,7 +194,7 @@ export class SeedSelectionScene implements Scene {
     hills.lineTo(w, h);
     hills.lineTo(0, h);
     hills.closePath();
-    hills.fill({ color: 0xc8d9ac, alpha: 0.7 }); // Warm sage
+    hills.fill({ color: UI_COLORS.HILLS_SAGE_GREEN, alpha: 0.7 });
     this.bgLayer.addChild(hills);
 
     // Foreground hills (richer green)
@@ -205,11 +205,17 @@ export class SeedSelectionScene implements Scene {
     fgHills.lineTo(w, h);
     fgHills.lineTo(0, h);
     fgHills.closePath();
-    fgHills.fill({ color: 0xa5c882, alpha: 0.8 }); // Soft green
+    fgHills.fill({ color: UI_COLORS.HILLS_FG_SAGE, alpha: 0.8 });
     this.bgLayer.addChild(fgHills);
 
     // Warm flower accents
-    const flowerColors = [0xffb7c5, 0xffd54f, 0xff8a65, 0x90caf9, 0xce93d8];
+    const flowerColors = [
+      UI_COLORS.FLOWER_PINK,
+      UI_COLORS.FLOWER_GOLD,
+      UI_COLORS.FLOWER_RED,
+      UI_COLORS.FLOWER_SKY_BLUE,
+      UI_COLORS.FLOWER_PLUM,
+    ];
     for (let i = 0; i < 20; i++) {
       const flower = new Graphics();
       const fx = Math.random() * w;
@@ -267,8 +273,8 @@ export class SeedSelectionScene implements Scene {
   ): void {
     const dailyButton = new Graphics();
     dailyButton.roundRect(0, 0, 300, 40, 12);
-    dailyButton.fill({ color: 0xfff9e6, alpha: 0.95 }); // Warm cream
-    dailyButton.stroke({ color: 0xffa726, width: 3 }); // Warm orange
+    dailyButton.fill({ color: UI_COLORS.DAILY_BUTTON_CREAM, alpha: 0.95 });
+    dailyButton.stroke({ color: UI_COLORS.DAILY_BORDER_ORANGE, width: 3 });
     dailyButton.x = cx - 150;
     dailyButton.y = y;
     dailyButton.eventMode = 'static';
@@ -281,7 +287,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 15,
-        fill: '#e65100',
+        fill: UI_COLORS.TEXT_DAILY_ORANGE,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -296,7 +302,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 12,
-        fill: '#7a5a3a',
+        fill: UI_COLORS.TEXT_DAILY_BROWN,
         align: 'center',
       },
     });
@@ -323,7 +329,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 13,
-        fill: '#5a8a5a',
+        fill: UI_COLORS.TEXT_MID_GREEN,
         fontWeight: '600',
         align: 'center',
       },
@@ -354,8 +360,8 @@ export class SeedSelectionScene implements Scene {
 
     const btn = new Graphics();
     btn.roundRect(0, 0, btnW, btnH, 18);
-    btn.fill({ color: 0x4caf50 }); // Warm vibrant green
-    btn.stroke({ color: 0x81c784, width: 4 });
+    btn.fill({ color: UI_COLORS.START_BUTTON_GREEN });
+    btn.stroke({ color: UI_COLORS.START_BUTTON_BORDER, width: 4 });
     btn.x = cx - btnW / 2;
     btn.y = y;
     btn.eventMode = 'static';
@@ -367,7 +373,7 @@ export class SeedSelectionScene implements Scene {
       style: {
         fontFamily: 'Georgia, serif',
         fontSize: 24,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
         align: 'center',
         dropShadow: {

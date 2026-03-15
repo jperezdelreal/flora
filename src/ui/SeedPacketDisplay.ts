@@ -87,17 +87,17 @@ export class SeedPacketDisplay {
     banner.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.25 });
     this.container.addChild(banner);
 
-    // Plant icon (large, centered)
+    // TLDR: Plant icon (large, centered)
     const icon = new Text({
       text: PLANT_ICONS[this.plant.id] || '🌱',
       style: {
-        fontSize: 48,
+        fontSize: 52,
         align: 'center',
       },
     });
     icon.anchor.set(0.5);
     icon.x = PACKET_WIDTH / 2;
-    icon.y = 70;
+    icon.y = 72;
     this.container.addChild(icon);
 
     // Plant name (larger, warmer)
@@ -116,11 +116,11 @@ export class SeedPacketDisplay {
     name.y = 108;
     this.container.addChild(name);
 
-    // Rarity badge
+    // TLDR: Rarity badge
     const rarityBadge = new Container();
     const rarityBg = new Graphics();
-    rarityBg.roundRect(0, 0, 120, 24, 8);
-    rarityBg.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.2 });
+    rarityBg.roundRect(0, 0, 120, 26, 8);
+    rarityBg.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.15 });
     rarityBg.stroke({ color: RARITY_COLORS[this.plant.rarity], width: 2 });
     rarityBadge.addChild(rarityBg);
 
@@ -136,15 +136,15 @@ export class SeedPacketDisplay {
     });
     rarityText.anchor.set(0.5);
     rarityText.x = 60;
-    rarityText.y = 12;
+    rarityText.y = 13;
     rarityBadge.addChild(rarityText);
 
     rarityBadge.x = (PACKET_WIDTH - 120) / 2;
-    rarityBadge.y = 140;
+    rarityBadge.y = 142;
     this.container.addChild(rarityBadge);
 
-    // Stats section
-    const statsY = 175;
+    // TLDR: Stats section
+    const statsY = 178;
 
     // Growth time (clearer, warmer colors)
     const growthText = new Text({
@@ -161,7 +161,7 @@ export class SeedPacketDisplay {
     growthText.y = statsY;
     this.container.addChild(growthText);
 
-    // Water needs
+    // TLDR: Water needs
     const waterNeed = this.getWaterNeedLabel(this.plant.waterNeedPerDay);
     const waterText = new Text({
       text: `💧 Water: ${waterNeed}`,
@@ -177,7 +177,7 @@ export class SeedPacketDisplay {
     waterText.y = statsY + 19;
     this.container.addChild(waterText);
 
-    // Yield
+    // TLDR: Yield
     const yieldText = new Text({
       text: `🌾 Yield: ${this.plant.yieldSeeds} seeds`,
       style: {

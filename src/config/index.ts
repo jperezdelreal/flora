@@ -71,6 +71,26 @@ export const UI_COLORS = {
   TEXT_DISABLED: '#666666',
   TEXT_TIER_STAR: '#ffd700',
   TEXT_HINT: '#aaaaaa',
+  // Seed Selection Scene palette
+  BG_WARM_CREAM: 0xfff8e7,
+  HILLS_SAGE_GREEN: 0xc8d9ac,
+  HILLS_FG_SAGE: 0xa5c882,
+  SEASON_BAR_FOREST: 0x3d5a3d,
+  TEXT_CREAM: '#f5f5dc',
+  TEXT_FOREST_GREEN: '#3d5a3d',
+  TEXT_MID_GREEN: '#5a7a5a',
+  TEXT_GRAY_GREEN: '#7a8a7a',
+  DAILY_BUTTON_CREAM: 0xfff9e6,
+  DAILY_BORDER_ORANGE: 0xffa726,
+  TEXT_DAILY_ORANGE: '#d68910',
+  TEXT_DAILY_BROWN: '#8a6b3a',
+  START_BUTTON_GREEN: 0x4caf50,
+  START_BUTTON_BORDER: 0x66bb6a,
+  FLOWER_PINK: 0xffb7c5,
+  FLOWER_GOLD: 0xffd700,
+  FLOWER_RED: 0xff6b6b,
+  FLOWER_SKY_BLUE: 0x87ceeb,
+  FLOWER_PLUM: 0xdda0dd,
 } as const;
 
 /** TLDR: Touch gesture tuning values */
