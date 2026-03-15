@@ -28,7 +28,7 @@ import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarn
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
-import { GAME, TOUCH, SCENES } from '../config';
+import { GAME, TOUCH, SCENES, COLORS, UI_COLORS } from '../config';
 import { MenuScene } from './MenuScene';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, COMPOST_TOOL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, SEASON_ORDER, MULTI_SEASON_DAYS, MULTI_SEASON_SCORE_MULTIPLIER, getRandomSeason } from '../config/seasons';
@@ -146,6 +146,11 @@ export class GardenScene implements Scene {
   private seasonTransitionTarget: { bg: number; tint: number } | null = null;
   private seasonTransitionElapsed = 0;
   private readonly SEASON_TRANSITION_DURATION = 2.0;
+
+  // TLDR: Season-end banner state (#308)
+  private seasonEndBanner: Container | null = null;
+  private seasonEndBannerElapsed = 0;
+  private seasonEndBannerActive = false;
 
   // TLDR: Touch controller and responsive state
   private touchController!: TouchController;
@@ -894,6 +899,152 @@ export class GardenScene implements Scene {
     });
   }
   
+  /**
+   * TLDR: Show "Season Over" banner with particles and darkening before score summary (#308)
+   */
+  private showSeasonEndBanner(): void {
+    this.seasonEndBannerActive = true;
+    this.seasonEndBannerElapsed = 0;
+
+    const w = this._ctx.app.screen.width;
+    const h = this._ctx.app.screen.height;
+    const palette = getSeasonalPalette(this.currentSeason);
+    const seasonCfg = SEASON_CONFIG[this.currentSeason];
+
+    this.seasonEndBanner = new Container();
+
+    // TLDR: Dark overlay that fades in
+    const overlay = new Graphics();
+    overlay.rect(0, 0, w, h);
+    overlay.fill({ color: COLORS.BLACK, alpha: 0.7 });
+    overlay.alpha = 0;
+    overlay.label = 'bannerOverlay';
+    this.seasonEndBanner.addChild(overlay);
+
+    // TLDR: Season-themed accent line
+    const accentLine = new Graphics();
+    accentLine.rect(w * 0.15, h * 0.42, w * 0.7, 3);
+    accentLine.fill({ color: palette.accent, alpha: 0.8 });
+    accentLine.alpha = 0;
+    accentLine.label = 'accentLine';
+    this.seasonEndBanner.addChild(accentLine);
+
+    // TLDR: Main "Season Over" text
+    const bannerText = new Text({
+      text: `${seasonCfg.emoji} Season Over`,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 48,
+        fill: UI_COLORS.TEXT_PRIMARY,
+        fontWeight: 'bold',
+        align: 'center',
+      },
+    });
+    bannerText.anchor.set(0.5, 0.5);
+    bannerText.x = w / 2;
+    bannerText.y = h / 2 - 10;
+    bannerText.alpha = 0;
+    bannerText.label = 'bannerText';
+    this.seasonEndBanner.addChild(bannerText);
+
+    // TLDR: Season name subtitle
+    const subtitleText = new Text({
+      text: seasonCfg.displayName,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 20,
+        fill: palette.accent.toString(16).padStart(6, '0').replace(/^/, '#'),
+        align: 'center',
+      },
+    });
+    subtitleText.anchor.set(0.5, 0.5);
+    subtitleText.x = w / 2;
+    subtitleText.y = h / 2 + 35;
+    subtitleText.alpha = 0;
+    subtitleText.label = 'subtitleText';
+    this.seasonEndBanner.addChild(subtitleText);
+
+    // TLDR: Bottom accent line
+    const accentLine2 = new Graphics();
+    accentLine2.rect(w * 0.15, h * 0.58, w * 0.7, 3);
+    accentLine2.fill({ color: palette.accent, alpha: 0.8 });
+    accentLine2.alpha = 0;
+    accentLine2.label = 'accentLine2';
+    this.seasonEndBanner.addChild(accentLine2);
+
+    this.container.addChild(this.seasonEndBanner);
+
+    // TLDR: Spawn celebration particles in seasonal colors
+    const particleColors = palette.ambientParticles.colors;
+    for (let i = 0; i < ANIMATION.SEASON_END_PARTICLE_COUNT; i++) {
+      this.particleSystem.burst({
+        x: Math.random() * w,
+        y: h * 0.3 + Math.random() * h * 0.4,
+        count: 1,
+        speed: ANIMATION.SEASON_END_PARTICLE_SPEED + Math.random() * 40,
+        lifetime: ANIMATION.SEASON_END_PARTICLE_LIFETIME + Math.random(),
+        colors: particleColors as number[],
+        size: ANIMATION.SEASON_END_PARTICLE_SIZE,
+        gravity: -20 - Math.random() * 15,
+        fadeOut: true,
+        shrink: true,
+      });
+    }
+  }
+
+  /**
+   * TLDR: Animate the season-end banner — fade in, hold, fade out, then show score summary (#308)
+   */
+  private updateSeasonEndBanner(dt: number): void {
+    if (!this.seasonEndBanner) return;
+
+    this.seasonEndBannerElapsed += dt;
+    const fadeIn = ANIMATION.SEASON_END_BANNER_FADE_IN;
+    const duration = ANIMATION.SEASON_END_BANNER_DURATION;
+    const fadeOut = ANIMATION.SEASON_END_BANNER_FADE_OUT;
+    const totalDuration = fadeIn + duration + fadeOut;
+
+    const overlay = this.seasonEndBanner.getChildByLabel('bannerOverlay');
+    const bannerText = this.seasonEndBanner.getChildByLabel('bannerText');
+    const subtitleText = this.seasonEndBanner.getChildByLabel('subtitleText');
+    const accentLine = this.seasonEndBanner.getChildByLabel('accentLine');
+    const accentLine2 = this.seasonEndBanner.getChildByLabel('accentLine2');
+
+    if (this.seasonEndBannerElapsed <= fadeIn) {
+      // TLDR: Fade in phase
+      const t = this.seasonEndBannerElapsed / fadeIn;
+      const eased = t * t * (3 - 2 * t); // smoothstep
+      if (overlay) overlay.alpha = eased;
+      if (bannerText) bannerText.alpha = eased;
+      if (subtitleText) subtitleText.alpha = eased * 0.8;
+      if (accentLine) accentLine.alpha = eased;
+      if (accentLine2) accentLine2.alpha = eased;
+    } else if (this.seasonEndBannerElapsed <= fadeIn + duration) {
+      // TLDR: Hold phase — everything fully visible
+      if (overlay) overlay.alpha = 1;
+      if (bannerText) bannerText.alpha = 1;
+      if (subtitleText) subtitleText.alpha = 0.8;
+      if (accentLine) accentLine.alpha = 1;
+      if (accentLine2) accentLine2.alpha = 1;
+    } else if (this.seasonEndBannerElapsed <= totalDuration) {
+      // TLDR: Fade out phase
+      const fadeOutElapsed = this.seasonEndBannerElapsed - fadeIn - duration;
+      const t = 1 - fadeOutElapsed / fadeOut;
+      if (overlay) overlay.alpha = t;
+      if (bannerText) bannerText.alpha = t;
+      if (subtitleText) subtitleText.alpha = t * 0.8;
+      if (accentLine) accentLine.alpha = t;
+      if (accentLine2) accentLine2.alpha = t;
+    } else {
+      // TLDR: Banner complete — clean up and show score summary
+      this.seasonEndBannerActive = false;
+      this.container.removeChild(this.seasonEndBanner);
+      this.seasonEndBanner.destroy({ children: true });
+      this.seasonEndBanner = null;
+      this.showScoreSummary();
+    }
+  }
+
   private showScoreSummary(): void {
     // TLDR: Apply multi-season score multiplier before saving
     if (this.isMultiSeasonRun) {
@@ -1422,13 +1573,18 @@ export class GardenScene implements Scene {
     this.hud.updatePhaseTransition(delta);
 
     // TLDR: Check for season end (maxSeasonDays reached)
-    if (day >= this.maxSeasonDays && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
+    if (day >= this.maxSeasonDays && !this.daySummary.isVisible() && !this.scoreSummary.isVisible() && !this.seasonEndBannerActive) {
       if (this.isMultiSeasonRun && this.multiSeasonIndex < SEASON_ORDER.length - 1) {
         // TLDR: Multi-season — transition to next season instead of ending
         this.advanceMultiSeason();
       } else {
-        this.showScoreSummary();
+        this.showSeasonEndBanner();
       }
+    }
+
+    // TLDR: Update season-end banner animation (#308)
+    if (this.seasonEndBannerActive) {
+      this.updateSeasonEndBanner(delta);
     }
   }
 
@@ -2366,6 +2522,13 @@ export class GardenScene implements Scene {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
     window.removeEventListener('resize', this.boundOnResize);
+
+    // TLDR: Clean up season-end banner if active
+    if (this.seasonEndBanner) {
+      this.seasonEndBanner.destroy({ children: true });
+      this.seasonEndBanner = null;
+      this.seasonEndBannerActive = false;
+    }
 
     // TLDR: Remove all EventBus listeners to prevent accumulation across scene re-entries
     this.eventCleanups.forEach(cleanup => cleanup());
