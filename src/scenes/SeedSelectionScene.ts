@@ -64,60 +64,60 @@ export class SeedSelectionScene implements Scene {
     this.container.addChild(this.contentLayer);
     this.contentLayer.addChild(this.packetContainer);
 
-    // ── Warm background (MenuScene-style hills + flowers) ──
+    // ── Warm background (cozy gradient with soft hills) ──
     this.buildBackground(w, h);
 
-    // ── Season indicator bar ──
+    // ── Season indicator bar (warm, inviting) ──
     const seasonBar = new Graphics();
-    seasonBar.roundRect(cx - 140, 8, 280, 34, 12);
-    seasonBar.fill({ color: 0x1a3a1a, alpha: 0.85 });
-    seasonBar.stroke({ color: seasonCfg.backgroundColor, width: 2 });
+    seasonBar.roundRect(cx - 160, 12, 320, 42, 16);
+    seasonBar.fill({ color: 0xfff8e7, alpha: 0.95 }); // Warm cream
+    seasonBar.stroke({ color: seasonCfg.backgroundColor, width: 3 });
     this.contentLayer.addChild(seasonBar);
 
     const seasonLabel = new Text({
       text: `${seasonCfg.emoji}  ${seasonCfg.displayName} Season`,
       style: {
         fontFamily: 'Georgia, serif',
-        fontSize: 18,
-        fill: '#c8e6c9',
+        fontSize: 20,
+        fill: '#4a7a4a',
         fontWeight: 'bold',
         align: 'center',
       },
     });
     seasonLabel.anchor.set(0.5);
     seasonLabel.x = cx;
-    seasonLabel.y = 25;
+    seasonLabel.y = 33;
     this.contentLayer.addChild(seasonLabel);
 
-    // ── Title ──
+    // ── Title (larger, clearer) ──
     const title = new Text({
-      text: '🌱 Seed Selection',
+      text: '🌱 Choose Your Seeds',
       style: {
         fontFamily: 'Georgia, serif',
-        fontSize: 26,
-        fill: '#c8e6c9',
+        fontSize: 32,
+        fill: '#3d5a3d',
         fontWeight: 'bold',
         align: 'center',
       },
     });
     title.anchor.set(0.5);
     title.x = cx;
-    title.y = 56;
+    title.y = 70;
     this.contentLayer.addChild(title);
 
-    // ── Instructional subtitle ──
+    // ── Instructional subtitle (warmer, clearer) ──
     const subtitle = new Text({
-      text: 'These seeds are available for this run — tap a packet to learn more!',
+      text: 'Select seeds for your garden run — each has unique traits!',
       style: {
         fontFamily: 'Arial',
-        fontSize: 13,
-        fill: '#88d498',
+        fontSize: 15,
+        fill: '#5a8a5a',
         align: 'center',
       },
     });
     subtitle.anchor.set(0.5);
     subtitle.x = cx;
-    subtitle.y = 80;
+    subtitle.y = 94;
     this.contentLayer.addChild(subtitle);
 
     // ── Generate seed pool ──
@@ -150,14 +150,14 @@ export class SeedSelectionScene implements Scene {
       text: '↑↓ Navigate  •  Enter / Space to Start  •  Esc Back',
       style: {
         fontFamily: 'Arial',
-        fontSize: 11,
-        fill: '#4a7a4a',
+        fontSize: 12,
+        fill: '#7a9a7a',
         align: 'center',
       },
     });
     navHint.anchor.set(0.5);
     navHint.x = cx;
-    navHint.y = h - 10;
+    navHint.y = h - 12;
     this.contentLayer.addChild(navHint);
 
     // ── Keyboard handler ──
@@ -171,42 +171,53 @@ export class SeedSelectionScene implements Scene {
     audioManager.startAmbient();
   }
 
-  /** Warm background matching MenuScene: dark green + rolling hills + flower dots */
+  /** Warm cozy background: soft gradient + rolling hills + flowers */
   private buildBackground(w: number, h: number): void {
+    // Soft gradient sky (warm cream to light green)
     const bg = new Graphics();
     bg.rect(0, 0, w, h);
-    bg.fill({ color: COLORS.DARK_GREEN });
+    bg.fill({ color: 0xfff8e7 }); // Warm cream
     this.bgLayer.addChild(bg);
 
+    // Sky gradient overlay (subtle)
+    const skyGradient = new Graphics();
+    skyGradient.rect(0, 0, w, h * 0.6);
+    skyGradient.fill({ color: 0xe8f5e9, alpha: 0.3 }); // Pale green tint
+    this.bgLayer.addChild(skyGradient);
+
+    // Soft rolling hills (warm earth tones)
     const hills = new Graphics();
-    hills.moveTo(0, h * 0.7);
-    hills.quadraticCurveTo(w * 0.15, h * 0.55, w * 0.3, h * 0.65);
-    hills.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.65, h * 0.6);
-    hills.quadraticCurveTo(w * 0.85, h * 0.5, w, h * 0.62);
+    hills.moveTo(0, h * 0.65);
+    hills.quadraticCurveTo(w * 0.15, h * 0.52, w * 0.3, h * 0.6);
+    hills.quadraticCurveTo(w * 0.5, h * 0.72, w * 0.65, h * 0.55);
+    hills.quadraticCurveTo(w * 0.85, h * 0.48, w, h * 0.58);
     hills.lineTo(w, h);
     hills.lineTo(0, h);
     hills.closePath();
-    hills.fill({ color: 0x1e4d1a, alpha: 0.6 });
+    hills.fill({ color: 0xc8d9ac, alpha: 0.7 }); // Warm sage
     this.bgLayer.addChild(hills);
 
+    // Foreground hills (richer green)
     const fgHills = new Graphics();
-    fgHills.moveTo(0, h * 0.82);
-    fgHills.quadraticCurveTo(w * 0.25, h * 0.72, w * 0.45, h * 0.78);
-    fgHills.quadraticCurveTo(w * 0.7, h * 0.85, w, h * 0.76);
+    fgHills.moveTo(0, h * 0.78);
+    fgHills.quadraticCurveTo(w * 0.25, h * 0.68, w * 0.45, h * 0.74);
+    fgHills.quadraticCurveTo(w * 0.7, h * 0.82, w, h * 0.72);
     fgHills.lineTo(w, h);
     fgHills.lineTo(0, h);
     fgHills.closePath();
-    fgHills.fill({ color: 0x163d13, alpha: 0.5 });
+    fgHills.fill({ color: 0xa5c882, alpha: 0.8 }); // Soft green
     this.bgLayer.addChild(fgHills);
 
-    const flowerColors = [0xffb7c5, 0xffd700, 0xff6b6b, 0x87ceeb, 0xdda0dd];
-    for (let i = 0; i < 18; i++) {
+    // Warm flower accents
+    const flowerColors = [0xffb7c5, 0xffd54f, 0xff8a65, 0x90caf9, 0xce93d8];
+    for (let i = 0; i < 20; i++) {
       const flower = new Graphics();
       const fx = Math.random() * w;
-      const fy = h * 0.7 + Math.random() * h * 0.25;
+      const fy = h * 0.65 + Math.random() * h * 0.3;
       const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
-      flower.circle(fx, fy, 2 + Math.random() * 2);
-      flower.fill({ color, alpha: 0.4 + Math.random() * 0.3 });
+      const size = 2.5 + Math.random() * 2.5;
+      flower.circle(fx, fy, size);
+      flower.fill({ color, alpha: 0.5 + Math.random() * 0.3 });
       this.bgLayer.addChild(flower);
     }
   }
@@ -248,17 +259,17 @@ export class SeedSelectionScene implements Scene {
     }
   }
 
-  /** Daily Challenge button with explanatory subtitle */
+  /** Daily Challenge button with explanatory subtitle (warm gold styling) */
   private buildDailyChallenge(
     cx: number,
     y: number,
     unlockedPlantIds: string[],
   ): void {
     const dailyButton = new Graphics();
-    dailyButton.roundRect(0, 0, 280, 36, 10);
-    dailyButton.fill({ color: 0x1a3a1a, alpha: 0.9 });
-    dailyButton.stroke({ color: 0xffd700, width: 2 });
-    dailyButton.x = cx - 140;
+    dailyButton.roundRect(0, 0, 300, 40, 12);
+    dailyButton.fill({ color: 0xfff9e6, alpha: 0.95 }); // Warm cream
+    dailyButton.stroke({ color: 0xffa726, width: 3 }); // Warm orange
+    dailyButton.x = cx - 150;
     dailyButton.y = y;
     dailyButton.eventMode = 'static';
     dailyButton.cursor = 'pointer';
@@ -269,44 +280,51 @@ export class SeedSelectionScene implements Scene {
       text: `📅 Daily Challenge — ${todayStr}`,
       style: {
         fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#ffd700',
+        fontSize: 15,
+        fill: '#e65100',
         fontWeight: 'bold',
         align: 'center',
       },
     });
     dailyLabel.anchor.set(0.5);
     dailyLabel.x = cx;
-    dailyLabel.y = y + 18;
+    dailyLabel.y = y + 20;
     this.contentLayer.addChild(dailyLabel);
 
     const dailyExplain = new Text({
       text: 'Same seeds & modifiers for everyone today — compete for high scores!',
       style: {
         fontFamily: 'Arial',
-        fontSize: 11,
-        fill: '#b8a840',
+        fontSize: 12,
+        fill: '#7a5a3a',
         align: 'center',
       },
     });
     dailyExplain.anchor.set(0.5);
     dailyExplain.x = cx;
-    dailyExplain.y = y + 40;
+    dailyExplain.y = y + 44;
     this.contentLayer.addChild(dailyExplain);
 
+    dailyButton.on('pointerover', () => {
+      dailyButton.alpha = 0.85;
+    });
+    dailyButton.on('pointerout', () => {
+      dailyButton.alpha = 1.0;
+    });
     dailyButton.on('pointerdown', () => {
       this.activateDailyMode(unlockedPlantIds);
     });
   }
 
-  /** Modifier selector cards with explanatory heading */
+  /** Modifier selector cards with explanatory heading (warm styling) */
   private buildModifiers(cx: number, y: number, screenWidth: number): void {
     const modLabel = new Text({
       text: '⚡ Run Modifiers — optional tweaks that change difficulty & scoring',
       style: {
         fontFamily: 'Arial',
-        fontSize: 12,
-        fill: '#88d498',
+        fontSize: 13,
+        fill: '#5a8a5a',
+        fontWeight: '600',
         align: 'center',
       },
     });
@@ -324,20 +342,20 @@ export class SeedSelectionScene implements Scene {
     this.contentLayer.addChild(modContainer);
   }
 
-  /** Large green Start Season button with hover effect */
+  /** Large warm Start Season button with hover effect */
   private buildStartButton(
     ctx: SceneContext,
     cx: number,
     y: number,
     seasonCfg: (typeof SEASON_CONFIG)[Season],
   ): void {
-    const btnW = 280;
-    const btnH = 50;
+    const btnW = 320;
+    const btnH = 56;
 
     const btn = new Graphics();
-    btn.roundRect(0, 0, btnW, btnH, 14);
-    btn.fill({ color: 0x2e7d32, alpha: 0.95 });
-    btn.stroke({ color: 0x66bb6a, width: 3 });
+    btn.roundRect(0, 0, btnW, btnH, 18);
+    btn.fill({ color: 0x4caf50 }); // Warm vibrant green
+    btn.stroke({ color: 0x81c784, width: 4 });
     btn.x = cx - btnW / 2;
     btn.y = y;
     btn.eventMode = 'static';
@@ -345,13 +363,19 @@ export class SeedSelectionScene implements Scene {
     this.contentLayer.addChild(btn);
 
     const btnLabel = new Text({
-      text: `🌿 Start ${seasonCfg.displayName}`,
+      text: `🌿 Start ${seasonCfg.displayName} Run`,
       style: {
         fontFamily: 'Georgia, serif',
-        fontSize: 22,
+        fontSize: 24,
         fill: '#ffffff',
         fontWeight: 'bold',
         align: 'center',
+        dropShadow: {
+          alpha: 0.3,
+          angle: 45,
+          blur: 2,
+          distance: 2,
+        },
       },
     });
     btnLabel.anchor.set(0.5);
@@ -360,10 +384,12 @@ export class SeedSelectionScene implements Scene {
     this.contentLayer.addChild(btnLabel);
 
     btn.on('pointerover', () => {
-      btn.alpha = 0.85;
+      btn.scale.set(1.03);
+      btn.alpha = 0.9;
     });
     btn.on('pointerout', () => {
-      btn.alpha = 1;
+      btn.scale.set(1.0);
+      btn.alpha = 1.0;
     });
     btn.on('pointerdown', () => {
       this.startGarden(ctx);

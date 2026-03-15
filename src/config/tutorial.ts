@@ -28,7 +28,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'welcome',
     title: 'Welcome to Flora! 🌱',
-    message: 'Your garden awaits! Each season, you\'ll plant seeds, tend your garden, and harvest what you grow. Let\'s get started!',
+    message: 'Your garden awaits! Each day you get 3 actions to plant, water, and harvest. Use them wisely — the day advances when you run out!',
     icon: '🌻',
     completionEvent: null,
     autoDismissMs: 0,
@@ -36,39 +36,47 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'movement',
     title: 'Getting Around',
-    message: 'Use WASD or Arrow keys to move around the garden. Click any tile to move there directly!',
+    message: 'Use WASD or Arrow keys to move. Click any tile to walk there. Moving is FREE — it doesn\'t cost actions!',
     icon: '🚶',
     completionEvent: null,
     autoDismissMs: 0,
   },
   {
     id: 'planting',
-    title: 'Planting Seeds',
-    message: 'Select the Seed tool from the toolbar below, then click an empty tile to plant. Each plant has its own growth time!',
+    title: 'Planting Seeds (Action 1/3)',
+    message: 'Select the Seed tool from the toolbar, then click an empty tile to plant. This costs 1 action. Watch your action counter in the top-right!',
     icon: '🌱',
     completionEvent: 'plant:created',
     autoDismissMs: 0,
   },
   {
     id: 'watering',
-    title: 'Watering Plants',
-    message: 'Select the Watering Can, then click a planted tile to water it. Plants need water to grow healthy and strong!',
+    title: 'Watering Plants (Action 2/3)',
+    message: 'Select the Watering Can, then click your planted tile to water it. This costs 1 action. Watered plants grow faster!',
     icon: '💧',
     completionEvent: 'plant:watered',
     autoDismissMs: 0,
   },
   {
+    id: 'actions',
+    title: 'Understanding Actions',
+    message: 'You have 3 actions per day. Each tool use costs 1 action. When you run out, the day advances and your plants grow. Your actions refresh each day!',
+    icon: '⚡',
+    completionEvent: null,
+    autoDismissMs: 0,
+  },
+  {
     id: 'growing',
-    title: 'Watch Them Grow',
-    message: 'Plants grow over time through stages: Seedling → Sprout → Mature. Hover over a plant to see its progress!',
+    title: 'The Day Cycle',
+    message: 'Each day your plants grow: Seedling → Sprout → Mature. Days pass automatically when you use all actions. You have 12 days per season!',
     icon: '🌿',
     completionEvent: null,
     autoDismissMs: 0,
   },
   {
     id: 'harvesting',
-    title: 'Harvesting',
-    message: 'When a plant reaches maturity, click it to harvest! You\'ll earn seeds and discover new plant varieties.',
+    title: 'Harvesting at Maturity',
+    message: 'When a plant is fully grown (look for the bright glow!), click it to harvest. You\'ll earn seeds and discover new plant varieties!',
     icon: '🌾',
     completionEvent: 'plant:harvested',
     autoDismissMs: 0,
@@ -76,7 +84,7 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
   {
     id: 'complete',
     title: 'You\'re Ready! 🎉',
-    message: 'That\'s the basics! Explore synergies, watch for weather, and fill your encyclopedia. Happy gardening!',
+    message: 'Remember: Plant → Water → Wait for growth → Harvest → Repeat! Watch your action counter and plan your days wisely. Happy gardening!',
     icon: '✨',
     completionEvent: null,
     autoDismissMs: 0,
@@ -85,6 +93,13 @@ export const TUTORIAL_STEPS: readonly TutorialStep[] = [
 
 /** TLDR: Contextual hints triggered on first encounter of each mechanic */
 export const TUTORIAL_HINTS: readonly TutorialHint[] = [
+  {
+    id: 'hint_actions_reminder',
+    message: 'Remember: Each tool use costs 1 action. You get 3 actions per day. The day advances when you run out!',
+    icon: '⚡',
+    triggerEvent: 'tutorial:completed',
+    durationMs: 6000,
+  },
   {
     id: 'hint_pest',
     message: 'Oh no, a pest! Click on infested tiles to shoo them away before they damage your plants.',
@@ -128,13 +143,6 @@ export const TUTORIAL_HINTS: readonly TutorialHint[] = [
     durationMs: 5000,
   },
   {
-    id: 'hint_day_advance',
-    message: 'A new day! Your actions refresh each day. Plan your moves carefully — time marches on!',
-    icon: '🌅',
-    triggerEvent: 'day:advanced',
-    durationMs: 5000,
-  },
-  {
     id: 'hint_weed',
     message: 'A weed appeared! Pull it before it spreads. Weeds slow nearby plant growth, but yield compost when removed.',
     icon: '🌿',
@@ -159,29 +167,34 @@ export interface HowToPlaySection {
 
 export const HOW_TO_PLAY: readonly HowToPlaySection[] = [
   {
-    title: 'Movement',
-    icon: '🚶',
-    lines: ['WASD / Arrow keys to move', 'Click any tile to walk there'],
+    title: 'The Day Cycle',
+    icon: '☀️',
+    lines: ['Each day = 3 actions (plant, water, harvest)', 'Day advances when actions run out', 'Plants grow at the start of each day', '12 days per season'],
   },
   {
-    title: 'Tools',
+    title: 'Movement',
+    icon: '🚶',
+    lines: ['WASD / Arrow keys to move', 'Click any tile to walk there', 'Movement is FREE — no action cost!'],
+  },
+  {
+    title: 'Tools & Actions',
     icon: '🔧',
-    lines: ['Select a tool from the toolbar', 'Click a tile to use it', 'Seed: plant on empty tiles', 'Water: hydrate your plants'],
+    lines: ['Each tool use = 1 action', 'Seed: plant on empty tiles', 'Water: hydrate plants to grow faster', 'Watch action counter (top-right)'],
   },
   {
     title: 'Growth',
     icon: '🌱',
-    lines: ['Plants grow through stages over days', 'Water regularly for healthy growth', 'Harvest mature plants for seeds'],
+    lines: ['Plants grow at day start: Seedling → Sprout → Mature', 'Water boosts growth speed', 'Harvest when mature (glowing)'],
   },
   {
     title: 'Hazards',
     icon: '🐛',
-    lines: ['Pests can infest your plants', 'Click infested tiles to remove pests', 'Watch for weather warnings!'],
+    lines: ['Pests can infest your plants', 'Click infested tiles to remove them', 'Weather warnings appear 2 days early'],
   },
   {
     title: 'Synergies',
     icon: '✨',
-    lines: ['Some plants boost their neighbors', 'Experiment with placement patterns', 'Check tooltips for synergy info'],
+    lines: ['Some plants boost their neighbors', 'Plant complementary species nearby', 'Check tooltips for synergy details'],
   },
   {
     title: 'Seasons',

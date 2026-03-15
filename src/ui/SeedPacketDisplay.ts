@@ -65,20 +65,26 @@ export class SeedPacketDisplay {
   }
 
   private render(): void {
+    // Shadow for depth (drawn first, behind card)
+    const shadow = new Graphics();
+    shadow.roundRect(3, 3, PACKET_WIDTH, PACKET_HEIGHT, 12);
+    shadow.fill({ color: 0x000000, alpha: 0.15 });
+    this.container.addChild(shadow);
+
     // Packet background (vintage seed packet style)
     const bg = new Graphics();
     bg.roundRect(0, 0, PACKET_WIDTH, PACKET_HEIGHT, 12);
-    bg.fill({ color: 0xf5f5dc, alpha: 0.98 }); // Beige paper color
+    bg.fill({ color: 0xfff8e7, alpha: 0.98 }); // Warm cream
     bg.stroke({
       color: RARITY_COLORS[this.plant.rarity],
       width: 3,
     });
     this.container.addChild(bg);
 
-    // Decorative top banner (rarity color)
+    // Decorative top banner (rarity color, more vibrant)
     const banner = new Graphics();
-    banner.roundRect(0, 0, PACKET_WIDTH, 40, 12);
-    banner.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.3 });
+    banner.roundRect(0, 0, PACKET_WIDTH, 44, 12);
+    banner.fill({ color: RARITY_COLORS[this.plant.rarity], alpha: 0.25 });
     this.container.addChild(banner);
 
     // Plant icon (large, centered)
@@ -94,20 +100,20 @@ export class SeedPacketDisplay {
     icon.y = 70;
     this.container.addChild(icon);
 
-    // Plant name
+    // Plant name (larger, warmer)
     const name = new Text({
       text: this.plant.displayName,
       style: {
         fontFamily: 'Georgia, serif',
-        fontSize: 18,
-        fill: '#2d2d2d',
+        fontSize: 19,
+        fill: '#3d5a3d',
         fontWeight: 'bold',
         align: 'center',
       },
     });
     name.anchor.set(0.5, 0);
     name.x = PACKET_WIDTH / 2;
-    name.y = 110;
+    name.y = 108;
     this.container.addChild(name);
 
     // Rarity badge
@@ -140,17 +146,18 @@ export class SeedPacketDisplay {
     // Stats section
     const statsY = 175;
 
-    // Growth time
+    // Growth time (clearer, warmer colors)
     const growthText = new Text({
       text: `🌱 Growth: ${this.plant.growthTime} days`,
       style: {
         fontFamily: 'Arial',
-        fontSize: 12,
-        fill: '#555555',
+        fontSize: 13,
+        fill: '#4a6a4a',
+        fontWeight: '600',
         align: 'left',
       },
     });
-    growthText.x = 15;
+    growthText.x = 18;
     growthText.y = statsY;
     this.container.addChild(growthText);
 
@@ -160,13 +167,14 @@ export class SeedPacketDisplay {
       text: `💧 Water: ${waterNeed}`,
       style: {
         fontFamily: 'Arial',
-        fontSize: 12,
-        fill: '#555555',
+        fontSize: 13,
+        fill: '#4a6a4a',
+        fontWeight: '600',
         align: 'left',
       },
     });
-    waterText.x = 15;
-    waterText.y = statsY + 18;
+    waterText.x = 18;
+    waterText.y = statsY + 19;
     this.container.addChild(waterText);
 
     // Yield
@@ -174,13 +182,14 @@ export class SeedPacketDisplay {
       text: `🌾 Yield: ${this.plant.yieldSeeds} seeds`,
       style: {
         fontFamily: 'Arial',
-        fontSize: 12,
-        fill: '#555555',
+        fontSize: 13,
+        fill: '#4a6a4a',
+        fontWeight: '600',
         align: 'left',
       },
     });
-    yieldText.x = 15;
-    yieldText.y = statsY + 36;
+    yieldText.x = 18;
+    yieldText.y = statsY + 38;
     this.container.addChild(yieldText);
   }
 
@@ -197,12 +206,14 @@ export class SeedPacketDisplay {
 
     this.container.on('pointerover', () => {
       if (!this.isSelected) {
-        this.container.alpha = 0.9;
+        this.container.scale.set(1.03);
+        this.container.alpha = 0.95;
       }
     });
 
     this.container.on('pointerout', () => {
       if (!this.isSelected) {
+        this.container.scale.set(1.0);
         this.container.alpha = 1.0;
       }
     });
@@ -215,16 +226,19 @@ export class SeedPacketDisplay {
   }
 
   /**
-   * TLDR: Highlight as selected
+   * TLDR: Highlight as selected with warm glow effect
    */
   setSelected(selected: boolean): void {
     this.isSelected = selected;
     if (selected) {
       this.container.alpha = 1.0;
-      this.container.scale.set(1.05);
+      this.container.scale.set(1.08);
+      // Add warm glow by increasing tint brightness
+      this.container.filters = [];
     } else {
       this.container.alpha = 1.0;
       this.container.scale.set(1.0);
+      this.container.filters = [];
     }
   }
 

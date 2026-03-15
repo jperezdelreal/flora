@@ -57,6 +57,10 @@ export class HUD {
   private hintText!: Text;
   private hintBg!: Graphics;
   private phaseTransitionAlpha = 0;
+  
+  // TLDR: Action flash for visual feedback when actions are consumed (#250)
+  private actionFlashAlpha = 0;
+  private actionFlashBg!: Graphics;
 
   constructor() {
     this.container = new Container();
@@ -279,6 +283,11 @@ export class HUD {
     this.actionsText.x = width - 16;
     this.actionsText.y = 10;
     this.actionsText.anchor.set(1, 0);
+    
+    // TLDR: Action flash background (same position as actions text)
+    this.actionFlashBg = new Graphics();
+    this.actionFlashBg.visible = false;
+    this.container.addChild(this.actionFlashBg);
 
     // Secondary: Score left
     this.scoreText.x = 16;
@@ -399,6 +408,13 @@ export class HUD {
     } else {
       this.actionsText.style.fill = '#ffe082';
     }
+  }
+  
+  /**
+   * TLDR: Trigger action flash animation when action is consumed (#250)
+   */
+  flashActionConsumed(): void {
+    this.actionFlashAlpha = 1.0;
   }
 
   /**
@@ -562,6 +578,7 @@ export class HUD {
    * TLDR: Animate phase transition flash (call each frame)
    */
   updatePhaseTransition(delta: number): void {
+    // TLDR: Phase transition flash
     if (this.phaseTransitionAlpha > 0) {
       this.phaseTransitionAlpha -= delta * 2;
       if (this.phaseTransitionAlpha <= 0) {
@@ -576,6 +593,26 @@ export class HUD {
         this.phaseBg.stroke({ color: flashColor, width: 2, alpha: this.phaseTransitionAlpha });
       } else {
         this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
+      }
+    }
+    
+    // TLDR: Action consumed flash animation (#250)
+    if (this.actionFlashAlpha > 0) {
+      this.actionFlashAlpha -= delta * 3; // Fade faster than phase
+      if (this.actionFlashAlpha <= 0) {
+        this.actionFlashAlpha = 0;
+        this.actionFlashBg.visible = false;
+      } else {
+        this.actionFlashBg.visible = true;
+        this.actionFlashBg.clear();
+        // TLDR: Draw a highlight behind the actions text
+        const flashWidth = 140;
+        const flashHeight = 28;
+        const flashX = this.panelWidth - flashWidth - 8;
+        const flashY = 7;
+        this.actionFlashBg.roundRect(flashX, flashY, flashWidth, flashHeight, 6);
+        this.actionFlashBg.fill({ color: 0xffe082, alpha: this.actionFlashAlpha * 0.4 });
+        this.actionFlashBg.stroke({ color: 0xffd54f, width: 2, alpha: this.actionFlashAlpha });
       }
     }
   }
