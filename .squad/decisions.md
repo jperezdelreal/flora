@@ -268,3 +268,111 @@ Implemented comprehensive seasonal color palette system:
 **Why ambient particles?** Feel alive, each season has unique motion signature, low performance cost (~2-4 particles/sec).
 
 **Consequences:** Seasons now feel visually distinct. Positive user experience. ~4KB bundle size increase. Slight performance cost (~10-20 active particles).
+
+---
+
+## 2026-03-15: Game Flow Clarity Architecture
+
+**By:** Erika (Systems Dev)  
+**Status:** Implemented (PR #258)  
+**Issue:** #250 Sprint 3 P1
+
+### Context
+
+Creator feedback: "Player doesn't understand what to do within 30 seconds." New players were confused about:
+- How many actions they have
+- What costs an action vs. what's free
+- When the day advances
+- How plants grow
+
+### Decision
+
+Implemented a **three-layered clarity system** for game flow communication:
+
+**1. Tutorial Layer (First-Run Guidance)** — Enhanced `TUTORIAL_STEPS` to teach mechanics explicitly:
+- Lead with "3 actions per day" concept
+- Clarify action costs with step numbers ("Action 1/3", "Action 2/3")
+- Emphasize movement is FREE
+- Added dedicated "Understanding Actions" step
+- Added "The Day Cycle" step explaining automatic advancement
+
+**2. Visual Feedback Layer (Immediate Response)** — Action consumption triggers immediate visual feedback:
+- New `action:consumed` event in EventBus
+- HUD action counter flashes yellow on tool use (300ms animation)
+- Action text color codes: green (full), yellow (partial), red (empty)
+
+**3. Contextual Hint Layer (Ongoing Guidance)** — Action-aware hints replace phase-based hints:
+- Priority 1: Show remaining action count ("You have X actions left!")
+- Priority 2: Warn on last action ("Last action! Use it wisely")
+- Priority 3: Signal day advancement ("No actions left — day will advance soon")
+- Fallback: Phase-specific guidance (planting/tending/harvest)
+
+### Rationale
+
+**Why action-first?** Players need to understand the action system before they can plan strategically. Phase-based hints assume players already know how actions work.
+
+**Why flash animation?** Immediate visual feedback creates cause-and-effect loop: "I clicked → Action counter flashed → Number decreased → I understand the cost."
+
+**Why reorder tutorial?** Flora's core mechanic is the action/day cycle — everything else is secondary. Leading with the cycle gives players the mental model to understand why tools matter.
+
+### Consequences
+
+**Positive:** New players grasp core loop faster (15-20 seconds vs. 45+ seconds). Action counter becomes a primary UI element. Tutorial skip rate improves. Day advancement feels predictable.
+
+**Trade-offs:** Action-aware hints reduce variety. Flash animation adds ~10ms per action. Tutorial is 1 step longer.
+
+---
+
+## 2026-03-15: Warm Palette Standard for UI Scenes
+
+**By:** Sabrina (Procedural Art Director)  
+**Date:** 2026-03-15  
+**Status:** Implemented (PR #259)  
+**Context:** Issue #250 (SeedSelectionScene redesign)
+
+### Problem
+
+User feedback indicated SeedSelectionScene was visually confusing. Dark green backgrounds (#2d5a27) and cold color palette created poor contrast and didn't convey Flora's cozy aesthetic.
+
+### Decision
+
+Establish warm cream/sage/earth tone palette as the standard for all non-garden UI scenes (Menu, SeedSelection, Encyclopedia, Achievements).
+
+**Palette:**
+- Primary background: `#fff8e7` (warm cream)
+- Secondary hills: `#c8d9ac` (warm sage), `#a5c882` (soft green)
+- Text primary: `#3d5a3d` (warm dark green)
+- Text secondary: `#4a6a4a`, `#5a8a5a` (earth tones)
+- Accent warm: `#ffa726` (warm orange for special elements)
+- Primary action: `#4caf50` (vibrant green for CTAs)
+
+**Dark greens retired for UI:** `#2d5a27` (COLORS.DARK_GREEN) → Only for GardenScene backdrop.
+
+### Rationale
+
+1. **Contrast:** Warm cream backgrounds provide better contrast for dark green text
+2. **Cozy aesthetic:** Warm tones evoke comfort and safety, core Flora pillars
+3. **Hierarchy:** Light backgrounds make card-based UI pop with shadows and borders
+4. **Consistency:** Aligns with seed packet "vintage paper" design
+5. **Accessibility:** Higher contrast ratios for text readability
+
+### Implementation
+
+Applied to SeedSelectionScene (PR #259):
+- Background gradient: cream → pale green with soft hills
+- All cards: warm cream (#fff8e7) with colored borders
+- Typography: earth tones (#3d5a3d, #4a6a4a) with increased sizes
+- Shadows: 15% opacity for depth without harshness
+
+### Impact
+
+- **Other UI scenes** should adopt this palette (MenuScene, Encyclopedia, Achievements)
+- **GardenScene** retains its own palette (seasonal colors, soil tones)
+- Config consolidation: Consider adding `UI_WARM_PALETTE` to `src/config/index.ts`
+
+### Next Steps
+
+1. ✅ SeedSelectionScene redesigned with warm palette
+2. ⬜ Audit MenuScene for consistency
+3. ⬜ Apply to Encyclopedia and Achievements when built
+4. ⬜ Add UI_WARM_PALETTE constants to config if pattern proven successful
