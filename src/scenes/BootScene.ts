@@ -143,7 +143,10 @@ export class BootScene implements Scene {
         .then(() => {
           this.transitioned = true;
         })
-        .catch(console.error);
+        .catch((error) => {
+          console.error('Boot transition failed:', error);
+          this.transitioned = true;
+        });
     }
   }
 
