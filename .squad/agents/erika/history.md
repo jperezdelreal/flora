@@ -96,3 +96,61 @@ Verified that Sprint 3 P0/P1 tasks from issue #250 are already complete in main:
 2. **P1 — SeedInventory Wiring**: Already completed in PR #241/242. SeedInventory displays seeds from actual run seed pool via `seedSelectionSystem.getCurrentPool()` (lines 340-344 in GardenScene.ts).
 
 **No work needed**: All requested changes already merged to main. Zero TypeScript errors on verification.
+
+### Game Flow Clarity System (PR #258)
+Implemented issue #250 Sprint 3 P1 — game flow clarity for new players. Creator feedback: "player doesn't understand what to do within 30 seconds."
+
+**Problem Diagnosis:**
+1. Tutorial didn't explain action/day cycle mechanics
+2. No visual feedback when actions are consumed
+3. Contextual hints were phase-based, not action-aware
+4. Day advance messages lacked actionable guidance
+
+**Solution Architecture:**
+1. **Tutorial Rewrite**: Enhanced `TUTORIAL_STEPS` to explicitly teach:
+   - 3 actions per day system
+   - Each tool use costs 1 action
+   - Day advances when actions run out
+   - Movement is FREE (no action cost)
+   - Plants grow at day start
+
+2. **Visual Feedback Loop**: 
+   - Added `action:consumed` event to EventMap
+   - PlayerSystem emits event after `consumeAction()`
+   - HUD subscribes and triggers `flashActionConsumed()` animation
+   - Action counter flashes yellow highlight for 300ms on tool use
+
+3. **Action-Aware Hints**: 
+   - `getContextualHint()` now prioritizes action count over phase
+   - Shows "You have X actions left!" when actions > 1
+   - Shows "Last action! Use it wisely" when actions === 1
+   - Shows "No actions left — day will advance soon" when actions === 0
+
+4. **Enhanced Day Messaging**:
+   - `showDayAdvanceSummary()` now shows:
+     - Plant count and growth status
+     - Harvest-ready count with emoji
+     - Actionable next step ("Keep watering" / "Plant some seeds")
+     - Explicit reminder: "You have 3 actions"
+
+5. **How to Play Reorg**:
+   - Moved "The Day Cycle" section to first position
+   - Emphasized action costs and day mechanics
+   - Clarified movement is free
+
+**EventBus Extensions:**
+- `action:consumed`: { actionsRemaining, maxActions } — fired after PlayerSystem.consumeAction()
+
+**Player Entity Update:**
+- Added `getMaxActions()` getter for UI display consistency
+
+**Integration Points:**
+- GardenScene subscribes to `action:consumed` and calls `hud.flashActionConsumed()`
+- TutorialSystem triggers contextual hint after tutorial completion
+- HUD.updatePhaseTransition() animates both phase flash and action flash
+
+**Outcome:**
+New players now understand the core game loop within 30 seconds:
+- Select tool → use on tile (costs 1 action) → repeat until 0 actions → day advances → plants grow → get 3 new actions
+
+**Build Status**: Zero TypeScript errors. Clean Vite build.
