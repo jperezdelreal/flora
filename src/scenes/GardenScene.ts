@@ -1665,6 +1665,10 @@ export class GardenScene implements Scene {
       this.plantRenderer.animatePlantGrowth(data.plantId, data.stage);
     });
 
+    this.listenTo('plant:matured', (data) => {
+      this.triggerMaturityCelebration(data.plantId, data.plantConfigId);
+    });
+
     this.listenTo('plant:watered', (data) => {
       this.triggerWaterRipple(data.x, data.y);
     });
@@ -1979,6 +1983,58 @@ export class GardenScene implements Scene {
       minAlpha: ANIMATION.SYNERGY_GLOW_MIN_ALPHA,
       maxAlpha: ANIMATION.SYNERGY_GLOW_MAX_ALPHA,
       duration: ANIMATION.SYNERGY_GLOW_DURATION,
+    });
+  }
+
+  /**
+   * TLDR: Full maturity celebration — bounce, particles, glow, floating text
+   */
+  private triggerMaturityCelebration(plantId: string, plantConfigId: string): void {
+    const visual = getPlantVisual(plantConfigId);
+    const baseColor = visual?.baseColor ?? 0x81c784;
+    const accentColor = visual?.accentColor ?? 0xa5d6a7;
+
+    const pVisual = this.plantRenderer.getPlantVisual(plantId);
+    if (!pVisual) return;
+
+    const gridPos = this.gridSystem.getContainer().position;
+    const cx = gridPos.x + pVisual.x;
+    const cy = gridPos.y + pVisual.y;
+
+    // Pop/bounce animation on sprite (scale 1.3x → 1.0 over 0.3s)
+    this.animationSystem.scaleBounce(
+      pVisual.scale as unknown as Record<string, unknown>,
+      ANIMATION.MATURE_BOUNCE_PEAK_SCALE,
+      1.0,
+      ANIMATION.MATURE_BOUNCE_DURATION,
+    );
+
+    // Sparkle particle burst matching plant colors
+    this.particleSystem.burst({
+      x: cx,
+      y: cy,
+      count: ANIMATION.MATURE_PARTICLE_COUNT,
+      speed: ANIMATION.MATURE_PARTICLE_SPEED,
+      lifetime: ANIMATION.MATURE_PARTICLE_LIFETIME,
+      colors: [baseColor, accentColor, 0xffffff],
+      size: ANIMATION.MATURE_PARTICLE_SIZE,
+      gravity: -20,
+      fadeOut: true,
+      shrink: true,
+    });
+
+    // Persistent pulsing glow (cleared on harvest via removePlantVisual)
+    this.plantRenderer.addMaturityGlow(plantId, accentColor);
+
+    // Floating "✨ Ready!" text
+    this.particleSystem.floatingText({
+      x: cx,
+      y: cy - 20,
+      text: '✨ Ready!',
+      color: '#fff9c4',
+      fontSize: ANIMATION.MATURE_FLOATING_TEXT_SIZE,
+      duration: ANIMATION.MATURE_FLOATING_TEXT_DURATION,
+      riseSpeed: ANIMATION.MATURE_FLOATING_TEXT_RISE_SPEED,
     });
   }
 
