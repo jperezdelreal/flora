@@ -68,6 +68,7 @@ export class AudioManager {
   private boundCompostApplied!: () => void;
   private boundToolUpgraded!: () => void;
   private boundToolUnlocked!: () => void;
+  private boundPlantMatured!: () => void;
   
   /**
    * Initialize audio context and routing graph
@@ -144,6 +145,9 @@ export class AudioManager {
     
     this.boundToolUnlocked = () => this.playSFX('TOOL_UNLOCK');
     eventBus.on('tool:unlocked', this.boundToolUnlocked);
+    
+    this.boundPlantMatured = () => this.playSFX('MATURE');
+    eventBus.on('plant:matured', this.boundPlantMatured);
   }
   
   /**
@@ -307,6 +311,9 @@ export class AudioManager {
       case 'TOOL_UNLOCK':
         this._playToolUnlockSFX(now);
         break;
+      case 'MATURE':
+        this._playMatureSFX(now);
+        break;
     }
   }
   
@@ -456,6 +463,7 @@ export class AudioManager {
     eventBus.off('compost:applied', this.boundCompostApplied);
     eventBus.off('tool:upgraded', this.boundToolUpgraded);
     eventBus.off('tool:unlocked', this.boundToolUnlocked);
+    eventBus.off('plant:matured', this.boundPlantMatured);
     
     this.stopAmbient();
     
@@ -572,6 +580,35 @@ export class AudioManager {
       
       const chimeGain = this.ctx.createGain();
       chimeGain.gain.setValueAtTime(0.25, chimeStart);
+      chimeGain.gain.exponentialRampToValueAtTime(
+        0.01,
+        chimeStart + config.chimeDuration
+      );
+      
+      chimeOsc.connect(chimeGain);
+      chimeGain.connect(this.sfxBus);
+      chimeOsc.start(chimeStart);
+      chimeOsc.stop(chimeStart + config.chimeDuration);
+    }
+  }
+  
+  /**
+   * TLDR: Gentle two-note chime for plant maturity — cozy, not jarring
+   */
+  private _playMatureSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.MATURE;
+    
+    for (let i = 0; i < config.chimeFreqs.length; i++) {
+      const chimeStart = startTime + i * config.chimeStagger;
+      
+      const chimeOsc = this.ctx.createOscillator();
+      chimeOsc.type = 'sine';
+      chimeOsc.frequency.value = config.chimeFreqs[i];
+      
+      const chimeGain = this.ctx.createGain();
+      chimeGain.gain.setValueAtTime(0.2, chimeStart);
       chimeGain.gain.exponentialRampToValueAtTime(
         0.01,
         chimeStart + config.chimeDuration

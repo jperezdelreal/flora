@@ -230,3 +230,20 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
   - Seed skins override packet border/bg/banner colors without touching rarity badge
   - Sparkle animation via alpha oscillation (0.5s) provides immediate visual feedback on apply
 - **Conventions applied**: All comments "TLDR:", UI_COLORS for base palette, config-driven colors, bound listener cleanup
+
+### Discovery Popup Polish (Issue #287, PR #291)
+- **Architecture**: Full DiscoveryPopup rewrite with dramatic entrance animation and HUD integration
+- **Pattern**: Slide-in animation with cubic ease-out positioning + scale overshoot bounce (0.8 → 1.05 → 1.0)
+- **Key files updated**:
+  - `src/ui/DiscoveryPopup.ts` — Complete rewrite: larger popup (420×260), slide-in from right, rarity glow/border, star badges, "NEW!" shimmer stamp, progress bar auto-dismiss (4s)
+  - `src/ui/HUD.ts` — Added discoveryText (secondary tier, centered), updateDiscoveryCount() method, theme-aware color refresh
+  - `src/scenes/GardenScene.ts` — Discovery callback now plays HARVEST SFX, updates HUD counter, triggers screen flash for rare+ plants
+- **Visual features**:
+  - Rarity-colored outer glow, panel border, and badge pill (Common=green, Uncommon=blue, Rare=purple, Heirloom=gold)
+  - Star badges: Common ⭐, Uncommon ⭐⭐, Rare ⭐⭐⭐, Heirloom ⭐⭐⭐⭐
+  - Plant name in rarity color (30px bold), italic flavor text from plant config
+  - "NEW!" stamp with sine-wave alpha oscillation shimmer (Ticker-based)
+  - Auto-dismiss progress bar at bottom, shrinks over 4 seconds in rarity color
+- **HUD integration**: "🌿 X/22 Discovered" counter initialized on scene load, updated on each discovery
+- **Audio**: HARVEST SFX played on every new discovery; screen flash pulse for rare/heirloom tier
+- **Conventions applied**: All comments "TLDR:", UI_COLORS for panel colors, Ticker cleanup in destroy(), config-driven rarity colors

@@ -50,6 +50,7 @@ export class PlantRenderer implements System {
   private plantHealthCache = new Map<string, number>();
   private visualStateCache = new Map<string, string>();
   private synergyShimmerPhases = new Map<string, number>();
+  private maturityGlows = new Map<string, Graphics>();
   private currentSeason: Season = Season.SPRING;
 
   private animationSystem: AnimationSystem;
@@ -168,6 +169,33 @@ export class PlantRenderer implements System {
       this.plantHealthCache.delete(plantId);
       this.visualStateCache.delete(plantId);
       this.synergyShimmerPhases.delete(plantId);
+      this.removeMaturityGlow(plantId);
+    }
+  }
+
+  /**
+   * TLDR: Attach a persistent pulsing glow to a mature plant sprite
+   * Glow alpha oscillates each frame in update(). Removed on harvest/death.
+   */
+  addMaturityGlow(plantId: string, color: number): void {
+    if (this.maturityGlows.has(plantId)) return;
+    const visual = this.plantVisuals.get(plantId);
+    if (!visual) return;
+
+    const glow = new Graphics();
+    glow.circle(0, 0, ANIMATION.MATURE_GLOW_RADIUS);
+    glow.fill({ color, alpha: 0.3 });
+    glow.alpha = ANIMATION.MATURE_GLOW_MIN_ALPHA;
+    visual.addChildAt(glow, 0);
+    this.maturityGlows.set(plantId, glow);
+  }
+
+  /** Remove maturity glow graphic for a plant */
+  private removeMaturityGlow(plantId: string): void {
+    const glow = this.maturityGlows.get(plantId);
+    if (glow) {
+      glow.destroy();
+      this.maturityGlows.delete(plantId);
     }
   }
 
@@ -182,6 +210,7 @@ export class PlantRenderer implements System {
     this.plantHealthCache.clear();
     this.visualStateCache.clear();
     this.synergyShimmerPhases.clear();
+    this.maturityGlows.clear();
 
     const activePlants = this.plantSystem.getActivePlants();
     for (const plant of activePlants) {
@@ -303,7 +332,15 @@ export class PlantRenderer implements System {
         }
       }
 
-      // Health-based visual refresh (only when health changes by >5%)
+      // Maturity glow: gentle alpha oscillation on persistent glow graphic
+      const maturityGlow = this.maturityGlows.get(plantId);
+      if (maturityGlow) {
+        const pulse = Math.sin(time * ANIMATION.MATURE_GLOW_PULSE_SPEED * Math.PI * 2 + phase);
+        maturityGlow.alpha = ANIMATION.MATURE_GLOW_MIN_ALPHA +
+          (ANIMATION.MATURE_GLOW_MAX_ALPHA - ANIMATION.MATURE_GLOW_MIN_ALPHA) * (pulse * 0.5 + 0.5);
+      }
+
+      // Health-based visual refresh(only when health changes by >5%)
       const currentHealth = plant.getHealth();
       const cachedHealth = this.plantHealthCache.get(plantId);
       if (cachedHealth === undefined || Math.abs(currentHealth - cachedHealth) > 5) {
@@ -330,6 +367,7 @@ export class PlantRenderer implements System {
     this.plantHealthCache.clear();
     this.visualStateCache.clear();
     this.synergyShimmerPhases.clear();
+    this.maturityGlows.clear();
     this.plantVisualLayer.destroy({ children: true });
   }
 
