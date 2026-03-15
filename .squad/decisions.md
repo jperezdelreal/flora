@@ -180,3 +180,91 @@ Issue #117 requested a polished title screen and main menu as the player's first
 - Encyclopedia and Achievements menu items are placeholders (scenes not yet registered)
 - Responsive relayout on resize (currently captures dimensions at init time)
 - Sound effects for menu navigation (can subscribe to UI events when audio SFX expands)
+
+---
+
+## 2026-03-14T16:31Z: User directive — Visual Clarity & UX Priority
+
+**By:** joperezd (via Copilot)  
+**Status:** Active  
+
+La parte visual confunde. El menu de seleccion de plantas no se ve bien. El usuario no entiende bien el juego (no le dedico tiempo). Idealmente los agentes deberian poder jugar/probar el juego para detectar fallos. Priorizar claridad visual y UX sobre features nuevas.
+
+**Captured for:** Team priority realignment — visual polish takes precedence until UX clarity improves.
+
+---
+
+## 2026-03-14: Procedural Audio Scene Integration
+
+**By:** Brock (Web Engine Dev)  
+**Status:** Implemented (PR #211)  
+**Issue:** #203
+
+### Context
+
+Flora has a fully implemented AudioManager with Web Audio API procedural synthesis for ambient music and SFX. GardenScene has complete EventBus integration for triggering SFX on gameplay events. However, MenuScene and SeedSelectionScene did not start the ambient audio loop, creating a silent experience on the title screen and seed selection, breaking the cozy atmosphere.
+
+### Decision
+
+Start ambient audio in MenuScene and SeedSelectionScene to maintain continuous atmospheric audio throughout the player experience.
+
+**Implementation:**
+1. **MenuScene lifecycle** — `init()`: Call `audioManager.startAmbient()` after scene setup; `destroy()`: Call `audioManager.stopAmbient()`
+2. **SeedSelectionScene lifecycle** — `init()`: Call `audioManager.startAmbient()`; `destroy()`: Call `audioManager.stopAmbient()`
+3. **Audio flow**: BootScene (silent) → MenuScene (ambient starts) → SeedSelectionScene (ambient continues) → GardenScene (ambient + SFX)
+
+**Rationale:**
+- Cozy-first philosophy: Continuous gentle ambient from first screen
+- Scene autonomy: Each scene owns its audio lifecycle
+- Zero duplication: AudioManager already synthesizes all audio
+- Consistent with patterns: Matches how scenes manage ParticleSystem, AnimationSystem
+
+---
+
+## 2026-03-14: Sprint 2 Planning — "Depth & Identity"
+
+**By:** Oak (Lead / Chief Architect)  
+**Status:** Active  
+**Issue:** #223
+
+### Context
+
+Sprint 1 delivered all 7 issues (animations, effects, transitions, palettes, audio, deployment, polish). Board empty, phase 4 roadmap triggered planning.
+
+### Decision
+
+Sprint 2 covers 4 of 6 Phase 4 items with 7 issues across 4 parallel tracks:
+- **Track A:** #215 (Encyclopedia) + #216 (Achievements) — Misty
+- **Track B:** #217 (Weeds & Compost) + #218 (Tool Progression) — Erika
+- **Track C:** #219 (Procedural Rendering) + #220 (Tile Visual Identity) — Sabrina
+- **Track D:** #221 (Engine Infrastructure: cache, pool, audio) — Brock
+
+**Deferred to Sprint 3:** §5 Cosmetic Rewards (depends on Achievements), §6 Season Selection (independent but lower priority)
+
+**Rationale:** Depth before cosmetics, identity before variety. Brock's infrastructure lands first to enable Sabrina's renderers.
+
+---
+
+## 2026-03-14: Seasonal Color Palette Architecture
+
+**By:** Sabrina (Procedural Art Director)  
+**Status:** Implemented (PR #214)  
+**Issue:** #202
+
+### Context
+
+GDD specifies distinct visual shifts per season. Previously all seasons looked identical — only background color changed.
+
+### Decision
+
+Implemented comprehensive seasonal color palette system:
+1. **Separate Visual Config** (`src/config/seasonalPalettes.ts`) — 4 seasonal palettes with colors, saturation multipliers
+2. **Ambient Particle Extensions** — 4 particle types (petals, fireflies, leaves, snow) with 1.5-4 spawn/sec, 15-25s lifetimes
+3. **Seasonal Soil Colors** — GridSystem uses palette, soil quality modulates darkness
+4. **Smooth Transitions** — 2-second easeInOut palette transitions on season change
+
+**Why separate from SEASON_CONFIG?** Gameplay mechanics belong in SEASON_CONFIG; pure visuals in seasonalPalettes. Allows designers to tune visuals independently.
+
+**Why ambient particles?** Feel alive, each season has unique motion signature, low performance cost (~2-4 particles/sec).
+
+**Consequences:** Seasons now feel visually distinct. Positive user experience. ~4KB bundle size increase. Slight performance cost (~10-20 active particles).
