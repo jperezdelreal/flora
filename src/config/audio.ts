@@ -74,6 +74,13 @@ export const AUDIO = {
       frequencies: [523.25, 659.25, 783.99, 1046.5], // C5, E5, G5, C6
       noteSpacing: 0.1,
     },
+    MATURE: {
+      type: 'mature' as const,
+      duration: 0.4,
+      chimeFreqs: [440, 523.25], // A4, C5 — gentle two-note chime
+      chimeDuration: 0.2,
+      chimeStagger: 0.1,
+    },
   },
 } as const;
 
