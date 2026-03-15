@@ -245,3 +245,15 @@ Implemented season selection UI and multi-season run mode. Key architectural dec
 10. **Player.resetDay()**: Added method to reset day counter for multi-season transitions without full player reset.
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
+
+### Fix: Tool Actions Not Consuming Player Actions (PR #290, Issue #284)
+Fixed P0 bug where E2E tests showed 0 actions consumed after tool use. Root cause: test hooks (`window.__FLORA__`) lacked a `selectTool` method. Tests guarded with `'selectTool' in flora` — always false, so tools were never selected and no actions consumed.
+
+**Game code was correct** — both `handleSeedPlanting()` and `PlayerSystem.executeToolAction()` properly call `player.consumeAction()` and emit `action:consumed`. The bug was purely in the test hook layer.
+
+**Changes:**
+1. **GardenScene.ts**: Added `selectTestTool(tool: string)` — public method that calls `player.selectTool()` for test hooks. Enriched `getTestPlayerState()` with `maxActions`, flat `row`/`col`, and `isMoving` fields matching test expectations.
+
+2. **testHooks.ts**: Added `selectTool` to `FloraTestHooks` interface and implementation. Added `action:consumed` to `TRACKED_EVENTS` so tests can verify the event. Updated `GardenTestable` type and `getPlayerState` fallback with all new fields.
+
+**Build Status**: Zero new TypeScript errors. Clean Vite production build.
