@@ -3,6 +3,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { TutorialStep, TutorialHint, HowToPlaySection } from '../config/tutorial';
 import { HOW_TO_PLAY } from '../config/tutorial';
+import { GAME } from '../config';
 
 /** TLDR: Callback when overlay is clicked/dismissed */
 export type OverlayDismissCallback = () => void;
@@ -49,8 +50,8 @@ export class TutorialOverlay {
   private skipCallback: OverlaySkipCallback | null = null;
 
   // TLDR: Screen dimensions for positioning
-  private screenWidth = 800;
-  private screenHeight = 600;
+  private screenWidth: number = GAME.WIDTH;
+  private screenHeight: number = GAME.HEIGHT;
 
   constructor() {
     this.container = new Container();
@@ -61,7 +62,7 @@ export class TutorialOverlay {
 
     // TLDR: Full-screen semi-transparent dimmer
     this.stepDimmer = new Graphics();
-    this.stepDimmer.rect(0, 0, 800, 600);
+    this.stepDimmer.rect(0, 0, GAME.WIDTH, GAME.HEIGHT);
     this.stepDimmer.fill({ color: 0x000000, alpha: 0.6 });
     this.stepDimmer.eventMode = 'static';
     this.stepDimmer.cursor = 'pointer';
@@ -69,12 +70,14 @@ export class TutorialOverlay {
     this.stepOverlay.addChild(this.stepDimmer);
 
     // TLDR: Centered card panel
+    const cardWidth = GAME.WIDTH * 0.6;
+    const cardHeight = GAME.HEIGHT * 0.467;
     this.stepCard = new Graphics();
-    this.stepCard.roundRect(0, 0, 480, 280, 16);
+    this.stepCard.roundRect(0, 0, cardWidth, cardHeight, 16);
     this.stepCard.fill({ color: 0x1a2a1a, alpha: 0.97 });
     this.stepCard.stroke({ color: 0x88d498, width: 3 });
-    this.stepCard.x = 160;
-    this.stepCard.y = 160;
+    this.stepCard.x = (GAME.WIDTH - cardWidth) / 2;
+    this.stepCard.y = (GAME.HEIGHT - cardHeight) / 2;
     this.stepOverlay.addChild(this.stepCard);
 
     // TLDR: Step icon
@@ -83,8 +86,8 @@ export class TutorialOverlay {
       style: { fontSize: 48, align: 'center' },
     });
     this.stepIcon.anchor.set(0.5);
-    this.stepIcon.x = 400;
-    this.stepIcon.y = 205;
+    this.stepIcon.x = GAME.WIDTH / 2;
+    this.stepIcon.y = this.stepCard.y + 45;
     this.stepOverlay.addChild(this.stepIcon);
 
     // TLDR: Step title
@@ -99,8 +102,8 @@ export class TutorialOverlay {
       },
     });
     this.stepTitle.anchor.set(0.5, 0);
-    this.stepTitle.x = 400;
-    this.stepTitle.y = 240;
+    this.stepTitle.x = GAME.WIDTH / 2;
+    this.stepTitle.y = this.stepCard.y + 80;
     this.stepOverlay.addChild(this.stepTitle);
 
     // TLDR: Step message
@@ -112,13 +115,13 @@ export class TutorialOverlay {
         fill: '#e0e0e0',
         align: 'center',
         wordWrap: true,
-        wordWrapWidth: 420,
+        wordWrapWidth: cardWidth * 0.875,
         lineHeight: 24,
       },
     });
     this.stepMessage.anchor.set(0.5, 0);
-    this.stepMessage.x = 400;
-    this.stepMessage.y = 280;
+    this.stepMessage.x = GAME.WIDTH / 2;
+    this.stepMessage.y = this.stepCard.y + 120;
     this.stepOverlay.addChild(this.stepMessage);
 
     // TLDR: Progress indicator (e.g., "Step 1 of 7")
@@ -132,8 +135,8 @@ export class TutorialOverlay {
       },
     });
     this.stepProgress.anchor.set(0.5, 0);
-    this.stepProgress.x = 400;
-    this.stepProgress.y = 400;
+    this.stepProgress.x = GAME.WIDTH / 2;
+    this.stepProgress.y = this.stepCard.y + 240;
     this.stepOverlay.addChild(this.stepProgress);
 
     // TLDR: "Click to continue" prompt
@@ -148,17 +151,19 @@ export class TutorialOverlay {
       },
     });
     this.stepPrompt.anchor.set(0.5, 0);
-    this.stepPrompt.x = 400;
-    this.stepPrompt.y = 420;
+    this.stepPrompt.x = GAME.WIDTH / 2;
+    this.stepPrompt.y = this.stepCard.y + 260;
     this.stepOverlay.addChild(this.stepPrompt);
 
     // TLDR: Skip tutorial button (bottom-right of card)
+    const skipBtnWidth = 120;
+    const skipBtnHeight = 32;
     this.skipButton = new Graphics();
-    this.skipButton.roundRect(0, 0, 120, 32, 6);
+    this.skipButton.roundRect(0, 0, skipBtnWidth, skipBtnHeight, 6);
     this.skipButton.fill({ color: 0x333333, alpha: 0.8 });
     this.skipButton.stroke({ color: 0x666666, width: 1 });
-    this.skipButton.x = 510;
-    this.skipButton.y = 410;
+    this.skipButton.x = this.stepCard.x + cardWidth - skipBtnWidth - 10;
+    this.skipButton.y = this.stepCard.y + cardHeight - skipBtnHeight - 8;
     this.skipButton.eventMode = 'static';
     this.skipButton.cursor = 'pointer';
     this.skipButton.on('pointerdown', (e) => {
@@ -167,13 +172,13 @@ export class TutorialOverlay {
     });
     this.skipButton.on('pointerover', () => {
       this.skipButton.clear();
-      this.skipButton.roundRect(0, 0, 120, 32, 6);
+      this.skipButton.roundRect(0, 0, skipBtnWidth, skipBtnHeight, 6);
       this.skipButton.fill({ color: 0x555555 });
       this.skipButton.stroke({ color: 0x888888, width: 1 });
     });
     this.skipButton.on('pointerout', () => {
       this.skipButton.clear();
-      this.skipButton.roundRect(0, 0, 120, 32, 6);
+      this.skipButton.roundRect(0, 0, skipBtnWidth, skipBtnHeight, 6);
       this.skipButton.fill({ color: 0x333333, alpha: 0.8 });
       this.skipButton.stroke({ color: 0x666666, width: 1 });
     });
@@ -189,8 +194,8 @@ export class TutorialOverlay {
       },
     });
     this.skipText.anchor.set(0.5, 0.5);
-    this.skipText.x = 570;
-    this.skipText.y = 426;
+    this.skipText.x = this.skipButton.x + skipBtnWidth / 2;
+    this.skipText.y = this.skipButton.y + skipBtnHeight / 2;
     this.stepOverlay.addChild(this.skipText);
 
     this.container.addChild(this.stepOverlay);
@@ -275,8 +280,8 @@ export class TutorialOverlay {
     this.hintContainer.y = height - 80;
 
     // TLDR: Center How to Play panel
-    this.howToPlayContainer.x = (width - 500) / 2;
-    this.howToPlayContainer.y = (height - 450) / 2;
+    this.howToPlayContainer.x = (width - width * 0.625) / 2;
+    this.howToPlayContainer.y = (height - height * 0.75) / 2;
   }
 
   /** TLDR: Register dismiss callback (advance step) */
@@ -401,19 +406,21 @@ export class TutorialOverlay {
   /** TLDR: Build the How to Play reference panel from config */
   private buildHowToPlayPanel(): void {
     // TLDR: Full-screen dimmer
+    const panelWidth = GAME.WIDTH * 0.625;
+    const panelHeight = GAME.HEIGHT * 0.75;
     const dimmer = new Graphics();
-    dimmer.rect(0, 0, 800, 600);
+    dimmer.rect(0, 0, GAME.WIDTH, GAME.HEIGHT);
     dimmer.fill({ color: 0x000000, alpha: 0.7 });
     dimmer.eventMode = 'static';
     // TLDR: Position relative to howToPlayContainer (will be offset)
-    dimmer.x = -(800 - 500) / 2;
-    dimmer.y = -(600 - 450) / 2;
+    dimmer.x = -(GAME.WIDTH - panelWidth) / 2;
+    dimmer.y = -(GAME.HEIGHT - panelHeight) / 2;
     dimmer.on('pointerdown', () => this.hideHowToPlay());
     this.howToPlayContainer.addChild(dimmer);
 
     // TLDR: Panel background
     const panel = new Graphics();
-    panel.roundRect(0, 0, 500, 450, 16);
+    panel.roundRect(0, 0, panelWidth, panelHeight, 16);
     panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
     panel.stroke({ color: 0x88d498, width: 3 });
     this.howToPlayContainer.addChild(panel);
@@ -430,7 +437,7 @@ export class TutorialOverlay {
       },
     });
     title.anchor.set(0.5, 0);
-    title.x = 250;
+    title.x = panelWidth / 2;
     title.y = 15;
     this.howToPlayContainer.addChild(title);
 
@@ -469,24 +476,26 @@ export class TutorialOverlay {
     }
 
     // TLDR: Close button
+    const closeBtnWidth = 140;
+    const closeBtnHeight = 36;
     const closeBtn = new Graphics();
-    closeBtn.roundRect(0, 0, 140, 36, 8);
+    closeBtn.roundRect(0, 0, closeBtnWidth, closeBtnHeight, 8);
     closeBtn.fill({ color: 0x2a2a2a });
     closeBtn.stroke({ color: 0x88d498, width: 2 });
-    closeBtn.x = 180;
-    closeBtn.y = 405;
+    closeBtn.x = (panelWidth - closeBtnWidth) / 2;
+    closeBtn.y = panelHeight - closeBtnHeight - 10;
     closeBtn.eventMode = 'static';
     closeBtn.cursor = 'pointer';
     closeBtn.on('pointerdown', () => this.hideHowToPlay());
     closeBtn.on('pointerover', () => {
       closeBtn.clear();
-      closeBtn.roundRect(0, 0, 140, 36, 8);
+      closeBtn.roundRect(0, 0, closeBtnWidth, closeBtnHeight, 8);
       closeBtn.fill({ color: 0x4caf50 });
       closeBtn.stroke({ color: 0x66bb6a, width: 2 });
     });
     closeBtn.on('pointerout', () => {
       closeBtn.clear();
-      closeBtn.roundRect(0, 0, 140, 36, 8);
+      closeBtn.roundRect(0, 0, closeBtnWidth, closeBtnHeight, 8);
       closeBtn.fill({ color: 0x2a2a2a });
       closeBtn.stroke({ color: 0x88d498, width: 2 });
     });
@@ -503,8 +512,8 @@ export class TutorialOverlay {
       },
     });
     closeText.anchor.set(0.5, 0.5);
-    closeText.x = 250;
-    closeText.y = 423;
+    closeText.x = closeBtn.x + closeBtnWidth / 2;
+    closeText.y = closeBtn.y + closeBtnHeight / 2;
     this.howToPlayContainer.addChild(closeText);
   }
 }

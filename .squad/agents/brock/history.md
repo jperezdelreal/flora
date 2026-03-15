@@ -82,3 +82,11 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Kept**: `showActionMessage()` and `updateInfoText()` as no-op stubs to avoid breaking callers; encyclopedia still accessible via PauseMenu + MenuScene
 - **Key files**: src/scenes/GardenScene.ts, src/scenes/MenuScene.ts
 
+### Responsive Dimensions Fix (Issue #248, PR #263)
+- **Problem**: DaySummary, PauseMenu, PlantInfoPanel, TutorialOverlay all hardcoded 800x600 dimensions throughout their UI construction
+- **Solution**: Replaced all hardcoded dimension values with GAME.WIDTH/GAME.HEIGHT from config, or relative calculations (e.g., `GAME.WIDTH * 0.625`)
+- **Impact**: All overlays/panels now center and scale relative to config dimensions. No overflow or clipping with standard 800x600.
+- **Changed files**: src/ui/DaySummary.ts, src/ui/PauseMenu.ts, src/ui/PlantInfoPanel.ts, src/ui/TutorialOverlay.ts
+- **Convention**: ALL dimensions via GAME.WIDTH/HEIGHT or proportional calculations. Hardcoded pixel values only acceptable for internal spacing (<50px).
+- **Key insight**: TypeScript strict mode enforces literal types for numeric fields; changed TutorialOverlay screenWidth/Height from literal types to `number` type annotations.
+

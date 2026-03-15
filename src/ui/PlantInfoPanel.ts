@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Plant, WaterState } from '../entities/Plant';
 import type { SoilTestResult } from '../config/tools';
+import { GAME } from '../config';
 
 /**
  * PlantInfoPanel displays detailed information about a plant on hover/click:
@@ -201,11 +202,11 @@ export class PlantInfoPanel {
     }
 
     // Position tooltip near the plant
-    // Adjust if near screen edge (assuming 800x600 screen)
+    // Adjust if near screen edge
     let tooltipX = x + 80; // Default: to the right
     let tooltipY = y - 70; // Default: above
 
-    if (tooltipX + 200 > 800) {
+    if (tooltipX + 200 > GAME.WIDTH) {
       tooltipX = x - 220; // Move to left if too far right
     }
     if (tooltipY < 0) {
@@ -227,7 +228,7 @@ export class PlantInfoPanel {
 
     let tooltipX = x + 80;
     let tooltipY = y - 50;
-    if (tooltipX + 220 > 800) tooltipX = x - 240;
+    if (tooltipX + 220 > GAME.WIDTH) tooltipX = x - 240;
     if (tooltipY < 0) tooltipY = y + 80;
 
     this.soilInfoContainer.x = tooltipX - this.container.x;
