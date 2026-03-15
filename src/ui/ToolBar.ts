@@ -2,6 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { ToolType } from '../entities/Player';
 import { ALL_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier } from '../config/tools';
 import { ANIMATION } from '../config/animations';
+import { UI_COLORS } from '../config';
 import type { ToolSystem } from '../systems/ToolSystem';
 
 export class ToolBar {
@@ -54,8 +55,8 @@ export class ToolBar {
       // Button background
       const button = new Graphics();
       button.rect(0, 0, buttonWidth, buttonHeight);
-      button.fill({ color: 0x2c2c2c });
-      button.stroke({ color: 0x4a4a4a, width: 2 });
+      button.fill({ color: UI_COLORS.BUTTON_BG });
+      button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
       button.eventMode = 'static';
       button.cursor = 'pointer';
 
@@ -76,8 +77,8 @@ export class ToolBar {
           buttonContainer.scale.set(ANIMATION.BUTTON_HOVER_SCALE);
           button.clear();
           button.rect(0, 0, buttonWidth, buttonHeight);
-          button.fill({ color: 0x3c3c3c });
-          button.stroke({ color: 0x6a6a6a, width: 2 });
+          button.fill({ color: UI_COLORS.BUTTON_HOVER_BG });
+          button.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 });
         }
         // TLDR: Show unlock hint on hover for locked tools
         const hintText = this.toolHintTexts.get(tool.type);
@@ -134,7 +135,7 @@ export class ToolBar {
       // TLDR: Tier indicator (stars) — top-right corner
       const tierText = new Text({
         text: '',
-        style: { fontSize: 10, fill: '#ffd700', align: 'right' },
+        style: { fontSize: 10, fill: UI_COLORS.TEXT_TIER_STAR, align: 'right' },
       });
       tierText.anchor.set(1, 0);
       tierText.x = buttonWidth - 4;
@@ -148,7 +149,7 @@ export class ToolBar {
         text: tool.displayName,
         style: {
           fontSize: 12,
-          fill: '#ffffff',
+          fill: UI_COLORS.TEXT_PRIMARY,
           align: 'center',
         },
       });
@@ -163,7 +164,7 @@ export class ToolBar {
       const hintStr = progressiveConfig?.unlockHint ?? '';
       const hintText = new Text({
         text: hintStr,
-        style: { fontSize: 10, fill: '#aaaaaa', align: 'center', wordWrap: true, wordWrapWidth: 100 },
+        style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, align: 'center', wordWrap: true, wordWrapWidth: 100 },
       });
       hintText.anchor.set(0.5, 1);
       hintText.x = buttonWidth / 2;
@@ -201,19 +202,19 @@ export class ToolBar {
     
     if (isLocked) {
       // Locked appearance — grayed out
-      button.fill({ color: 0x1a1a1a, alpha: 0.5 });
-      button.stroke({ color: 0x3a3a3a, width: 2 });
+      button.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.5 });
+      button.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 });
       icon.visible = false;
       lockIcon.visible = true;
-      nameText.style.fill = '#666666';
+      nameText.style.fill = UI_COLORS.TEXT_DISABLED;
       if (tierText) tierText.visible = false;
     } else {
       // Unlocked appearance
-      button.fill({ color: 0x2c2c2c });
-      button.stroke({ color: 0x4a4a4a, width: 2 });
+      button.fill({ color: UI_COLORS.BUTTON_BG });
+      button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
       icon.visible = true;
       lockIcon.visible = false;
-      nameText.style.fill = '#ffffff';
+      nameText.style.fill = UI_COLORS.TEXT_PRIMARY;
 
       // TLDR: Show tier stars if tool has multiple tiers
       if (tierText && this.toolSystem) {
@@ -252,8 +253,8 @@ export class ToolBar {
       if (button) {
         button.clear();
         button.rect(0, 0, 80, 80);
-        button.fill({ color: 0x4a9eff });
-        button.stroke({ color: 0x2d7acc, width: 3 });
+        button.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
+        button.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 });
       }
     }
 
@@ -311,8 +312,8 @@ export class ToolBar {
         // Bright state
         button.clear();
         button.rect(0, 0, 80, 80);
-        button.fill({ color: 0x4caf50 });
-        button.stroke({ color: 0x66bb6a, width: 3 });
+        button.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT });
+        button.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 });
       } else {
         // Normal state
         this.updateButtonAppearance(tool);
@@ -377,8 +378,8 @@ export class ToolBar {
       if (pulseCount % 2 === 0) {
         button.clear();
         button.rect(0, 0, 80, 80);
-        button.fill({ color: 0xffd700 });
-        button.stroke({ color: 0xffeb3b, width: 3 });
+        button.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT });
+        button.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 });
       } else {
         this.updateButtonAppearance(tool);
       }

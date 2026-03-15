@@ -64,7 +64,7 @@ export class MenuScene implements Scene {
   private titleFadeComplete = false;
   private fireflyCooldown = 0;
 
-private boundOnKeyDown!: (e: KeyboardEvent) => void;
+  private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private ctx: SceneContext | null = null;
 
   private draggingSlider: SliderState | null = null;
@@ -80,7 +80,7 @@ private boundOnKeyDown!: (e: KeyboardEvent) => void;
     this.animationSystem = new AnimationSystem();
   }
 
-async init(ctx: SceneContext): Promise<void> {
+  async init(ctx: SceneContext): Promise<void> {
     this.ctx = ctx;
     const { app } = ctx;
     const stage = app.stage.children[0] as Container;
