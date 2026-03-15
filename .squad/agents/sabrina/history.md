@@ -72,3 +72,41 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 ✅ Palette data in config (easy to tune)
 ✅ Color transition smooth (2s lerp, no hard cut)
 ✅ Winter feels cold (blues/greys); Summer feels warm (cream/gold)
+
+### 2025-03-14: SeedSelectionScene Visual Redesign (Issue #250, PR #258)
+
+**What I built:**
+- Redesigned `SeedSelectionScene.ts` with warm cozy color palette
+- Enhanced `SeedPacketDisplay.ts` with better visual feedback and hierarchy
+- Replaced dark green backgrounds (#2d5a27) with warm cream/sage gradients (#fff8e7, #c8d9ac, #a5c882)
+- Added drop shadows to seed cards for depth
+- Improved selection feedback: 1.08x scale on selected cards, 1.03x on hover
+- Enlarged and enhanced typography: titles 32px (was 26px), stats 13px (was 12px), all with better weights
+- Redesigned Start button: larger (320x56), vibrant green (#4caf50), with scale hover effect
+- Updated Daily Challenge section with warm orange/cream styling (#ffa726, #fff9e6)
+
+**Design decisions:**
+- **Warm palette over cold greens**: User feedback indicated dark greens were confusing. Warm earth tones (#3d5a3d, #4a6a4a, #5a8a5a) provide better contrast and align with cozy aesthetic.
+- **Visual hierarchy through scale**: Selected cards scale to 1.08x (was 1.05x), hover to 1.03x. Clear visual feedback for interaction states.
+- **Drop shadows for depth**: Added subtle shadow (3px offset, 15% opacity) behind seed packets to lift them from background.
+- **Gradient background**: Soft cream-to-green gradient with layered hills creates depth without visual clutter.
+- **Larger typography**: Increased font sizes across all elements for readability — priority was clarity over compactness.
+
+**Technical implementation:**
+- Used warm color constants from existing palette where possible, added new warm tones inline for gradients
+- Maintained responsive layout system (auto-scaling seed packets based on screen width)
+- Kept event-driven architecture intact (EventBus, keyboard navigation)
+- All styling changes are visual-only, no gameplay logic affected
+
+**User impact:**
+- Addresses P0 Sprint 3 feedback: "menu doesn't look good and confuses players"
+- Clear visual distinction between selected/unselected seeds
+- Warm inviting aesthetic consistent with Flora's cozy game feel
+- Better text readability with increased contrast and font sizes
+
+**Acceptance criteria met:**
+✅ Seed selection visually clear and intuitive
+✅ Warm cozy palette consistent with art direction
+✅ Each seed card clearly shows plant name, rarity, growth time, water needs
+✅ Visual hierarchy: selected seeds stand out (1.08x scale)
+✅ Start Run action obvious and inviting (large green button with hover effect)
