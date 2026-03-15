@@ -8,6 +8,7 @@ import { Container, Graphics } from 'pixi.js';
 import { GrowthStage } from '../entities/Plant';
 import { Season } from '../config/seasons';
 import { ANIMATION, PLANT_STAGE_COLORS } from '../config/animations';
+import { COLORS } from '../config';
 import { AnimationSystem, Easing } from './AnimationSystem';
 import type { PlantSystem } from './PlantSystem';
 import type { GardenGrid } from '../entities/GardenGrid';
@@ -568,19 +569,19 @@ export class PlantRenderer implements System {
 
     // Soil mound
     gfx.ellipse(0, 2, seedSize * 1.4, seedSize * 0.5);
-    gfx.fill({ color: 0x795548, alpha: alpha * 0.5 });
+    gfx.fill({ color: COLORS.SOIL_LIGHT, alpha: alpha * 0.5 });
 
     // Species-specific seed shape
     switch (visualDef.seedShape) {
       case 'oval':
         gfx.ellipse(0, 0, seedSize * 0.9, seedSize * 0.6);
-        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.fill({ color: COLORS.SEED_SHELL, alpha });
         gfx.ellipse(0, -seedSize * 0.1, seedSize * 0.5, seedSize * 0.3);
         gfx.fill({ color: mainColor, alpha: alpha * 0.5 });
         break;
       case 'flat':
         gfx.ellipse(0, 0, seedSize * 1.1, seedSize * 0.45);
-        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.fill({ color: COLORS.SEED_SHELL, alpha });
         gfx.ellipse(0, -seedSize * 0.05, seedSize * 0.6, seedSize * 0.2);
         gfx.fill({ color: mainColor, alpha: alpha * 0.45 });
         break;
@@ -590,13 +591,13 @@ export class PlantRenderer implements System {
         gfx.lineTo(seedSize * 0.5, seedSize * 0.3);
         gfx.lineTo(-seedSize * 0.5, seedSize * 0.3);
         gfx.closePath();
-        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.fill({ color: COLORS.SEED_SHELL, alpha });
         gfx.circle(0, seedSize * 0.05, seedSize * 0.3);
         gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
         break;
       default: // 'round'
         gfx.circle(0, 0, seedSize);
-        gfx.fill({ color: 0x8d6e63, alpha });
+        gfx.fill({ color: COLORS.SEED_SHELL, alpha });
         gfx.circle(0, -seedSize * 0.15, seedSize * 0.45);
         gfx.fill({ color: mainColor, alpha: alpha * 0.4 });
         break;
