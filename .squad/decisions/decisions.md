@@ -182,3 +182,83 @@ Flora passes end-to-end gameplay validation prior to bug discovery. Boot scene f
 This verification was made **before discovering the 15 bugs**. The tests checked for JavaScript errors, not actual gameplay. A human playtester would have immediately found BUG-001 (can't plant anything). Recommendation: Add integration tests verifying "plant → water → harvest" workflow.
 
 ---
+
+## 2026-03-16T19:00Z: SEED Tool Architecture
+
+**Author:** Erika (Systems Dev)  
+**Date:** 2026-03-16  
+**Status:** ✅ IMPLEMENTED
+
+### Context
+BUG-001 required adding a planting mechanism. The existing tool system uses `ToolConfig.execute(tile, plant)` which only has access to tile and plant — not PlantSystem or the seed pool.
+
+### Decision
+The SEED tool is registered in the standard tool system (ToolType, ToolConfig, ProgressiveToolConfig) for toolbar display and selection, but its **execution is handled specially in GardenScene** rather than through `PlayerSystem.executeToolAction()`.
+
+When `executeToolOnCurrentTile()` detects `ToolType.SEED`, it calls `handleSeedPlanting()` which has access to `PlantSystem.createPlant()` and `SeedSelectionSystem.getCurrentPool()`.
+
+### Rationale
+- PlantSystem.createPlant() needs the plant config ID (from seed pool), the grid coordinates, and adds the plant to both internal tracking and GardenScene's shared Map.
+- This can't be done within the `(tile, plant) => ToolActionResult` signature.
+- Alternative considered: passing PlantSystem into ToolConfig — rejected as it would break the data-driven tool pattern for one special case.
+
+### Impact
+- Misty (UI): SeedInventory click handlers can call `player.selectTool(ToolType.SEED)` to select the seed tool. No special wiring needed.
+- Future: When we want to choose specific seed types, the `handleSeedPlanting()` method can be extended to read from a "selected seed" state rather than always using `pool.seeds[0]`.
+
+---
+
+## 2026-03-16T19:00Z: Rendering & Input Fixes (BUG-002, BUG-009, BUG-006)
+
+**By:** Brock (Web Engine Dev)  
+**Status:** ✅ IMPLEMENTED  
+**Date:** 2026-03-16
+
+### Changes
+
+#### BUG-002: HiDPI Canvas Resolution (P0)
+Added `resolution: window.devicePixelRatio || 1` and `autoDensity: true` to PixiJS `app.init()`. This renders at native device pixel ratio and lets PixiJS handle CSS sizing. `app.screen.width/height` continues to return CSS pixels, so no downstream positioning code was affected.
+
+#### BUG-009: Boot Scene Input Gating (P1)
+Replaced auto-transition with real user input gating. When loading bar completes, "Press any key" text pulses and the scene waits for keyboard/click/touch input before transitioning to Menu. Uses `transitioning` flag to prevent duplicate async transitions per convention from PR #281.
+
+#### BUG-006: EventBus Listener Cleanup Pattern (P1)
+Introduced `listenTo()` helper in GardenScene that wraps `eventBus.on()` and tracks a cleanup closure. All 23 EventBus subscriptions now route through this helper. `destroy()` iterates the cleanup array and calls `eventBus.off()` with the original function references.
+
+### Convention Established
+**All scenes with EventBus subscriptions should use the `listenTo()` pattern** (or equivalent cleanup tracking) to prevent listener accumulation across scene re-entries. Raw `eventBus.on()` without corresponding `off()` in `destroy()` is a memory leak.
+
+### Files Changed
+- `src/main.ts` — HiDPI resolution config
+- `src/scenes/BootScene.ts` — Input-gated transition
+- `src/scenes/GardenScene.ts` — EventBus cleanup infrastructure + destroy() fixes
+
+---
+
+## 2026-03-16T19:00Z: Overlay Layer Pattern for Z-Order Safety
+
+**By:** Misty (Web UI Dev)  
+**Status:** ✅ IMPLEMENTED
+**Bugs:** BUG-004, BUG-005, BUG-007, BUG-010, BUG-011, BUG-012
+
+### Problem
+Multiple UI overlays (PauseMenu, notifications, tooltips) had z-order conflicts because addChild order in GardenScene.init() was fragile. PauseMenu overlay was hardcoded to 800×600, SeedInventory cards were non-interactive, and statusText duplicated HUD info.
+
+### Decision: Dedicated overlayLayer Container
+
+All full-screen modal overlays (PauseMenu, ScoreSummary, DaySummary) are now children of a single `overlayLayer` Container added at the END of GardenScene.init(). This guarantees they render above all gameplay UI regardless of future addChild ordering changes.
+
+### Additional Decisions
+- **PauseMenu/SeedInventory accept screen dimensions** in their constructors instead of using GAME.WIDTH/HEIGHT constants. This ensures overlays cover the actual canvas (which uses `resizeTo: window`).
+- **All overlay backgrounds use `eventMode = 'static'`** to block click-through to garden tiles.
+- **seed:selected event** added to EventBus for SeedInventory card clicks.
+- **statusText removed** — HUD already displays the same day/actions/tool info.
+
+### Consequences
+✅ PauseMenu covers full screen on any resolution
+✅ Seed cards are clickable with visual selection feedback
+✅ Pause menu always renders above notifications/tutorials
+✅ Encyclopedia/AchievementGallery won't go negative on small screens
+⚠️ PauseMenu constructor signature changed — any other callers need updating
+
+---

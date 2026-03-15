@@ -14,6 +14,8 @@ export class BootScene implements Scene {
   private elapsedMs = 0;
   private ready = false;
   private transitioned = false;
+  private transitioning = false;
+  private boundOnInput: (() => void) | null = null;
 
   async init(ctx: SceneContext): Promise<void> {
     const { app } = ctx;
@@ -108,6 +110,7 @@ export class BootScene implements Scene {
     this.elapsedMs = 0;
     this.ready = false;
     this.transitioned = false;
+    this.transitioning = false;
   }
 
   update(dt: number, ctx: SceneContext): void {
@@ -136,21 +139,47 @@ export class BootScene implements Scene {
       this.hintText.alpha = Math.min(pulseTime / 0.5, 1) * pulse;
     }
 
+    // TLDR: When loading completes, wait for real user input before transitioning
     if (this.progress >= 1 && !this.ready) {
       this.ready = true;
-      ctx.sceneManager
-        .transitionTo(SCENES.MENU, { type: 'loading', loadingMessage: 'Preparing the garden...' })
-        .then(() => {
-          this.transitioned = true;
-        })
-        .catch((error) => {
-          console.error('Boot transition failed:', error);
-          this.transitioned = true;
-        });
+      this.setupInputListeners(ctx);
+    }
+  }
+
+  // TLDR: Add keyboard/click/touch listeners that gate the boot-to-menu transition
+  private setupInputListeners(ctx: SceneContext): void {
+    this.boundOnInput = () => this.handleInput(ctx);
+    window.addEventListener('keydown', this.boundOnInput);
+    window.addEventListener('click', this.boundOnInput);
+    window.addEventListener('touchstart', this.boundOnInput);
+  }
+
+  private handleInput(ctx: SceneContext): void {
+    if (this.transitioning || this.transitioned) return;
+    this.transitioning = true;
+    this.removeInputListeners();
+    ctx.sceneManager
+      .transitionTo(SCENES.MENU, { type: 'loading', loadingMessage: 'Preparing the garden...' })
+      .then(() => {
+        this.transitioned = true;
+      })
+      .catch((error) => {
+        console.error('Boot transition failed:', error);
+        this.transitioned = true;
+      });
+  }
+
+  private removeInputListeners(): void {
+    if (this.boundOnInput) {
+      window.removeEventListener('keydown', this.boundOnInput);
+      window.removeEventListener('click', this.boundOnInput);
+      window.removeEventListener('touchstart', this.boundOnInput);
+      this.boundOnInput = null;
     }
   }
 
   destroy(): void {
+    this.removeInputListeners();
     this.container.destroy({ children: true });
     this.container = new Container();
     this.progressBar = null;

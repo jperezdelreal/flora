@@ -181,3 +181,24 @@ Implemented issue #244 — rest mechanic for strategic action management. Key de
 
 **Build Status**: Zero TypeScript errors. Clean Vite build.
 
+### Core Gameplay Bug Fixes (Audit Response)
+Fixed 6 critical gameplay bugs identified by Oak's audit that made the game unplayable:
+
+1. **BUG-001 — No Planting Mechanism (P0)**: Added `SEED = 'seed'` to ToolType enum, created SEED tool config (TOOL_SEED + SEED_PROGRESSION) in tools.ts, and wired seed planting in GardenScene via `handleSeedPlanting()`. PlantSystem.createPlant() is called with the first seed from SeedSelectionSystem.getCurrentPool(). Plant is added to both PlantSystem and GardenScene's shared plants Map. Tile set to OCCUPIED.
+
+2. **BUG-003 — Clicking Occupied Tile Does Nothing (P0)**: Restructured GardenScene click handler. Removed the occupied-tile harvest gate that blocked movement. Players can now move to any tile regardless of occupancy. Tool actions handled separately from movement.
+
+3. **BUG-008 — Tool Actions Require Standing on Tile (P1)**: Added auto-move-then-execute pattern. `pendingToolAction` field stores target {row, col} when player clicks a tile with tool selected. GardenScene.update() checks when movement completes and executes the tool action automatically.
+
+4. **BUG-013 — DaySummary "Next" Starts New Season (P1)**: Changed `daySummary.setOnNext()` callback from `this.startNewSeason()` to just dismiss + refresh grid. Day already advanced when summary shown.
+
+5. **BUG-014 — showActionMessage() and updateInfoText() Are Empty (P2)**: Both methods now route to `this.hud.setHint(message)` so players see feedback for all actions.
+
+6. **BUG-015 — Player Starts at Hardcoded (4,4) (P2)**: Changed to `Math.floor(gridRows / 2)` and `Math.floor(gridCols / 2)` for dynamic grid center.
+
+**Key Architecture Decisions:**
+- SEED tool handled specially in GardenScene (bypasses standard executeToolAction flow) because PlantSystem.createPlant() needs access beyond the ToolConfig's `(tile, plant)` signature.
+- Auto-move pattern uses a simple field + position check in update loop rather than a callback chain.
+- PlantSystem.createPlant(configId, col, row) uses x=col, y=row convention.
+
+**Build Status**: Zero TypeScript errors. Clean Vite production build.

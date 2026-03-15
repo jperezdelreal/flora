@@ -64,6 +64,8 @@ export interface EventMap {
   'compost:applied': { row: number; col: number; soilQualityBefore: number; soilQualityAfter: number };
   // Achievement events
   'achievement:unlocked': { achievementId: string; achievementName: string };
+  // Seed selection events
+  'seed:selected': { seedId: string };
   // Accessibility events
   'accessibility:colorVisionChanged': { mode: string; label: string };
   'accessibility:settingsChanged': { setting: string; value: boolean | string };

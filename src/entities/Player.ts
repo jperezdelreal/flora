@@ -15,6 +15,7 @@ export enum ToolType {
   PEST_SPRAY = 'pest_spray',
   SOIL_TESTER = 'soil_tester',
   TRELLIS = 'trellis',
+  SEED = 'seed',
 }
 
 export interface PlayerState {

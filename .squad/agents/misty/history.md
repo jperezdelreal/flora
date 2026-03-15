@@ -195,3 +195,15 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Conventions applied**: All comments start with TLDR, UI_COLORS used for all colors (no inline hex), git trailer in commit
 - **Testing**: TypeScript compilation passed with `npx tsc --noEmit`
 
+
+### UI Overlay & Interactivity Bug Sweep (BUG-004, 005, 007, 010, 011, 012)
+- **Architecture**: Overlay layer pattern for z-order safety; responsive sizing replaces hardcoded GAME constants
+- **Pattern**: All full-screen overlays accept screen dimensions in constructor, use `eventMode = 'static'` to block click-through
+- **Key files updated**:
+  - `src/ui/PauseMenu.ts` — Constructor now takes `(screenWidth, screenHeight, callbacks)`. Overlay covers full canvas. `overlay.eventMode = 'static'` blocks clicks.
+  - `src/ui/SeedInventory.ts` — Constructor takes `screenHeight`. Added click handlers emitting `seed:selected` event. Cards have `eventMode = 'static'`, `cursor: 'pointer'`, hover and selection states. Overlay blocks click-through.
+  - `src/core/EventBus.ts` — Added `seed:selected` event type to EventMap
+  - `src/scenes/GardenScene.ts` — Created `overlayLayer` Container at END of init() for z-order (BUG-007). Removed legacy `statusText` (BUG-012). Clamped Encyclopedia/AchievementGallery positioning (BUG-010).
+- **Z-order fix (BUG-007)**: overlayLayer container ensures PauseMenu always renders above all gameplay UI
+- **Conventions applied**: TLDR comments, UI_COLORS for all colors, no inline hex values
+- **Testing**: `tsc --noEmit` and `vite build` both pass clean

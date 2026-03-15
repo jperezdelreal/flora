@@ -133,3 +133,10 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Key file**: src/scenes/BootScene.ts
 
 
+
+### HiDPI Canvas, Boot Input Gate, EventBus Leak Fixes (BUG-002, BUG-009, BUG-006)
+- **BUG-002 (P0):** Canvas was blurry on all HiDPI/Retina screens. Added `resolution: window.devicePixelRatio || 1` and `autoDensity: true` to `app.init()`. PixiJS v8 `autoDensity` handles CSS sizing automatically, so `app.screen.width/height` still returns CSS pixels -- no positioning code changes needed.
+- **BUG-009 (P1):** BootScene showed 'Press any key to continue' but auto-transitioned after loading bar filled. Replaced auto-transition with real keyboard/click/touch listeners. Loading bar fills, hint text pulses, user presses any key, transition fires. Uses `transitioning` flag to prevent duplicate async transitions (convention from PR #281).
+- **BUG-006 (P1):** GardenScene had 23 `eventBus.on()` calls in init/setupAudioListeners/setupVisualListeners but zero `eventBus.off()` calls in destroy(). Created `listenTo()` helper that wraps `eventBus.on()` and pushes a cleanup closure to `eventCleanups` array. `destroy()` iterates the array and calls all cleanups. Pattern is reusable for any scene with EventBus subscriptions.
+- **Key files:** src/main.ts, src/scenes/BootScene.ts, src/scenes/GardenScene.ts
+- **Convention:** Use `listenTo()` wrapper pattern (not raw `eventBus.on()`) in scenes that need cleanup. This guarantees `off()` is called with the exact same function reference.

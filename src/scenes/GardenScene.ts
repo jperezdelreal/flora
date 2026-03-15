@@ -32,7 +32,7 @@ import { MenuScene } from './MenuScene';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
-import { eventBus } from '../core/EventBus';
+import { eventBus, type EventMap } from '../core/EventBus';
 import { audioManager } from '../systems';
 import { ANIMATION, SYNERGY_GLOW_COLORS } from '../config/animations';
 import {
@@ -62,7 +62,6 @@ export class GardenScene implements Scene {
   private encyclopediaSystem!: EncyclopediaSystem;
   private encyclopedia!: Encyclopedia;
   private discoveryPopup!: DiscoveryPopup;
-  private statusText!: Text;
   private encyclopediaVisible = false;
   private input!: InputManager;
   private hazardSystem!: HazardSystem;
@@ -99,6 +98,9 @@ export class GardenScene implements Scene {
   
   // TLDR: Structure placement state
   private structurePlacementMode: StructureType | null = null;
+
+  // TLDR: BUG-008 — pending tool action after auto-move completes
+  private pendingToolAction: { row: number; col: number } | null = null;
 
   // TLDR: SeedSelectionSystem for wiring actual run seed pool (#242)
   private seedSelectionSystem: SeedSelectionSystem;
@@ -146,9 +148,21 @@ export class GardenScene implements Scene {
   private orientationHint: Container | null = null;
   private boundOnResize!: () => void;
 
+  // TLDR: Track EventBus listeners for cleanup in destroy() — prevents memory leaks
+  private eventCleanups: Array<() => void> = [];
+
   constructor(saveManager: SaveManager, seedSelectionSystem: SeedSelectionSystem) {
     this.saveManager = saveManager;
     this.seedSelectionSystem = seedSelectionSystem;
+  }
+
+  // TLDR: Wrapper for eventBus.on that auto-tracks listeners for cleanup in destroy()
+  private listenTo<E extends keyof EventMap & string>(
+    event: E,
+    listener: (data: EventMap[E]) => void,
+  ): void {
+    eventBus.on(event, listener);
+    this.eventCleanups.push(() => eventBus.off(event, listener));
   }
 
   async init(ctx: SceneContext): Promise<void> {
@@ -224,9 +238,11 @@ export class GardenScene implements Scene {
     this.plantSystem.setWeedSystem(this.weedSystem);
 
     // Initialize player at center of grid
+    const gridRows = this.grid.config.rows;
+    const gridCols = this.grid.config.cols;
     this.player = new Player('player-1', {
-      startRow: 4,
-      startCol: 4,
+      startRow: Math.floor(gridRows / 2),
+      startCol: Math.floor(gridCols / 2),
       actionsPerDay: 3,
     });
 
@@ -254,7 +270,6 @@ export class GardenScene implements Scene {
       } else {
         this.player.deselectTool();
       }
-      this.updateStatusText();
     });
     this.container.addChild(this.toolBar.getContainer());
 
@@ -268,15 +283,15 @@ export class GardenScene implements Scene {
     this.container.addChild(this.restButton.getContainer());
 
     // TLDR: Wire tool unlock/upgrade events to ToolBar UI
-    eventBus.on('tool:unlocked', (data) => {
+    this.listenTo('tool:unlocked', (data) => {
       this.toolBar.unlockTool(data.toolType as ToolType);
     });
-    eventBus.on('tool:upgraded', (data) => {
+    this.listenTo('tool:upgraded', (data) => {
       this.toolBar.updateToolTier(data.toolType as ToolType, data.newTier as ToolTier);
     });
     
     // TLDR: Wire action consumed event to HUD flash animation (#250)
-    eventBus.on('action:consumed', () => {
+    this.listenTo('action:consumed', () => {
       this.hud.flashActionConsumed();
     });
 
@@ -303,25 +318,11 @@ export class GardenScene implements Scene {
     this.hazardTooltip = new HazardTooltip();
     this.container.addChild(this.hazardTooltip.getContainer());
 
-    // Status text (day, actions)
-    this.statusText = new Text({
-      text: '',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#ffffff',
-        align: 'left',
-      },
-    });
-    this.statusText.x = 20;
-    this.statusText.y = 50;
-    this.container.addChild(this.statusText);
-
-    // Initialize Encyclopedia UI
+    // TLDR: Initialize Encyclopedia UI — clamped positioning for small screens (BUG-010)
     this.encyclopedia = new Encyclopedia();
     this.encyclopedia.setPosition(
-      (ctx.app.screen.width - 800) / 2,
-      (ctx.app.screen.height - 600) / 2
+      Math.max(10, (ctx.app.screen.width - 800) / 2),
+      Math.max(10, (ctx.app.screen.height - 600) / 2)
     );
     this.encyclopedia.hide();
     this.container.addChild(this.encyclopedia.getContainer());
@@ -348,7 +349,7 @@ export class GardenScene implements Scene {
     this.container.addChild(this.hud.getContainer());
     
     // Initialize Seed Inventory (side panel)
-    this.seedInventory = new SeedInventory();
+    this.seedInventory = new SeedInventory(ctx.app.screen.height);
     this.seedInventory.setPosition(10, 0);
     this.container.addChild(this.seedInventory.getContainer());
 
@@ -362,12 +363,12 @@ export class GardenScene implements Scene {
     this.plantInfoPanel = new PlantInfoPanel();
     this.container.addChild(this.plantInfoPanel.getContainer());
     
-    // Initialize Day Summary (full-screen overlay)
+    // TLDR: DaySummary initialized here, added to overlayLayer below for z-order
     this.daySummary = new DaySummary();
     this.daySummary.setOnNext(() => {
-      this.startNewSeason();
+      // TLDR: BUG-013 fix — dismiss overlay and continue playing (day already advanced)
+      this.gridSystem.update();
     });
-    this.container.addChild(this.daySummary.getContainer());
     
     // Initialize Pause Menu
     const pauseCallbacks: PauseMenuCallbacks = {
@@ -393,15 +394,14 @@ export class GardenScene implements Scene {
         this._ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
       },
     };
-    this.pauseMenu = new PauseMenu(pauseCallbacks);
-    this.container.addChild(this.pauseMenu.getContainer());
+    // TLDR: PauseMenu initialized here, added to overlayLayer below for z-order
+    this.pauseMenu = new PauseMenu(ctx.app.screen.width, ctx.app.screen.height, pauseCallbacks);
     
-    // Initialize Score Summary (end-of-run)
+    // TLDR: ScoreSummary initialized here, added to overlayLayer below for z-order
     this.scoreSummary = new ScoreSummary();
     this.scoreSummary.setOnContinue(() => {
       this.startNewSeason();
     });
-    this.container.addChild(this.scoreSummary.getContainer());
     
     // TLDR: Initialize save indicator (top-right, subscribes to SaveManager events)
     this.saveIndicator = new SaveIndicator(this.saveManager);
@@ -414,12 +414,12 @@ export class GardenScene implements Scene {
     this.container.addChild(this.synergyTooltip.getContainer());
     
     // TLDR: Listen for synergy tutorial event
-    eventBus.on('synergy:tutorial', (data) => {
+    this.listenTo('synergy:tutorial', (data) => {
       this.synergyTooltip.showTutorial(data.synergyId);
     });
 
     // TLDR: Listen for weather warning events
-    eventBus.on('weather:warning', (data) => {
+    this.listenTo('weather:warning', (data) => {
       this.handleWeatherWarning(data);
     });
     
@@ -488,20 +488,27 @@ export class GardenScene implements Scene {
       this.achievementNotification.show(config);
     });
 
-    // TLDR: Achievement gallery (accessed from pause menu)
+    // TLDR: Achievement gallery — clamped positioning for small screens (BUG-010)
     this.achievementGallery = new AchievementGallery();
     this.achievementGallery.setPosition(
-      (ctx.app.screen.width - 800) / 2,
-      (ctx.app.screen.height - 600) / 2,
+      Math.max(10, (ctx.app.screen.width - 800) / 2),
+      Math.max(10, (ctx.app.screen.height - 600) / 2),
     );
     this.achievementGallery.hide();
     this.container.addChild(this.achievementGallery.getContainer());
+
+    // TLDR: Overlay layer sits above ALL gameplay UI — prevents z-order bugs (BUG-007)
+    const overlayLayer = new Container();
+    overlayLayer.addChild(this.daySummary.getContainer());
+    overlayLayer.addChild(this.scoreSummary.getContainer());
+    overlayLayer.addChild(this.pauseMenu.getContainer());
+    this.container.addChild(overlayLayer);
 
     // TLDR: Load persisted structures from save data
     this.loadStructuresFromSave();
 
     // TLDR: Wire structure effect events (compost bin converts dead plants to soil boost)
-    eventBus.on('plant:died', (data) => {
+    this.listenTo('plant:died', (data) => {
       this.applyCompostEffect(data.plantId);
     });
     
@@ -554,47 +561,38 @@ export class GardenScene implements Scene {
     // Setup audio event listeners
     this.setupAudioListeners();
 
-    // Setup click handler for harvesting (via gridSystem callback)
+    // TLDR: BUG-001/003/008 — restructured click handler for planting, movement, and auto-move
     this.gridSystem.onTileClick((row, col) => {
-      if (this.isPaused) return; // Ignore clicks when paused
+      if (this.isPaused) return;
 
       // TLDR: Handle structure placement mode first
       if (this.structurePlacementMode) {
         this.tryPlaceStructure(row, col);
         return;
       }
-      
-      // Let player system handle clicks first if player is moving or needs to interact
+
       const playerPos = this.player.getGridPosition();
       const selectedTool = this.player.getSelectedTool();
+      const tile = this.grid.getTile(row, col);
+      if (!tile) return;
 
-      if (row === playerPos.row && col === playerPos.col && selectedTool) {
-        // Player is on this tile with a tool - execute tool action
-        const result = this.playerSystem.executeToolAction();
-        if (result) {
-          this.showActionMessage(result.message);
-          this.updateStatusText();
-          this.gridSystem.update();
-        }
+      const isOnTile = row === playerPos.row && col === playerPos.col;
+
+      if (isOnTile && selectedTool) {
+        // TLDR: Player on tile with tool — execute tool action
+        this.executeToolOnCurrentTile();
         return;
       }
 
-      // Otherwise, check for harvesting mature plants
-      const tile = this.grid.getTile(row, col);
-      if (tile && tile.state === TileState.OCCUPIED) {
-        const result = this.plantSystem.harvestPlant(col, row);
-        if (result.success) {
-          tile.state = TileState.EMPTY;
-          this.updateInfoText(`Harvested! +${result.seeds} seeds`);
-          
-          // Track harvested seeds for day summary
-          const currentCount = this.harvestedSeeds.get(result.plantId) || 0;
-          this.harvestedSeeds.set(result.plantId, currentCount + result.seeds);
-        }
-      } else {
-        // Move to tile
+      if (!isOnTile && selectedTool && this.player.hasActionsRemaining()) {
+        // TLDR: BUG-008 fix — auto-move to tile, then execute tool on arrival
+        this.pendingToolAction = { row, col };
         this.playerSystem.handleTileClick(row, col);
+        return;
       }
+
+      // TLDR: BUG-003 fix — move to tile regardless of occupancy
+      this.playerSystem.handleTileClick(row, col);
     });
 
     // Apply seasonal palette (soil color, ambient particles)
@@ -605,7 +603,6 @@ export class GardenScene implements Scene {
 
     // Initial render
     this.gridSystem.update();
-    this.updateStatusText();
     this.updateEncyclopediaEntries();
   }
 
@@ -861,8 +858,9 @@ export class GardenScene implements Scene {
     this.isPaused = false;
   }
 
-  private showActionMessage(_message: string): void {
-    // Action messages handled by HUD
+  private showActionMessage(message: string): void {
+    // TLDR: BUG-014 fix — route action messages to HUD hint system
+    this.hud.setHint(message);
   }
 
   /**
@@ -878,9 +876,72 @@ export class GardenScene implements Scene {
     
     // TLDR: Visual feedback — update hint
     this.hud.setHint('🌙 You rest and prepare for tomorrow...');
-    
-    // TLDR: Update UI state
-    this.updateStatusText();
+  }
+
+  /**
+   * TLDR: BUG-001/008 — execute the selected tool on the player's current tile
+   */
+  private executeToolOnCurrentTile(): void {
+    const selectedTool = this.player.getSelectedTool();
+    if (!selectedTool) return;
+
+    if (selectedTool === ToolType.SEED) {
+      this.handleSeedPlanting();
+      return;
+    }
+
+    const result = this.playerSystem.executeToolAction();
+    if (result) {
+      this.showActionMessage(result.message);
+      this.gridSystem.update();
+    }
+  }
+
+  /**
+   * TLDR: BUG-001 — plant a seed on the player's current empty tile
+   */
+  private handleSeedPlanting(): void {
+    const pos = this.player.getGridPosition();
+    const tile = this.grid.getTile(pos.row, pos.col);
+
+    if (!tile || !tile.isEmpty()) {
+      this.showActionMessage('Can only plant on empty tiles');
+      return;
+    }
+    if (!this.player.hasActionsRemaining()) {
+      this.showActionMessage('No actions remaining');
+      return;
+    }
+
+    // TLDR: Get first available seed from the run's seed pool
+    const pool = this.seedSelectionSystem.getCurrentPool();
+    if (!pool || pool.seeds.length === 0) {
+      this.showActionMessage('No seeds available');
+      return;
+    }
+
+    const seedConfig = pool.seeds[0];
+    const plant = this.plantSystem.createPlant(seedConfig.id, pos.col, pos.row);
+    if (plant) {
+      tile.state = TileState.OCCUPIED;
+      this.plants.set(plant.id, plant);
+      this.player.consumeAction();
+
+      eventBus.emit('action:consumed', {
+        actionsRemaining: this.player.getActionsRemaining(),
+        maxActions: this.player.getMaxActions(),
+      });
+
+      this.showActionMessage(`🌱 Planted ${seedConfig.displayName}!`);
+
+      // TLDR: Auto-advance day when no actions remain
+      if (!this.player.hasActionsRemaining()) {
+        this.player.advanceDay();
+        this.onDayAdvance();
+      }
+
+      this.gridSystem.update();
+    }
   }
 
   private onDayAdvance(): void {
@@ -918,8 +979,6 @@ export class GardenScene implements Scene {
 
     // TLDR: Show brief day advance summary (#241)
     this.showDayAdvanceSummary(day);
-
-    this.updateStatusText();
   }
 
   /**
@@ -997,16 +1056,6 @@ export class GardenScene implements Scene {
     this.showActionMessage(parts.join(' • '));
   }
 
-  private updateStatusText(): void {
-    const day = this.player.getCurrentDay();
-    const actions = this.player.getActionsRemaining();
-    const maxActions = this.player.getState().maxActions;
-    const tool = this.player.getSelectedTool();
-    const toolName = tool ? tool.replace('_', ' ').toUpperCase() : 'None';
-    
-    this.statusText.text = `Day: ${day} | Actions: ${actions}/${maxActions} | Tool: ${toolName}`;
-  }
-
   private handleTileClick(tile: Tile): void {
     // Handle pest removal
     if (tile.hasPest()) {
@@ -1048,8 +1097,9 @@ export class GardenScene implements Scene {
     }
   }
 
-  private updateInfoText(_message: string): void {
-    // Info messages handled by HUD
+  private updateInfoText(message: string): void {
+    // TLDR: BUG-014 fix — route info messages to HUD hint system
+    this.hud.setHint(message);
   }
   
   private showDaySummary(): void {
@@ -1098,6 +1148,15 @@ export class GardenScene implements Scene {
     
     // Update player system (handles input and movement)
     this.playerSystem.update(delta);
+
+    // TLDR: BUG-008 — execute pending tool action when player arrives at target tile
+    if (this.pendingToolAction && !this.player.isMoving()) {
+      const pos = this.player.getGridPosition();
+      if (pos.row === this.pendingToolAction.row && pos.col === this.pendingToolAction.col) {
+        this.executeToolOnCurrentTile();
+      }
+      this.pendingToolAction = null;
+    }
 
     // Update plant system (advances growth)
     this.plantSystem.update(delta);
@@ -1238,38 +1297,38 @@ export class GardenScene implements Scene {
     audioManager.startAmbient();
 
     // TLDR: Plant lifecycle sounds
-    eventBus.on('plant:created', () => {
+    this.listenTo('plant:created', () => {
       audioManager.playSFX('PLANT');
     });
 
-    eventBus.on('plant:watered', () => {
+    this.listenTo('plant:watered', () => {
       audioManager.playSFX('WATER');
     });
 
-    eventBus.on('plant:harvested', () => {
+    this.listenTo('plant:harvested', () => {
       audioManager.playSFX('HARVEST');
     });
 
-    eventBus.on('plant:died', () => {
+    this.listenTo('plant:died', () => {
       audioManager.playSFX('WILT');
     });
 
     // TLDR: Pest sounds
-    eventBus.on('pest:spawned', () => {
+    this.listenTo('pest:spawned', () => {
       audioManager.playSFX('PEST_APPEAR');
     });
 
-    eventBus.on('pest:removed', () => {
+    this.listenTo('pest:removed', () => {
       audioManager.playSFX('PEST_APPEAR');
     });
 
     // TLDR: Discovery chime
-    eventBus.on('discovery:new', () => {
+    this.listenTo('discovery:new', () => {
       audioManager.playSFX('HARVEST');
     });
 
     // TLDR: Day advancement chime
-    eventBus.on('day:advanced', () => {
+    this.listenTo('day:advanced', () => {
       audioManager.playSFX('PLANT');
     });
   }
@@ -1488,42 +1547,42 @@ export class GardenScene implements Scene {
    * TLDR: Subscribe to EventBus for visual effects — growth, harvest, water, synergy
    */
   private setupVisualListeners(): void {
-    eventBus.on('plant:created', (data) => {
+    this.listenTo('plant:created', (data) => {
       this.plantRenderer.createPlantVisual(data.plantId, data.x, data.y);
     });
 
-    eventBus.on('plant:grew', (data) => {
+    this.listenTo('plant:grew', (data) => {
       this.plantRenderer.animatePlantGrowth(data.plantId, data.stage);
     });
 
-    eventBus.on('plant:watered', (data) => {
+    this.listenTo('plant:watered', (data) => {
       this.triggerWaterRipple(data.x, data.y);
     });
 
-    eventBus.on('plant:harvested', (data) => {
+    this.listenTo('plant:harvested', (data) => {
       this.triggerHarvestBurst(data.plantId, data.seeds);
       this.triggerPlantRemovalAnimation(data.plantId);
       this.triggerScreenShake();
       this.triggerScreenPulse();
     });
 
-    eventBus.on('plant:died', (data) => {
+    this.listenTo('plant:died', (data) => {
       this.plantRenderer.removePlantVisual(data.plantId);
     });
     
-    eventBus.on('score:updated', (data) => {
+    this.listenTo('score:updated', (data) => {
       this.triggerScoreText(data.lastAction);
     });
 
-    eventBus.on('pest:removed', (data) => {
+    this.listenTo('pest:removed', (data) => {
       this.triggerPestSquish(data.pestId);
     });
 
-    eventBus.on('synergy:activated', (data) => {
+    this.listenTo('synergy:activated', (data) => {
       this.triggerSynergyGlow(data.x, data.y, data.synergyId);
     });
 
-    eventBus.on('day:advanced', () => {
+    this.listenTo('day:advanced', () => {
       this.triggerDaySkyLerp();
     });
   }
@@ -1979,6 +2038,11 @@ export class GardenScene implements Scene {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);
     window.removeEventListener('resize', this.boundOnResize);
+
+    // TLDR: Remove all EventBus listeners to prevent accumulation across scene re-entries
+    this.eventCleanups.forEach(cleanup => cleanup());
+    this.eventCleanups = [];
+
     this.touchController.destroy();
     this.hideOrientationHint();
     this.animationSystem.destroy();

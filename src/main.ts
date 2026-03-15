@@ -9,9 +9,12 @@ import { eventBus } from './core/EventBus';
 async function main(): Promise<void> {
   const app = new Application();
 
+  // TLDR: HiDPI fix — render at native device resolution, let PixiJS handle CSS sizing
   await app.init({
     background: GAME.BACKGROUND_COLOR,
     resizeTo: window,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
   });
 
   document.body.appendChild(app.canvas);

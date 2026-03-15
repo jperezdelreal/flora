@@ -150,9 +150,21 @@ export const TRELLIS_PROGRESSION: ProgressiveToolConfig = {
   }],
 };
 
+// TLDR: Seed tool progression — always unlocked, single-tile planting
+export const SEED_PROGRESSION: ProgressiveToolConfig = {
+  type: ToolType.SEED, name: 'Seed', icon: '\uD83C\uDF31',
+  unlockCondition: null,
+  unlockHint: '', startsUnlocked: true,
+  tiers: [{
+    tier: ToolTier.BASIC, displayName: 'Seed',
+    description: 'Plant a seed on an empty tile', unlockCondition: null,
+    affectedTiles: [{ dRow: 0, dCol: 0 }], effectParams: {},
+  }],
+};
+
 export const PROGRESSIVE_TOOLS: ProgressiveToolConfig[] = [
   WATERING_CAN_PROGRESSION, PEST_SPRAY_PROGRESSION,
-  SOIL_TESTER_PROGRESSION, TRELLIS_PROGRESSION,
+  SOIL_TESTER_PROGRESSION, TRELLIS_PROGRESSION, SEED_PROGRESSION,
 ];
 
 export const PROGRESSIVE_TOOL_BY_TYPE: Partial<Record<ToolType, ProgressiveToolConfig>> = {};
@@ -258,6 +270,16 @@ export const TOOL_TRELLIS: ToolConfig = {
   },
 };
 
+// TLDR: Seed tool — plants a seed on an empty tile (actual planting logic in GardenScene)
+export const TOOL_SEED: ToolConfig = {
+  type: ToolType.SEED, name: 'seed', displayName: 'Seed',
+  icon: '\uD83C\uDF31', description: 'Plant a seed on an empty tile',
+  validate: (tile: Tile, _plant: Plant | null): boolean => { return tile.isEmpty(); },
+  execute: (tile: Tile, _plant: Plant | null): ToolActionResult => {
+    return { success: true, message: 'Planted a seed!', advanceDay: true };
+  },
+};
+
 function getSoilOptimalPlants(soilQuality: number, moisture: number): string[] {
   const suggestions: string[] = [];
   if (soilQuality >= 80 && moisture >= 60) suggestions.push('Tomato', 'Cucumber');
@@ -269,7 +291,7 @@ function getSoilOptimalPlants(soilQuality: number, moisture: number): string[] {
 
 export const ALL_TOOLS: ToolConfig[] = [
   TOOL_WATER, TOOL_HARVEST, TOOL_REMOVE_PEST, TOOL_REMOVE_WEED, TOOL_COMPOST,
-  TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS,
+  TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS, TOOL_SEED,
 ];
 
 export const TOOL_BY_TYPE: Record<ToolType, ToolConfig> = {
@@ -281,6 +303,7 @@ export const TOOL_BY_TYPE: Record<ToolType, ToolConfig> = {
   [ToolType.PEST_SPRAY]: TOOL_PEST_SPRAY,
   [ToolType.SOIL_TESTER]: TOOL_SOIL_TESTER,
   [ToolType.TRELLIS]: TOOL_TRELLIS,
+  [ToolType.SEED]: TOOL_SEED,
 };
 
 export function getToolConfig(type: ToolType): ToolConfig {
