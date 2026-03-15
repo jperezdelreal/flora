@@ -4,6 +4,7 @@ import { AchievementsScene, BootScene, EncyclopediaScene, GardenScene, MenuScene
 import { GAME, SCENES } from './config';
 import { audioManager, SeedSelectionSystem, EncyclopediaSystem, SaveManager, DailyChallengeSystem, AchievementSystem } from './systems';
 import { initAriaLiveRegion, loadAccessibilityPrefs, announce } from './utils/accessibility';
+import { setupTestHooks } from './utils/testHooks';
 import { eventBus } from './core/EventBus';
 
 async function main(): Promise<void> {
@@ -90,6 +91,11 @@ async function main(): Promise<void> {
   });
 
   gameLoop.start();
+
+  // TLDR: Expose game state to window for Playwright E2E testing (dev mode only)
+  if (isDev) {
+    setupTestHooks(sceneManager);
+  }
 
   // TLDR: Announce key game events to screen readers via ARIA live region
   eventBus.on('plant:harvested', (data) => {

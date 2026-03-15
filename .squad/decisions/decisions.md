@@ -1,6 +1,6 @@
 # FLORA Squad Decisions Ledger
 
-**Active decisions only. Archived items moved to `archive/`.**
+**Active decisions only. Archived items moved to `archive/`. Archive entries older than 14 days.**
 
 ---
 

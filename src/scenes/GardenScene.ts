@@ -2034,6 +2034,87 @@ export class GardenScene implements Scene {
     }
   }
 
+  // ── Test hook getters (Playwright integration) ────────────────────────
+
+  /** TLDR: Return player state snapshot for Playwright test hooks */
+  public getTestPlayerState(): {
+    day: number;
+    actionsRemaining: number;
+    selectedTool: string | null;
+    gridPosition: { row: number; col: number };
+  } {
+    return {
+      day: this.player.getCurrentDay(),
+      actionsRemaining: this.player.getActionsRemaining(),
+      selectedTool: this.player.getSelectedTool(),
+      gridPosition: this.player.getGridPosition(),
+    };
+  }
+
+  /** TLDR: Return grid state snapshot for Playwright test hooks */
+  public getTestGridState(): {
+    rows: number;
+    cols: number;
+    tiles: Array<{ row: number; col: number; state: string; hasPlant: boolean }>;
+  } {
+    return {
+      rows: this.grid.config.rows,
+      cols: this.grid.config.cols,
+      tiles: this.grid.getAllTiles().map((t) => ({
+        row: t.row,
+        col: t.col,
+        state: t.state,
+        hasPlant: t.isOccupied(),
+      })),
+    };
+  }
+
+  /** TLDR: Return active plant count for Playwright test hooks */
+  public getTestPlantCount(): number {
+    return Array.from(this.plants.values()).filter((p) => p.active).length;
+  }
+
+  /** TLDR: Return active plant data for Playwright test hooks */
+  public getTestActivePlants(): Array<{
+    id: string;
+    x: number;
+    y: number;
+    growthStage: string;
+    configId: string;
+  }> {
+    return Array.from(this.plants.values())
+      .filter((p) => p.active)
+      .map((p) => ({
+        id: p.id,
+        x: p.x,
+        y: p.y,
+        growthStage: p.getGrowthStage(),
+        configId: p.getConfig().id,
+      }));
+  }
+
+  /** TLDR: Return screen coordinates for a tile center — accounts for grid container position and scale */
+  public getTestTileScreenPosition(row: number, col: number): { x: number; y: number } {
+    const container = this.gridSystem.getContainer();
+    const { tileSize } = this.grid.config;
+
+    // TLDR: Tile local position (center of tile) + container world transform
+    const localX = col * tileSize + tileSize / 2;
+    const localY = row * tileSize + tileSize / 2;
+
+    const worldX = container.x + localX * (container.scale?.x ?? 1);
+    const worldY = container.y + localY * (container.scale?.y ?? 1);
+
+    return { x: Math.round(worldX), y: Math.round(worldY) };
+  }
+
+  /** TLDR: Return current seed pool config IDs for Playwright test hooks */
+  public getTestSeedPool(): string[] {
+    const pool = this.seedSelectionSystem.getCurrentPool();
+    if (!pool) return [];
+    return pool.seeds.map((s) => s.id);
+  }
+
   destroy(): void {
     audioManager.stopAmbient();
     window.removeEventListener('keydown', this.boundOnKeyDown);

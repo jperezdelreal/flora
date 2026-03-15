@@ -140,3 +140,12 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **BUG-006 (P1):** GardenScene had 23 `eventBus.on()` calls in init/setupAudioListeners/setupVisualListeners but zero `eventBus.off()` calls in destroy(). Created `listenTo()` helper that wraps `eventBus.on()` and pushes a cleanup closure to `eventCleanups` array. `destroy()` iterates the array and calls all cleanups. Pattern is reusable for any scene with EventBus subscriptions.
 - **Key files:** src/main.ts, src/scenes/BootScene.ts, src/scenes/GardenScene.ts
 - **Convention:** Use `listenTo()` wrapper pattern (not raw `eventBus.on()`) in scenes that need cleanup. This guarantees `off()` is called with the exact same function reference.
+
+### Playwright Test Hooks Infrastructure
+- **Test hooks module**: `src/utils/testHooks.ts` exposes `window.__FLORA__` with sceneManager control, player/grid/plant state getters, tile screen position calculator, and event logger
+- **Dev-only activation**: `setupTestHooks()` only called when `import.meta.env.DEV` is true in `src/main.ts` — zero production overhead
+- **Event capture**: 10 tracked events (plant lifecycle, day/season, seed, pest) logged to `window.__FLORA_EVENTS__` with 1000-entry cap to prevent memory leaks
+- **GardenScene public getters**: Added 6 `getTest*()` methods — `getTestPlayerState()`, `getTestGridState()`, `getTestPlantCount()`, `getTestActivePlants()`, `getTestTileScreenPosition(row, col)`, `getTestSeedPool()`
+- **Tile screen position**: Calculates center of tile in world coordinates accounting for grid container position and scale transform
+- **Structural typing**: Test hooks cast `sceneManager.activeScene` to GardenTestable via `unknown` to avoid importing GardenScene directly — keeps test infrastructure decoupled from game code
+- **Key files**: `src/utils/testHooks.ts`, `src/scenes/GardenScene.ts` (test getters), `src/main.ts` (wiring)

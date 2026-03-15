@@ -202,3 +202,21 @@ Fixed 6 critical gameplay bugs identified by Oak's audit that made the game unpl
 - PlantSystem.createPlant(configId, col, row) uses x=col, y=row convention.
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
+
+### Real E2E Gameplay Tests (Replaces Smoke Tests)
+Replaced the fake "smoke tests" in `tests/e2e/flora-gameplay.spec.ts` that clicked hardcoded pixel coordinates and only checked for JS errors. New tests use `window.__FLORA__` test hooks (built by Brock in `src/utils/testHooks.ts`) to verify actual game state.
+
+**4 Real Tests Written:**
+1. **Boot → Menu → Garden flow**: Verifies scene transitions via `sceneManager.currentScene`, checks seed pool is populated, validates player state (day 1, 3 actions), and confirms grid initialization.
+2. **Complete planting cycle**: Verifies plant count, `plant:created`/`plant:watered` events via `getEvents()`, action consumption via `getPlayerState()`, and plant position via `getActivePlants()`.
+3. **UI interaction: pause menu toggle**: Verifies Escape toggles pause without changing scene, state is preserved across pause/unpause cycle, and 'I' key toggles seed inventory.
+4. **Day advancement and action consumption**: Verifies actions decrease with tool use, day advances when actions hit 0, `day:advanced` event fires, and actions reset on new day.
+
+**Key Architecture Decisions:**
+1. **`getToGarden()` helper**: Reusable function navigating boot → menu → seed-selection → garden, used by tests 2-4.
+2. **`waitForScene()` with `expect.poll()`**: Polls `sceneManager.currentScene` deterministically instead of waiting arbitrary frame counts.
+3. **Dynamic tile positions**: Uses `getTileScreenPosition(row, col)` — never hardcoded pixel coordinates.
+4. **Event verification**: Uses `getEvents()`/`clearEvents()` to verify EventBus events actually fired.
+5. **Graceful skip**: `beforeEach` checks if `window.__FLORA__` exists and calls `test.skip()` if hooks aren't merged yet.
+
+**Build Status**: Zero TypeScript errors. Clean Vite production build.
