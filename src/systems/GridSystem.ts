@@ -207,6 +207,9 @@ export class GridSystem {
   }
 
   public update(): void {
+    // TLDR: Skip tile rendering if TileRenderer owns the visuals
+    if (this.tileRenderer) return;
+    
     // Re-render tiles if state changed
     for (const [tile, graphics] of this.tileGraphics) {
       this.renderTile(tile, graphics);

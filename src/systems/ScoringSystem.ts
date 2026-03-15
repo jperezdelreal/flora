@@ -55,6 +55,14 @@ export class ScoringSystem implements System {
   private highScores: HighScoreEntry[] = [];
   private saveManager?: SaveManager;
 
+  // TLDR: Store bound listeners for cleanup
+  private boundPlantHarvested!: (data: { plantId: string; isNewDiscovery: boolean }) => void;
+  private boundPlantDied!: () => void;
+  private boundPestRemoved!: () => void;
+  private boundDroughtEnded!: () => void;
+  private boundSynergyActivated!: () => void;
+  private boundPlayerRested!: () => void;
+
   constructor(saveManager?: SaveManager) {
     this.saveManager = saveManager;
     this.stats = this.resetStats();
@@ -66,30 +74,36 @@ export class ScoringSystem implements System {
    * TLDR: Subscribe to scoring events via EventBus
    */
   private subscribeToEvents(): void {
-    eventBus.on('plant:harvested', (data) => {
+    this.boundPlantHarvested = (data) => {
       this.onPlantHarvested(data.plantId, data.isNewDiscovery);
-    });
+    };
+    eventBus.on('plant:harvested', this.boundPlantHarvested);
 
-    eventBus.on('plant:died', () => {
+    this.boundPlantDied = () => {
       this.onPlantDied();
-    });
+    };
+    eventBus.on('plant:died', this.boundPlantDied);
 
-    eventBus.on('pest:removed', () => {
+    this.boundPestRemoved = () => {
       this.onPestRemoved();
-    });
+    };
+    eventBus.on('pest:removed', this.boundPestRemoved);
 
-    eventBus.on('drought:ended', () => {
+    this.boundDroughtEnded = () => {
       this.onDroughtSurvived();
-    });
+    };
+    eventBus.on('drought:ended', this.boundDroughtEnded);
 
-    eventBus.on('synergy:activated', () => {
+    this.boundSynergyActivated = () => {
       this.onSynergyActivated();
-    });
+    };
+    eventBus.on('synergy:activated', this.boundSynergyActivated);
     
     // TLDR: Score rest action for efficiency (#244)
-    eventBus.on('player:rested', () => {
+    this.boundPlayerRested = () => {
       this.onRestAction();
-    });
+    };
+    eventBus.on('player:rested', this.boundPlayerRested);
   }
 
   /**
@@ -353,6 +367,13 @@ export class ScoringSystem implements System {
   }
 
   destroy(): void {
+    // TLDR: Cleanup all EventBus subscriptions to prevent memory leaks
+    eventBus.off('plant:harvested', this.boundPlantHarvested);
+    eventBus.off('plant:died', this.boundPlantDied);
+    eventBus.off('pest:removed', this.boundPestRemoved);
+    eventBus.off('drought:ended', this.boundDroughtEnded);
+    eventBus.off('synergy:activated', this.boundSynergyActivated);
+    eventBus.off('player:rested', this.boundPlayerRested);
     this.reset();
   }
 }

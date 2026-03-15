@@ -112,6 +112,9 @@ export class TileRenderer implements System {
   /** Map from "row,col" → structure type for rendering */
   private structureMap = new Map<string, RenderableStructure>();
 
+  /** TLDR: Dirty tracking — only re-render tiles that changed this frame */
+  private dirtyTiles = new Set<Tile>();
+
   constructor(config: TileRendererConfig) {
     this.grid = config.grid;
     this.tileLayer = new Container();
@@ -160,6 +163,7 @@ export class TileRenderer implements System {
   refreshTileAt(row: number, col: number): void {
     const tile = this.grid.getTile(row, col);
     if (!tile) return;
+    this.dirtyTiles.add(tile);
     const gfx = this.tileGraphics.get(tile);
     if (gfx) this.renderTile(tile, gfx);
   }
@@ -167,14 +171,24 @@ export class TileRenderer implements System {
   /** Force refresh all tiles */
   refreshAllTiles(): void {
     for (const [tile, gfx] of this.tileGraphics) {
+      this.dirtyTiles.add(tile);
       this.renderTile(tile, gfx);
     }
+  }
+
+  /** TLDR: Mark a tile as dirty so it updates next frame */
+  markTileDirty(tile: Tile): void {
+    this.dirtyTiles.add(tile);
   }
 
   // ─── System interface ───────────────────────────────────────────────────
 
   update(_delta: number): void {
-    for (const [tile, gfx] of this.tileGraphics) {
+    // TLDR: Performance optimization — only update dirty tiles instead of all 144+ tiles
+    for (const tile of this.dirtyTiles) {
+      const gfx = this.tileGraphics.get(tile);
+      if (!gfx) continue;
+      
       const stateKey = this.computeVisualStateKey(tile);
       const cached = this.visualStateCache.get(`${tile.row},${tile.col}`);
       if (cached !== stateKey) {
@@ -182,6 +196,7 @@ export class TileRenderer implements System {
         this.visualStateCache.set(`${tile.row},${tile.col}`, stateKey);
       }
     }
+    this.dirtyTiles.clear();
   }
 
   destroy(): void {

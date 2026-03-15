@@ -57,6 +57,17 @@ export class AudioManager {
   private lastPlayTimes: Map<SFXType, number> = new Map();
   private readonly DEBOUNCE_MS = 50;
   private saveManager?: SaveManager;
+
+  // TLDR: Store bound listeners for cleanup
+  private boundPlantCreated!: () => void;
+  private boundPlantWatered!: () => void;
+  private boundPlantHarvested!: () => void;
+  private boundPlantDied!: () => void;
+  private boundPestSpawned!: () => void;
+  private boundWeedRemoved!: () => void;
+  private boundCompostApplied!: () => void;
+  private boundToolUpgraded!: () => void;
+  private boundToolUnlocked!: () => void;
   
   /**
    * Initialize audio context and routing graph
@@ -104,21 +115,35 @@ export class AudioManager {
    */
   setupEventListeners(): void {
     // Plant lifecycle events
-    eventBus.on('plant:created', () => this.playSFX('PLANT'));
-    eventBus.on('plant:watered', () => this.playSFX('WATER'));
-    eventBus.on('plant:harvested', () => this.playSFX('HARVEST'));
-    eventBus.on('plant:died', () => this.playSFX('WILT'));
+    this.boundPlantCreated = () => this.playSFX('PLANT');
+    eventBus.on('plant:created', this.boundPlantCreated);
+    
+    this.boundPlantWatered = () => this.playSFX('WATER');
+    eventBus.on('plant:watered', this.boundPlantWatered);
+    
+    this.boundPlantHarvested = () => this.playSFX('HARVEST');
+    eventBus.on('plant:harvested', this.boundPlantHarvested);
+    
+    this.boundPlantDied = () => this.playSFX('WILT');
+    eventBus.on('plant:died', this.boundPlantDied);
     
     // Hazard events
-    eventBus.on('pest:spawned', () => this.playSFX('PEST_APPEAR'));
+    this.boundPestSpawned = () => this.playSFX('PEST_APPEAR');
+    eventBus.on('pest:spawned', this.boundPestSpawned);
     
     // Weed & compost events
-    eventBus.on('weed:removed', () => this.playSFX('WEED_PULL'));
-    eventBus.on('compost:applied', () => this.playSFX('COMPOST_SPREAD'));
+    this.boundWeedRemoved = () => this.playSFX('WEED_PULL');
+    eventBus.on('weed:removed', this.boundWeedRemoved);
+    
+    this.boundCompostApplied = () => this.playSFX('COMPOST_SPREAD');
+    eventBus.on('compost:applied', this.boundCompostApplied);
     
     // Tool progression events
-    eventBus.on('tool:upgraded', () => this.playSFX('TOOL_UPGRADE'));
-    eventBus.on('tool:unlocked', () => this.playSFX('TOOL_UNLOCK'));
+    this.boundToolUpgraded = () => this.playSFX('TOOL_UPGRADE');
+    eventBus.on('tool:upgraded', this.boundToolUpgraded);
+    
+    this.boundToolUnlocked = () => this.playSFX('TOOL_UNLOCK');
+    eventBus.on('tool:unlocked', this.boundToolUnlocked);
   }
   
   /**
@@ -415,6 +440,23 @@ export class AudioManager {
    * Cleanup and disconnect audio graph
    */
   destroy(): void {
+    // TLDR: Clear all ambient timers to prevent background chirps after destroy
+    for (const intervalId of this.ambientIntervals) {
+      clearTimeout(intervalId);
+    }
+    this.ambientIntervals = [];
+    
+    // TLDR: Cleanup all EventBus subscriptions to prevent memory leaks
+    eventBus.off('plant:created', this.boundPlantCreated);
+    eventBus.off('plant:watered', this.boundPlantWatered);
+    eventBus.off('plant:harvested', this.boundPlantHarvested);
+    eventBus.off('plant:died', this.boundPlantDied);
+    eventBus.off('pest:spawned', this.boundPestSpawned);
+    eventBus.off('weed:removed', this.boundWeedRemoved);
+    eventBus.off('compost:applied', this.boundCompostApplied);
+    eventBus.off('tool:upgraded', this.boundToolUpgraded);
+    eventBus.off('tool:unlocked', this.boundToolUnlocked);
+    
     this.stopAmbient();
     
     if (this.ctx) {
