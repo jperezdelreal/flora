@@ -123,9 +123,20 @@ export class PlayerSystem implements System {
     this.targetX = targetWorldPos.x + this.grid.config.tileSize / 2;
     this.targetY = targetWorldPos.y + this.grid.config.tileSize / 2;
 
+    // TLDR: Emit movement event for SFX before position update (#306)
+    const fromRow = currentPos.row;
+    const fromCol = currentPos.col;
+
     // Movement is free — only tool use costs actions
     this.player.moveTo(targetRow, targetCol);
     this.moveAnimationT = 0;
+
+    eventBus.emit('player:moved', {
+      fromRow,
+      fromCol,
+      toRow: targetRow,
+      toCol: targetCol,
+    });
   }
 
   private updateMovementAnimation(deltaTime: number): void {

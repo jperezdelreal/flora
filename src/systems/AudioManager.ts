@@ -69,6 +69,7 @@ export class AudioManager {
   private boundToolUpgraded!: () => void;
   private boundToolUnlocked!: () => void;
   private boundPlantMatured!: () => void;
+  private boundPlayerMoved!: () => void;
   
   /**
    * Initialize audio context and routing graph
@@ -148,6 +149,10 @@ export class AudioManager {
     
     this.boundPlantMatured = () => this.playSFX('MATURE');
     eventBus.on('plant:matured', this.boundPlantMatured);
+
+    // Player movement event
+    this.boundPlayerMoved = () => this.playSFX('MOVE');
+    eventBus.on('player:moved', this.boundPlayerMoved);
   }
   
   /**
@@ -314,6 +319,9 @@ export class AudioManager {
       case 'MATURE':
         this._playMatureSFX(now);
         break;
+      case 'MOVE':
+        this._playMoveSFX(now);
+        break;
     }
   }
   
@@ -464,6 +472,7 @@ export class AudioManager {
     eventBus.off('tool:upgraded', this.boundToolUpgraded);
     eventBus.off('tool:unlocked', this.boundToolUnlocked);
     eventBus.off('plant:matured', this.boundPlantMatured);
+    eventBus.off('player:moved', this.boundPlayerMoved);
     
     this.stopAmbient();
     
@@ -619,6 +628,36 @@ export class AudioManager {
       chimeOsc.start(chimeStart);
       chimeOsc.stop(chimeStart + config.chimeDuration);
     }
+  }
+  
+  /**
+   * TLDR: Subtle footstep sound for tile movement — soft filtered noise tap (#306)
+   */
+  private _playMoveSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    
+    const config = AUDIO.SFX.MOVE;
+    
+    // Soft noise tap (grass crunch)
+    const noise = this._createNoiseBuffer();
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noise;
+    
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = config.noiseFilterFreq;
+    filter.Q.value = 1;
+    
+    const gain = this.ctx.createGain();
+    // Volume at 40% of action layer (subtle, not distracting)
+    gain.gain.setValueAtTime(0.12, startTime);
+    gain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    
+    noiseSource.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.sfxBus);
+    noiseSource.start(startTime);
+    noiseSource.stop(startTime + config.duration);
   }
   
   private _playWiltSFX(startTime: number): void {

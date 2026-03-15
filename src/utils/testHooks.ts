@@ -21,6 +21,7 @@ const TRACKED_EVENTS: Array<keyof EventMap> = [
   'pest:spawned',
   'pest:removed',
   'action:consumed',
+  'player:moved',
 ];
 
 export interface FloraTestHooks {
