@@ -73,7 +73,7 @@ Implemented issue #218 — tool progression with tiers and advanced tools. Key d
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
 
-### Demo Scaffolding Removal (PR #252)
+### Demo Scaffolding Removal (PR #237)
 Completed issue #237 — removed all hardcoded demo/test scaffolding from GardenScene.init(). Key changes:
 
 1. **Removed plantDemoPlants() method**: Was planting seasonal plants at hardcoded tile slots (2,2), (2,4), (4,3), (5,5) on every init and season start.
@@ -88,3 +88,11 @@ Completed issue #237 — removed all hardcoded demo/test scaffolding from Garden
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
 
+### Sprint 3 Cleanup Verification (Issue #250)
+Verified that Sprint 3 P0/P1 tasks from issue #250 are already complete in main:
+
+1. **P0 — Demo Scaffolding Removal**: Already completed in PR #237 (commit 0f515c7). GardenScene.init() has no hardcoded demo plants, pests, or drought. Garden starts empty as designed.
+
+2. **P1 — SeedInventory Wiring**: Already completed in PR #241/242. SeedInventory displays seeds from actual run seed pool via `seedSelectionSystem.getCurrentPool()` (lines 340-344 in GardenScene.ts).
+
+**No work needed**: All requested changes already merged to main. Zero TypeScript errors on verification.
