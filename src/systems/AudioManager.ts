@@ -3,15 +3,17 @@
  * 
  * Features:
  * - Web Audio API routing: sfxBus + ambientBus + musicBus → masterGain → compressor → destination
- * - Procedural ambient loop generation
- * - Procedural SFX synthesis (plant, water, harvest, wilt, pest)
+ * - Procedural ambient loop generation with seasonal ambient support
+ * - Crossfade transitions between seasonal ambient profiles
+ * - Procedural SFX synthesis (plant, water, harvest, wilt, pest, day advance,
+ *   discovery, achievement, frost crack, synergy)
  * - Volume control per channel
  * - Mute/unmute support
  * 
  * Based on patterns from ComeRosquillas and firstPunch audio systems.
  */
 
-import { AUDIO, type SFXType } from '../config/audio';
+import { AUDIO, type SFXType, type SeasonKey } from '../config/audio';
 import type { SaveManager } from './SaveManager';
 import { eventBus } from '../core/EventBus';
 
@@ -29,6 +31,13 @@ export class AudioManager {
   private ambientNodes: AudioNode[] = [];
   private ambientIntervals: number[] = [];
   private ambientPlaying = false;
+  
+  private currentSeason: SeasonKey | null = null;
+  // Crossfade state
+  private crossfading = false;
+  private outgoingAmbientBus: GainNode | null = null;
+  private outgoingAmbientNodes: AudioNode[] = [];
+  private outgoingAmbientIntervals: number[] = [];
   
   // Mute state
   private muted = {
@@ -70,6 +79,12 @@ export class AudioManager {
   private boundToolUnlocked!: () => void;
   private boundPlantMatured!: () => void;
   private boundPlayerMoved!: () => void;
+  private boundDayAdvanced!: () => void;
+  private boundDiscovery!: () => void;
+  private boundAchievement!: () => void;
+  private boundFrostStarted!: () => void;
+  private boundSynergy!: () => void;
+  private boundSeasonTransition!: (data: { fromSeason: string; toSeason: string }) => void;
   
   /**
    * Initialize audio context and routing graph
@@ -153,6 +168,30 @@ export class AudioManager {
     // Player movement event
     this.boundPlayerMoved = () => this.playSFX('MOVE');
     eventBus.on('player:moved', this.boundPlayerMoved);
+
+    // Day advance bell
+    this.boundDayAdvanced = () => this.playSFX('DAY_ADVANCE');
+    eventBus.on('day:advanced', this.boundDayAdvanced);
+    // Discovery chime
+    this.boundDiscovery = () => this.playSFX('DISCOVERY');
+    eventBus.on('discovery:new', this.boundDiscovery);
+    // Achievement fanfare
+    this.boundAchievement = () => this.playSFX('ACHIEVEMENT');
+    eventBus.on('achievement:unlocked', this.boundAchievement);
+    // Frost crackle
+    this.boundFrostStarted = () => this.playSFX('FROST_CRACK');
+    eventBus.on('frost:started', this.boundFrostStarted);
+    // Synergy harmonic
+    this.boundSynergy = () => this.playSFX('SYNERGY');
+    eventBus.on('synergy:activated', this.boundSynergy);
+    // Season crossfade
+    this.boundSeasonTransition = (data) => {
+      const toSeason = data.toSeason as SeasonKey;
+      if (toSeason in AUDIO.SEASONAL_AMBIENT) {
+        this.crossfadeToSeason(toSeason);
+      }
+    };
+    eventBus.on('multiseason:transition', this.boundSeasonTransition);
   }
   
   /**
@@ -165,70 +204,73 @@ export class AudioManager {
   }
   
   /**
-   * Start ambient audio loop
+   * Start ambient audio loop (optionally seasonal)
    */
-  startAmbient(): void {
+  startAmbient(season?: SeasonKey): void {
     if (!this.ctx || !this.ambientBus || this.ambientPlaying) return;
-    
     this.ambientPlaying = true;
-    
-    // Layer 1: Continuous filtered noise (wind/rustling)
-    const noise = this._createNoiseBuffer();
-    const noiseSource = this.ctx.createBufferSource();
-    noiseSource.buffer = noise;
-    noiseSource.loop = true;
-    
-    const noiseLowpass = this.ctx.createBiquadFilter();
-    noiseLowpass.type = 'lowpass';
-    noiseLowpass.frequency.value = AUDIO.AMBIENT.NOISE_CUTOFF;
-    noiseLowpass.Q.value = 1;
-    
-    const noiseGain = this.ctx.createGain();
-    noiseGain.gain.value = 0.08;
-    
-    noiseSource.connect(noiseLowpass);
-    noiseLowpass.connect(noiseGain);
-    noiseGain.connect(this.ambientBus);
-    noiseSource.start();
-    
-    this.ambientNodes.push(noiseSource, noiseLowpass, noiseGain);
-    
-    // Layer 2: Soft oscillator pads (220Hz + 330Hz sine waves with LFO)
-    const osc1 = this.ctx.createOscillator();
-    osc1.type = 'sine';
-    osc1.frequency.value = AUDIO.AMBIENT.OSCILLATOR_FREQ_1;
-    
-    const osc2 = this.ctx.createOscillator();
-    osc2.type = 'sine';
-    osc2.frequency.value = AUDIO.AMBIENT.OSCILLATOR_FREQ_2;
-    
-    const oscGain = this.ctx.createGain();
-    oscGain.gain.value = 0.04;
-    
-    // LFO for slow amplitude modulation
-    const lfo = this.ctx.createOscillator();
-    lfo.type = 'sine';
-    lfo.frequency.value = 0.2; // 0.2 Hz = 5 second cycle
-    
-    const lfoGain = this.ctx.createGain();
-    lfoGain.gain.value = 0.02; // Modulation depth
-    
-    lfo.connect(lfoGain);
-    lfoGain.connect(oscGain.gain);
-    
-    osc1.connect(oscGain);
-    osc2.connect(oscGain);
-    oscGain.connect(this.ambientBus);
-    
-    osc1.start();
-    osc2.start();
-    lfo.start();
-    
-    this.ambientNodes.push(osc1, osc2, oscGain, lfo, lfoGain);
-    
-    // Layer 3: Random bird chirps (every 5-8 seconds)
-    this._scheduleRandomChirp();
+    this.currentSeason = season ?? null;
+    if (season && season in AUDIO.SEASONAL_AMBIENT) {
+      this._startSeasonalAmbient(season, this.ambientBus, this.ambientNodes, this.ambientIntervals);
+    } else {
+      this._startGenericAmbient(this.ambientBus, this.ambientNodes, this.ambientIntervals);
+    }
   }
+
+  /**
+   * Crossfade ambient audio to a new season
+   */
+  crossfadeToSeason(newSeason: SeasonKey): void {
+    if (!this.ctx || !this.ambientBus || !this.masterGain) return;
+    if (this.crossfading || this.currentSeason === newSeason) return;
+    this.crossfading = true;
+    const fadeDuration = AUDIO.CROSSFADE.DURATION;
+    const now = this.ctx.currentTime;
+    // Fade out current ambient
+    this.ambientBus.gain.cancelScheduledValues(now);
+    this.ambientBus.gain.setValueAtTime(this.ambientBus.gain.value, now);
+    this.ambientBus.gain.linearRampToValueAtTime(0, now + fadeDuration);
+    // Stash outgoing state
+    this.outgoingAmbientNodes = [...this.ambientNodes];
+    this.outgoingAmbientIntervals = [...this.ambientIntervals];
+    this.ambientNodes = [];
+    this.ambientIntervals = [];
+    // Create incoming bus with fade in
+    const incomingBus = this.ctx.createGain();
+    incomingBus.gain.setValueAtTime(0, now);
+    incomingBus.gain.linearRampToValueAtTime(this.volumePreferences.ambient, now + fadeDuration);
+    incomingBus.connect(this.masterGain);
+    // Start new seasonal ambient
+    this.currentSeason = newSeason;
+    this._startSeasonalAmbient(newSeason, incomingBus, this.ambientNodes, this.ambientIntervals);
+    // After crossfade: cleanup outgoing, rebuild on real bus
+    setTimeout(() => {
+      for (const id of this.outgoingAmbientIntervals) clearTimeout(id);
+      this.outgoingAmbientIntervals = [];
+      for (const node of this.outgoingAmbientNodes) {
+        try { if (node instanceof AudioScheduledSourceNode) node.stop(); node.disconnect(); } catch { /* ok */ }
+      }
+      this.outgoingAmbientNodes = [];
+      // Rebuild on the real ambient bus
+      if (this.ambientBus && this.ctx) {
+        for (const node of this.ambientNodes) { try { node.disconnect(); } catch { /* ok */ } }
+        const tempIntervals = [...this.ambientIntervals];
+        this.ambientNodes = [];
+        this.ambientIntervals = [];
+        for (const id of tempIntervals) clearTimeout(id);
+        this.ambientBus.gain.cancelScheduledValues(this.ctx.currentTime);
+        this.ambientBus.gain.setValueAtTime(this.volumePreferences.ambient, this.ctx.currentTime);
+        this._startSeasonalAmbient(newSeason, this.ambientBus, this.ambientNodes, this.ambientIntervals);
+      }
+      incomingBus.disconnect();
+      this.crossfading = false;
+    }, fadeDuration * 1000 + 100);
+  }
+
+  /**
+   * Get the current seasonal ambient profile in use
+   */
+  getCurrentAmbientSeason(): SeasonKey | null { return this.currentSeason; }
   
   /**
    * Stop ambient audio loop
@@ -243,6 +285,17 @@ export class AudioManager {
       clearTimeout(id);
     }
     this.ambientIntervals = [];
+    
+    this.currentSeason = null;
+    // Cleanup crossfade state
+    for (const id of this.outgoingAmbientIntervals) clearTimeout(id);
+    this.outgoingAmbientIntervals = [];
+    for (const node of this.outgoingAmbientNodes) {
+      try { if (node instanceof AudioScheduledSourceNode) node.stop(); node.disconnect(); } catch { /* ok */ }
+    }
+    this.outgoingAmbientNodes = [];
+    if (this.outgoingAmbientBus) { this.outgoingAmbientBus.disconnect(); this.outgoingAmbientBus = null; }
+    this.crossfading = false;
     
     // Fade out and disconnect nodes
     const now = this.ctx.currentTime;
@@ -321,6 +374,21 @@ export class AudioManager {
         break;
       case 'MOVE':
         this._playMoveSFX(now);
+        break;
+      case 'DAY_ADVANCE':
+        this._playDayAdvanceSFX(now);
+        break;
+      case 'DISCOVERY':
+        this._playDiscoverySFX(now);
+        break;
+      case 'ACHIEVEMENT':
+        this._playAchievementSFX(now);
+        break;
+      case 'FROST_CRACK':
+        this._playFrostCrackSFX(now);
+        break;
+      case 'SYNERGY':
+        this._playSynergySFX(now);
         break;
     }
   }
@@ -473,6 +541,12 @@ export class AudioManager {
     eventBus.off('tool:unlocked', this.boundToolUnlocked);
     eventBus.off('plant:matured', this.boundPlantMatured);
     eventBus.off('player:moved', this.boundPlayerMoved);
+    eventBus.off('day:advanced', this.boundDayAdvanced);
+    eventBus.off('discovery:new', this.boundDiscovery);
+    eventBus.off('achievement:unlocked', this.boundAchievement);
+    eventBus.off('frost:started', this.boundFrostStarted);
+    eventBus.off('synergy:activated', this.boundSynergy);
+    eventBus.off('multiseason:transition', this.boundSeasonTransition);
     
     this.stopAmbient();
     
@@ -862,21 +936,293 @@ export class AudioManager {
     shimmerOsc.stop(shimmerStart + 0.25);
   }
   
-  private _scheduleRandomChirp(): void {
+  private _startGenericAmbient(bus: GainNode, nodes: AudioNode[], intervals: number[]): void {
+    if (!this.ctx) return;
+
+    // Layer 1: Continuous filtered noise (wind/rustling)
+    const noise = this._createNoiseBuffer();
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noise;
+    noiseSource.loop = true;
+
+    const noiseLowpass = this.ctx.createBiquadFilter();
+    noiseLowpass.type = 'lowpass';
+    noiseLowpass.frequency.value = AUDIO.AMBIENT.NOISE_CUTOFF;
+    noiseLowpass.Q.value = 1;
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.value = 0.08;
+
+    noiseSource.connect(noiseLowpass);
+    noiseLowpass.connect(noiseGain);
+    noiseGain.connect(bus);
+    noiseSource.start();
+
+    nodes.push(noiseSource, noiseLowpass, noiseGain);
+
+    // Layer 2: Soft oscillator pads (220Hz + 330Hz sine waves with LFO)
+    const osc1 = this.ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.value = AUDIO.AMBIENT.OSCILLATOR_FREQ_1;
+
+    const osc2 = this.ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = AUDIO.AMBIENT.OSCILLATOR_FREQ_2;
+
+    const oscGain = this.ctx.createGain();
+    oscGain.gain.value = 0.04;
+
+    // LFO for slow amplitude modulation
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = 0.2; // 0.2 Hz = 5 second cycle
+
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = 0.02; // Modulation depth
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscGain.gain);
+
+    osc1.connect(oscGain);
+    osc2.connect(oscGain);
+    oscGain.connect(bus);
+
+    osc1.start();
+    osc2.start();
+    lfo.start();
+
+    nodes.push(osc1, osc2, oscGain, lfo, lfoGain);
+
+    // Layer 3: Random bird chirps (every 5-8 seconds)
+    this._scheduleRandomChirp(bus, intervals);
+  }
+
+  private _startSeasonalAmbient(season: SeasonKey, bus: GainNode, nodes: AudioNode[], intervals: number[]): void {
+    if (!this.ctx) return;
+    const profile = AUDIO.SEASONAL_AMBIENT[season];
+
+    // Layer 1: Filtered noise with season-specific cutoff/gain
+    const noise = this._createNoiseBuffer();
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noise;
+    noiseSource.loop = true;
+
+    const noiseLowpass = this.ctx.createBiquadFilter();
+    noiseLowpass.type = 'lowpass';
+    noiseLowpass.frequency.value = profile.noiseCutoff;
+    noiseLowpass.Q.value = 1;
+
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.value = profile.noiseGain;
+
+    noiseSource.connect(noiseLowpass);
+    noiseLowpass.connect(noiseGain);
+    noiseGain.connect(bus);
+    noiseSource.start();
+
+    nodes.push(noiseSource, noiseLowpass, noiseGain);
+
+    // Layer 2: Oscillator pads with season-specific frequencies and LFO
+    const osc1 = this.ctx.createOscillator();
+    osc1.type = 'sine';
+    osc1.frequency.value = profile.oscFreq1;
+
+    const osc2 = this.ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = profile.oscFreq2;
+
+    const oscGain = this.ctx.createGain();
+    oscGain.gain.value = profile.oscGain;
+
+    const lfo = this.ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = profile.lfoRate;
+
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = profile.lfoDepth;
+
+    lfo.connect(lfoGain);
+    lfoGain.connect(oscGain.gain);
+
+    osc1.connect(oscGain);
+    osc2.connect(oscGain);
+    oscGain.connect(bus);
+
+    osc1.start();
+    osc2.start();
+    lfo.start();
+
+    nodes.push(osc1, osc2, oscGain, lfo, lfoGain);
+
+    // Layer 3: Season-specific nature sounds
+    if (profile.chirpEnabled) {
+      this._scheduleSeasonalChirp(bus, intervals, profile.chirpMinDelay, profile.chirpMaxDelay, profile.chirpBaseFreq, profile.chirpVolume);
+    }
+    if (profile.rainEnabled) {
+      this._scheduleRainDrops(bus, intervals, profile.rainMinDelay, profile.rainMaxDelay, profile.rainFreq, profile.rainVolume);
+    }
+    if ('cricketEnabled' in profile && profile.cricketEnabled) {
+      this._scheduleCrickets(bus, intervals, profile.cricketMinDelay, profile.cricketMaxDelay, profile.cricketFreq, profile.cricketVolume);
+    }
+    if ('rustleEnabled' in profile && profile.rustleEnabled) {
+      this._scheduleRustling(bus, intervals, profile.rustleMinDelay, profile.rustleMaxDelay, profile.rustleFilterFreq, profile.rustleVolume);
+    }
+    if ('crackleEnabled' in profile && profile.crackleEnabled) {
+      this._scheduleFrostCrackle(bus, intervals, profile.crackleMinDelay, profile.crackleMaxDelay, profile.crackleVolume);
+    }
+  }
+
+  // ===== Seasonal Nature Sound Schedulers =====
+
+  private _scheduleSeasonalChirp(bus: GainNode, intervals: number[], minDelay: number, maxDelay: number, baseFreq: number, volume: number): void {
+    if (!this.ambientPlaying) return;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    const timerId = window.setTimeout(() => {
+      this._playSeasonalChirpNote(bus, baseFreq, volume);
+      this._scheduleSeasonalChirp(bus, intervals, minDelay, maxDelay, baseFreq, volume);
+    }, delay);
+    intervals.push(timerId);
+  }
+
+  private _playSeasonalChirpNote(bus: GainNode, baseFreq: number, volume: number): void {
+    if (!this.ctx || !this.ambientPlaying) return;
+    const now = this.ctx.currentTime;
+    const variation = 0.7 + Math.random() * 0.6;
+    const osc = this.ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq * variation, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * variation * 1.2, now + 0.08);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * variation * 0.9, now + 0.12);
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(volume, now);
+    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+    osc.connect(gain);
+    gain.connect(bus);
+    osc.start(now);
+    osc.stop(now + 0.12);
+  }
+
+  private _scheduleRainDrops(bus: GainNode, intervals: number[], minDelay: number, maxDelay: number, freq: number, volume: number): void {
+    if (!this.ambientPlaying) return;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    const timerId = window.setTimeout(() => {
+      if (this.ctx && this.ambientPlaying) {
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq * (0.9 + Math.random() * 0.2), now);
+        osc.frequency.exponentialRampToValueAtTime(freq * 0.5, now + 0.06);
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+        osc.connect(gain);
+        gain.connect(bus);
+        osc.start(now);
+        osc.stop(now + 0.06);
+      }
+      this._scheduleRainDrops(bus, intervals, minDelay, maxDelay, freq, volume);
+    }, delay);
+    intervals.push(timerId);
+  }
+
+  private _scheduleCrickets(bus: GainNode, intervals: number[], minDelay: number, maxDelay: number, freq: number, volume: number): void {
+    if (!this.ambientPlaying) return;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    const timerId = window.setTimeout(() => {
+      if (this.ctx && this.ambientPlaying) {
+        const now = this.ctx.currentTime;
+        // Rapid chirp burst (2-3 quick pulses)
+        const pulses = 2 + Math.floor(Math.random() * 2);
+        for (let p = 0; p < pulses; p++) {
+          const t = now + p * 0.04;
+          const osc = this.ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.value = freq * (0.95 + Math.random() * 0.1);
+          const gain = this.ctx.createGain();
+          gain.gain.setValueAtTime(volume, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+          osc.connect(gain);
+          gain.connect(bus);
+          osc.start(t);
+          osc.stop(t + 0.03);
+        }
+      }
+      this._scheduleCrickets(bus, intervals, minDelay, maxDelay, freq, volume);
+    }, delay);
+    intervals.push(timerId);
+  }
+
+  private _scheduleRustling(bus: GainNode, intervals: number[], minDelay: number, maxDelay: number, filterFreq: number, volume: number): void {
+    if (!this.ambientPlaying) return;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    const timerId = window.setTimeout(() => {
+      if (this.ctx && this.ambientPlaying) {
+        const now = this.ctx.currentTime;
+        const noise = this._createNoiseBuffer();
+        const src = this.ctx.createBufferSource();
+        src.buffer = noise;
+        const bp = this.ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = filterFreq;
+        bp.Q.value = 0.8;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(0, now);
+        gain.gain.linearRampToValueAtTime(volume, now + 0.1);
+        gain.gain.linearRampToValueAtTime(0, now + 0.4);
+        src.connect(bp);
+        bp.connect(gain);
+        gain.connect(bus);
+        src.start(now);
+        src.stop(now + 0.4);
+      }
+      this._scheduleRustling(bus, intervals, minDelay, maxDelay, filterFreq, volume);
+    }, delay);
+    intervals.push(timerId);
+  }
+
+  private _scheduleFrostCrackle(bus: GainNode, intervals: number[], minDelay: number, maxDelay: number, volume: number): void {
+    if (!this.ambientPlaying) return;
+    const delay = minDelay + Math.random() * (maxDelay - minDelay);
+    const timerId = window.setTimeout(() => {
+      if (this.ctx && this.ambientPlaying) {
+        const now = this.ctx.currentTime;
+        // Tiny high-freq noise burst
+        const noise = this._createNoiseBuffer();
+        const src = this.ctx.createBufferSource();
+        src.buffer = noise;
+        const hp = this.ctx.createBiquadFilter();
+        hp.type = 'highpass';
+        hp.frequency.value = 6000;
+        hp.Q.value = 1;
+        const gain = this.ctx.createGain();
+        gain.gain.setValueAtTime(volume, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        src.connect(hp);
+        hp.connect(gain);
+        gain.connect(bus);
+        src.start(now);
+        src.stop(now + 0.08);
+      }
+      this._scheduleFrostCrackle(bus, intervals, minDelay, maxDelay, volume);
+    }, delay);
+    intervals.push(timerId);
+  }
+
+  private _scheduleRandomChirp(bus: GainNode, intervals: number[]): void {
     if (!this.ambientPlaying) return;
     
     const randomDelay = 5000 + Math.random() * 3000; // 5-8 seconds
     
     const timerId = window.setTimeout(() => {
-      this._playChirp();
-      this._scheduleRandomChirp(); // Schedule next chirp
+      this._playChirp(bus);
+      this._scheduleRandomChirp(bus, intervals); // Schedule next chirp
     }, randomDelay);
     
-    this.ambientIntervals.push(timerId);
+    intervals.push(timerId);
   }
   
-  private _playChirp(): void {
-    if (!this.ctx || !this.ambientBus || !this.ambientPlaying) return;
+  private _playChirp(bus: GainNode): void {
+    if (!this.ctx || !this.ambientPlaying) return;
     
     const now = this.ctx.currentTime;
     const baseFreq = 3200;
@@ -899,9 +1245,144 @@ export class AudioManager {
     gain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
     
     osc.connect(gain);
-    gain.connect(this.ambientBus);
+    gain.connect(bus);
     osc.start(now);
     osc.stop(now + 0.12);
+  }
+
+  // ===== New SFX Methods =====
+
+  private _playDayAdvanceSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    const config = AUDIO.SFX.DAY_ADVANCE;
+    // Soft bell
+    const bell = this.ctx.createOscillator();
+    bell.type = 'sine';
+    bell.frequency.value = config.bellFreq;
+    const bellGain = this.ctx.createGain();
+    bellGain.gain.setValueAtTime(0.25, startTime);
+    bellGain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    bell.connect(bellGain);
+    bellGain.connect(this.sfxBus);
+    bell.start(startTime);
+    bell.stop(startTime + config.duration);
+    // Shimmer overtone
+    const shimmer = this.ctx.createOscillator();
+    shimmer.type = 'sine';
+    shimmer.frequency.value = config.shimmerFreq;
+    const shimmerGain = this.ctx.createGain();
+    shimmerGain.gain.setValueAtTime(0.1, startTime + 0.02);
+    shimmerGain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    shimmer.connect(shimmerGain);
+    shimmerGain.connect(this.sfxBus);
+    shimmer.start(startTime + 0.02);
+    shimmer.stop(startTime + config.duration);
+  }
+
+  private _playDiscoverySFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    const config = AUDIO.SFX.DISCOVERY;
+    // Ascending 4-note triangle melody
+    for (let i = 0; i < config.frequencies.length; i++) {
+      const noteStart = startTime + i * config.noteSpacing;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = config.frequencies[i];
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.25, noteStart);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteStart + 0.15);
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(noteStart);
+      osc.stop(noteStart + 0.15);
+    }
+    // Sparkle overlay on last note
+    const sparkleStart = startTime + (config.frequencies.length - 1) * config.noteSpacing;
+    const sparkle = this.ctx.createOscillator();
+    sparkle.type = 'sine';
+    sparkle.frequency.value = config.frequencies[config.frequencies.length - 1] * 2;
+    const sparkleGain = this.ctx.createGain();
+    sparkleGain.gain.setValueAtTime(0.1, sparkleStart);
+    sparkleGain.gain.exponentialRampToValueAtTime(0.01, sparkleStart + config.shimmerDuration);
+    sparkle.connect(sparkleGain);
+    sparkleGain.connect(this.sfxBus);
+    sparkle.start(sparkleStart);
+    sparkle.stop(sparkleStart + config.shimmerDuration);
+  }
+
+  private _playAchievementSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    const config = AUDIO.SFX.ACHIEVEMENT;
+    // 5-note ascending fanfare
+    for (let i = 0; i < config.frequencies.length; i++) {
+      const noteStart = startTime + i * config.noteSpacing;
+      const noteDuration = 0.18;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'triangle';
+      osc.frequency.value = config.frequencies[i];
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.28, noteStart);
+      gain.gain.setValueAtTime(0.28, noteStart + noteDuration * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.01, noteStart + noteDuration);
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(noteStart);
+      osc.stop(noteStart + noteDuration);
+    }
+  }
+
+  private _playFrostCrackSFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    const config = AUDIO.SFX.FROST_CRACK;
+    // Highpass noise burst
+    const noise = this._createNoiseBuffer();
+    const noiseSrc = this.ctx.createBufferSource();
+    noiseSrc.buffer = noise;
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = config.crackleFreq;
+    hp.Q.value = 1;
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.3, startTime);
+    noiseGain.gain.exponentialRampToValueAtTime(0.01, startTime + config.duration);
+    noiseSrc.connect(hp);
+    hp.connect(noiseGain);
+    noiseGain.connect(this.sfxBus);
+    noiseSrc.start(startTime);
+    noiseSrc.stop(startTime + config.duration);
+    // Icy tinkle tones
+    for (let i = 0; i < config.tinkleFreqs.length; i++) {
+      const t = startTime + i * 0.04;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = config.tinkleFreqs[i];
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(t);
+      osc.stop(t + 0.1);
+    }
+  }
+
+  private _playSynergySFX(startTime: number): void {
+    if (!this.ctx || !this.sfxBus) return;
+    const config = AUDIO.SFX.SYNERGY;
+    // 3-note harmonic sine chime
+    for (let i = 0; i < config.chimeFreqs.length; i++) {
+      const chimeStart = startTime + i * config.chimeStagger;
+      const osc = this.ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = config.chimeFreqs[i];
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(0.22, chimeStart);
+      gain.gain.exponentialRampToValueAtTime(0.01, chimeStart + config.chimeDuration);
+      osc.connect(gain);
+      gain.connect(this.sfxBus);
+      osc.start(chimeStart);
+      osc.stop(chimeStart + config.chimeDuration);
+    }
   }
   
   private _createNoiseBuffer(): AudioBuffer {
