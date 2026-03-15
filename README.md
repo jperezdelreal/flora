@@ -1,16 +1,75 @@
 # 🌱 Flora — A Cozy Gardening Roguelite
 
 [![Deploy to GitHub Pages](https://github.com/jperezdelreal/flora/actions/workflows/deploy.yml/badge.svg)](https://github.com/jperezdelreal/flora/actions/workflows/deploy.yml)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?logo=typescript)](https://www.typescriptlang.org/)
+[![Vite](https://img.shields.io/badge/Vite-latest-646CFF?logo=vite)](https://vitejs.dev/)
+[![PixiJS](https://img.shields.io/badge/PixiJS-v8-FF69B4?logo=pixijs)](https://pixijs.io/)
 
 Plant seeds, tend your garden, and survive seasonal challenges in a relaxing roguelite where every run grows new memories. Lose your garden each season, but keep what you discover.
 
-**🎮 [Play Now](https://jperezdelreal.github.io/flora/)** — Play in your browser (no download needed!)
+## 🎮 [Play Now](https://jperezdelreal.github.io/flora/) — Play in your browser (no download needed!)
+
+---
+
+## 📸 Gameplay Screenshots
+
+<table>
+  <tr>
+    <td><img src="playtest-screenshots/menu-screen.png" alt="Main Menu" width="300"/><br><strong>Main Menu</strong></td>
+    <td><img src="playtest-screenshots/seed-selection.png" alt="Seed Selection" width="300"/><br><strong>Choose Your Seeds</strong></td>
+  </tr>
+  <tr>
+    <td><img src="playtest-screenshots/garden-start.png" alt="Garden Starting" width="300"/><br><strong>Your Garden Awaits</strong></td>
+    <td><img src="playtest-screenshots/multiday-day1-actions.png" alt="Tending Garden" width="300"/><br><strong>Tend & Harvest</strong></td>
+  </tr>
+</table>
+
+---
+
+## 🚀 Getting Started
+
+### Play Online (Easiest)
+**[Play Now →](https://jperezdelreal.github.io/flora/)** No installation needed, play instantly in your browser!
+
+### Run Locally
+
+#### Prerequisites
+- Node.js 18+ and npm
+
+#### Development
+```bash
+# Clone the repository
+git clone https://github.com/jperezdelreal/flora.git
+cd flora
+
+# Install dependencies
+npm install
+
+# Start development server (hot reload at http://localhost:5173)
+npm run dev
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+#### Testing
+```bash
+# Run Playwright tests
+npx playwright test
+
+# Run tests with UI
+npx playwright test --ui
+
+# Run tests for a specific file
+npx playwright test tests/mytest.spec.ts
+```
 
 ---
 
 ## How to Play
-
-### The Goal
 Survive one season of gardening! Plant seeds, water your crops, and harvest them to unlock new varieties. Each new plant you discover stays in your encyclopedia forever—even when your garden resets next season.
 
 ### Controls

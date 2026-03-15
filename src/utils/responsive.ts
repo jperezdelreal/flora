@@ -76,10 +76,11 @@ export function calculateGridScale(
   padding: number,
   maxTileSize: number = 64,
 ): { tileSize: number; scale: number; offsetX: number; offsetY: number } {
-  // TLDR: Reserve space for HUD at top and toolbar at bottom
-  const hudHeight = 150;
-  const toolbarHeight = 120;
-  const horizontalPadding = 20;
+  // TLDR: Reduce HUD/toolbar reservation on small viewports so larger grids still fit
+  const compact = viewportHeight < 700 || viewportWidth < 600;
+  const hudHeight = compact ? 100 : 150;
+  const toolbarHeight = compact ? 80 : 120;
+  const horizontalPadding = compact ? 10 : 20;
 
   const availableWidth = viewportWidth - horizontalPadding * 2;
   const availableHeight = viewportHeight - hudHeight - toolbarHeight;
