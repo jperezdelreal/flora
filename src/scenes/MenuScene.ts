@@ -260,6 +260,7 @@ export class MenuScene implements Scene {
     const hasSave = this.saveManager.loadGarden() !== null;
     this.menuItems = [
       { label: '🌱  New Run', action: 'newRun', enabled: true },
+      { label: '📅  Daily Challenge', action: 'dailyChallenge', enabled: true },
       { label: '🔄  Continue', action: 'continue', enabled: hasSave },
       { label: '📖  Encyclopedia', action: 'encyclopedia', enabled: true },
       { label: '🏆  Achievements', action: 'achievements', enabled: true },
@@ -628,6 +629,7 @@ export class MenuScene implements Scene {
     if (!item || !item.enabled || !this.ctx) return;
     switch (item.action) {
       case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
+      case 'dailyChallenge': this.ctx.sceneManager.transitionTo(SCENES.DAILY_CHALLENGE, { type: 'fade' }).catch(console.error); break;
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
       case 'achievements': this.ctx.sceneManager.transitionTo(SCENES.ACHIEVEMENTS, { type: 'crossfade' }).catch(console.error); break;

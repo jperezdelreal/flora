@@ -4,6 +4,8 @@ import { COLORS, UI_COLORS, SCENES } from '../config';
 import { audioManager } from '../systems';
 import type { ScoreBreakdown, HighScoreEntry } from '../systems/ScoringSystem';
 import type { MilestoneThreshold } from '../config/scoring';
+import type { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
+import { Leaderboard } from '../ui/Leaderboard';
 
 /**
  * TLDR: Data passed from GardenScene to ResultsScene at season end
@@ -17,6 +19,9 @@ export interface ResultsData {
   harvestedPlants: { name: string; count: number }[];
   newDiscoveries: string[];
   isMultiSeasonRun: boolean;
+  isDaily?: boolean;
+  dailySeed?: number;
+  dailyDateString?: string;
 }
 
 // TLDR: Module-level staging area — GardenScene sets this before transitioning
@@ -50,6 +55,13 @@ export class ResultsScene implements Scene {
 
   private screenWidth = 0;
   private screenHeight = 0;
+
+  private dailyChallengeSystem: DailyChallengeSystem | null;
+  private leaderboard: Leaderboard | null = null;
+
+  constructor(dailyChallengeSystem?: DailyChallengeSystem) {
+    this.dailyChallengeSystem = dailyChallengeSystem ?? null;
+  }
 
   async init(ctx: SceneContext): Promise<void> {
     const stage = ctx.app.stage.children[0] as Container;
@@ -335,6 +347,30 @@ export class ResultsScene implements Scene {
       }
     }
 
+    if (data.isDaily && data.dailySeed && this.dailyChallengeSystem) {
+      const modifiers = this.dailyChallengeSystem.getActiveModifiers();
+      this.dailyChallengeSystem.submitLeaderboardScore(data.dailySeed, data.breakdown.total, [...modifiers]);
+      this.dailyChallengeSystem.recordRun(data.breakdown.total, 'spring');
+      const dailyBanner = new Text({
+        text: `📅 Daily Challenge — ${data.dailyDateString ?? 'Today'}`,
+        style: { fontFamily: 'Arial', fontSize: 18, fill: '#d68910', fontWeight: 'bold', align: 'center' },
+      });
+      dailyBanner.anchor.set(0.5, 0);
+      dailyBanner.x = cx;
+      dailyBanner.y = rightY + 10;
+      this.contentLayer.addChild(dailyBanner);
+      const entries = this.dailyChallengeSystem.getLeaderboard(data.dailySeed);
+      this.leaderboard = new Leaderboard();
+      this.leaderboard.setTitle('🏆 Daily Leaderboard');
+      this.leaderboard.show(entries.slice(0, 5), data.breakdown.total);
+      const lbContainer = this.leaderboard.getContainer();
+      lbContainer.x = rightX - 20;
+      lbContainer.y = rightY + 38;
+      const lbAvail = panelY + panelH - (rightY + 38) - 90;
+      if (lbAvail < 380) { const scale = Math.max(0.5, lbAvail / 380); lbContainer.scale.set(scale); }
+      this.contentLayer.addChild(lbContainer);
+    }
+
     // TLDR: Buttons at panel bottom
     const btnY = panelY + panelH - 80;
     const btnW = 200;
@@ -489,6 +525,7 @@ export class ResultsScene implements Scene {
     this.milestoneText = null;
     this.animElapsed = 0;
     this.panelAlpha = 0;
+    if (this.leaderboard) { this.leaderboard.destroy(); this.leaderboard = null; }
     this.container.destroy({ children: true });
     this.container = new Container();
     this.bgLayer = new Container();

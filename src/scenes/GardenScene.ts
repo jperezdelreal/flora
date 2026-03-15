@@ -24,6 +24,7 @@ import { AchievementSystem } from '../systems/AchievementSystem';
 import { PlantRenderer } from '../systems/PlantRenderer';
 import { TileRenderer } from '../systems/TileRenderer';
 import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
+import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
 import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
 import { InputManager } from '../core/InputManager';
@@ -106,6 +107,8 @@ export class GardenScene implements Scene {
 
   // TLDR: SeedSelectionSystem for wiring actual run seed pool (#242)
   private seedSelectionSystem: SeedSelectionSystem;
+
+  private dailyChallengeSystem: DailyChallengeSystem | null = null;
   
   // TLDR: Season length (may be extended by Greenhouse)
   private maxSeasonDays = 12;
@@ -166,9 +169,10 @@ export class GardenScene implements Scene {
   // TLDR: Track EventBus listeners for cleanup in destroy() — prevents memory leaks
   private eventCleanups: Array<() => void> = [];
 
-  constructor(saveManager: SaveManager, seedSelectionSystem: SeedSelectionSystem) {
+  constructor(saveManager: SaveManager, seedSelectionSystem: SeedSelectionSystem, dailyChallengeSystem?: DailyChallengeSystem) {
     this.saveManager = saveManager;
     this.seedSelectionSystem = seedSelectionSystem;
+    this.dailyChallengeSystem = dailyChallengeSystem ?? null;
   }
 
   // TLDR: Wrapper for eventBus.on that auto-tracks listeners for cleanup in destroy()
@@ -379,6 +383,9 @@ export class GardenScene implements Scene {
       10
     );
     this.hud.setSeason(this.currentSeason);
+    if (this.dailyChallengeSystem?.isDailyRun()) {
+      this.hud.setDailyMode(true, DailyChallengeSystem.todayDateString());
+    }
     this.container.addChild(this.hud.getContainer());
     this.updateHudDiscoveryCount();
     
@@ -1071,6 +1078,7 @@ export class GardenScene implements Scene {
     });
 
     // TLDR: Stage results data and transition to dedicated ResultsScene (#304)
+    const isDaily = this.dailyChallengeSystem?.isDailyRun() ?? false;
     setResultsData({
       breakdown,
       milestone,
@@ -1080,6 +1088,9 @@ export class GardenScene implements Scene {
       harvestedPlants,
       newDiscoveries: Array.from(this.newDiscoveriesThisSeason),
       isMultiSeasonRun: this.isMultiSeasonRun,
+      isDaily,
+      dailySeed: isDaily ? this.dailyChallengeSystem!.getSeed() : undefined,
+      dailyDateString: isDaily ? DailyChallengeSystem.todayDateString() : undefined,
     });
 
     this._ctx.sceneManager.transitionTo(SCENES.RESULTS, { type: 'fade' }).catch(console.error);
