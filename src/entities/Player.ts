@@ -108,6 +108,10 @@ export class Player implements Entity {
     }
   }
 
+  getMaxActions(): number {
+    return this.state.maxActions;
+  }
+
   advanceDay(): void {
     this.state.currentDay++;
     this.state.actionsRemaining = this.state.maxActions;

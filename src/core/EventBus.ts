@@ -17,6 +17,8 @@ export interface EventMap {
   'plant:harvested': { plantId: string; seeds: number; isNewDiscovery: boolean };
   'plant:matured': { plantId: string; plantConfigId: string };
   'plant:died': { plantId: string; reason: string };
+  // Player action events
+  'action:consumed': { actionsRemaining: number; maxActions: number };
   // Day/season events
   'day:advanced': { day: number };
   'season:ended': { season: string; day: number };

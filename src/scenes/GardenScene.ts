@@ -264,6 +264,11 @@ export class GardenScene implements Scene {
     eventBus.on('tool:upgraded', (data) => {
       this.toolBar.updateToolTier(data.toolType as ToolType, data.newTier as ToolTier);
     });
+    
+    // TLDR: Wire action consumed event to HUD flash animation (#250)
+    eventBus.on('action:consumed', () => {
+      this.hud.flashActionConsumed();
+    });
 
     // Hook up grid click to player system
     this.setupGridClickHandling();
@@ -907,37 +912,57 @@ export class GardenScene implements Scene {
   }
 
   /**
-   * TLDR: Get contextual hint based on current phase and actions (#241)
+   * TLDR: Get contextual hint based on current phase and actions (#250)
    */
   private getContextualHint(phase: GamePhase, actions: number): string {
-    if (actions === 0) {
-      return 'No actions left — day will advance soon';
+    // TLDR: Show remaining actions hint when player has actions left
+    if (actions > 1) {
+      return `💡 You have ${actions} actions left! Keep planting, watering, or harvesting`;
     }
+    if (actions === 1) {
+      return `💡 Last action! Use it wisely — the day will advance after this`;
+    }
+    if (actions === 0) {
+      return '⏰ No actions left — day will advance soon!';
+    }
+    
+    // TLDR: Phase-specific hints (fallback if action count unclear)
     switch (phase) {
       case 'planting':
-        return 'Tap an empty tile to plant a seed';
+        return 'Select Seed tool and tap an empty tile to plant';
       case 'tending':
-        return 'Water your plants! Select the watering can tool';
+        return 'Select Watering Can and tap planted tiles to water';
       case 'harvest':
-        return 'Harvest mature plants by tapping them!';
+        return 'Tap mature plants (glowing) to harvest them!';
       case 'day_end':
         return '';
     }
   }
 
   /**
-   * TLDR: Show brief day advance info message (#241)
+   * TLDR: Show brief day advance summary with clearer messaging (#250)
    */
   private showDayAdvanceSummary(day: number): void {
     const activePlants = Array.from(this.plants.values()).filter(p => p.active);
     const maturePlants = activePlants.filter(p => p.getState().growthStage === GrowthStage.MATURE);
+    
+    // TLDR: Clear, actionable message about what happened
     const parts: string[] = [`☀️ Day ${day} begins!`];
+    
     if (activePlants.length > 0) {
-      parts.push(`${activePlants.length} plant${activePlants.length > 1 ? 's' : ''} growing`);
+      parts.push(`${activePlants.length} plant${activePlants.length > 1 ? 's' : ''} grew overnight`);
     }
+    
     if (maturePlants.length > 0) {
-      parts.push(`${maturePlants.length} ready to harvest`);
+      parts.push(`${maturePlants.length} ready to harvest! 🌾`);
+    } else if (activePlants.length > 0) {
+      parts.push('Keep watering to help them grow');
+    } else {
+      parts.push('Plant some seeds to get started! 🌱');
     }
+    
+    parts.push('You have 3 actions');
+    
     this.showActionMessage(parts.join(' • '));
   }
 

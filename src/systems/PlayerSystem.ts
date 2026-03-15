@@ -5,6 +5,7 @@ import { Plant } from '../entities/Plant';
 import { InputManager } from '../core/InputManager';
 import { getToolConfig, ToolActionResult } from '../config/tools';
 import { System } from './index';
+import { eventBus } from '../core/EventBus';
 
 export class PlayerSystem implements System {
   readonly name = 'PlayerSystem';
@@ -221,6 +222,12 @@ export class PlayerSystem implements System {
 
     if (result.success) {
       this.player.consumeAction();
+      
+      // TLDR: Emit action consumed event for UI feedback (#250)
+      eventBus.emit('action:consumed', {
+        actionsRemaining: this.player.getActionsRemaining(),
+        maxActions: this.player.getMaxActions(),
+      });
 
       // Check if day should advance
       if (result.advanceDay && !this.player.hasActionsRemaining()) {
