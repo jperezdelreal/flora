@@ -20,6 +20,7 @@ export interface EventMap {
   // Player action events
   'action:consumed': { actionsRemaining: number; maxActions: number };
   'player:rested': { soilBoost: number; day: number };
+  'player:moved': { fromRow: number; fromCol: number; toRow: number; toCol: number };
   // Day/season events
   'day:advanced': { day: number };
   'season:ended': { season: string; day: number };

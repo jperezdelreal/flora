@@ -609,4 +609,111 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
 
     console.log(`🎮 Multi-day run complete! Days: ${DAYS_TO_PLAY}, Final day: ${finalState.day}, Plants: ${finalPlantCount}, Active: ${activePlants.length}`);
   });
+
+  test('Full harvest cycle: plant → water → mature → harvest (#305)', async ({ page }) => {
+    test.setTimeout(180000); // 3 min — needs multiple day advances
+
+    // 1. Get to garden
+    await getToGarden(page);
+
+    const initialState = await getPlayerState(page);
+    expect(initialState.day).toBe(1);
+    expect(initialState.actionsRemaining).toBe(3);
+
+    const initialPlantCount = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(initialPlantCount).toBe(0);
+
+    // 2. Plant a seed at tile (0,0)
+    await page.evaluate(([r, c]) => window.__FLORA__!.movePlayer(r, c), [0, 0] as [number, number]);
+    await waitFrames(page, 5);
+
+    await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+    await clearEvents(page);
+    const plantResult = await page.evaluate(() => window.__FLORA__!.performAction());
+    expect(plantResult.success, 'Planting should succeed: ' + plantResult.message).toBe(true);
+    await waitFrames(page, 10);
+
+    const eventsAfterPlant = await getEvents(page);
+    expect(eventsAfterPlant.some((e) => e.includes('plant:created')),
+      'plant:created event must fire after planting').toBe(true);
+
+    const plantCountAfterPlant = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(plantCountAfterPlant).toBe(1);
+
+    // 3. Water the planted seed
+    await page.evaluate(([r, c]) => window.__FLORA__!.movePlayer(r, c), [0, 0] as [number, number]);
+    await waitFrames(page, 5);
+    await page.evaluate(() => window.__FLORA__!.selectTool('water'));
+    const waterResult = await page.evaluate(() => window.__FLORA__!.performAction());
+    expect(waterResult.success, 'Watering should succeed: ' + waterResult.message).toBe(true);
+    await waitFrames(page, 10);
+
+    // 4. Rest repeatedly to advance days until plant matures
+    const MAX_REST_CYCLES = 20;
+    let mature = false;
+
+    for (let i = 0; i < MAX_REST_CYCLES; i++) {
+      // Rest to advance to next day
+      const rested = await page.evaluate(() => window.__FLORA__!.rest());
+      expect(rested, `Rest cycle ${i + 1} should succeed`).toBe(true);
+      await waitFrames(page, 30);
+
+      // Wait for day to actually advance
+      await waitFrames(page, 30);
+
+      // Water the plant again each day to keep it healthy
+      await page.evaluate(([r, c]) => window.__FLORA__!.movePlayer(r, c), [0, 0] as [number, number]);
+      await waitFrames(page, 5);
+      await page.evaluate(() => window.__FLORA__!.selectTool('water'));
+      const dayWater = await page.evaluate(() => window.__FLORA__!.performAction());
+      if (dayWater.success) {
+        await waitFrames(page, 5);
+      }
+
+      // Check if any plant has reached mature stage
+      const plants = await page.evaluate(() => window.__FLORA__!.getActivePlants());
+      const maturePlant = plants.find((p: { growthStage: string }) => p.growthStage === 'mature');
+      if (maturePlant) {
+        mature = true;
+        console.log(`🌱 Plant matured after ${i + 1} rest cycles (day ${(await getPlayerState(page)).day})`);
+        break;
+      }
+    }
+
+    expect(mature, 'Plant should reach mature stage within ' + MAX_REST_CYCLES + ' days').toBe(true);
+
+    // 5. Harvest the mature plant
+    const plantCountBeforeHarvest = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    const stateBeforeHarvest = await getPlayerState(page);
+
+    await page.evaluate(([r, c]) => window.__FLORA__!.movePlayer(r, c), [0, 0] as [number, number]);
+    await waitFrames(page, 5);
+    await page.evaluate(() => window.__FLORA__!.selectTool('harvest'));
+    await clearEvents(page);
+
+    const harvestResult = await page.evaluate(() => window.__FLORA__!.performAction());
+    expect(harvestResult.success, 'Harvesting mature plant should succeed: ' + harvestResult.message).toBe(true);
+    await waitFrames(page, 10);
+
+    // 6. ASSERT: plant:harvested event fired
+    const eventsAfterHarvest = await getEvents(page);
+    expect(eventsAfterHarvest.some((e) => e.includes('plant:harvested')),
+      'plant:harvested event must fire after harvesting').toBe(true);
+
+    // ASSERT: plant count decreased
+    const plantCountAfterHarvest = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(plantCountAfterHarvest).toBeLessThan(plantCountBeforeHarvest);
+
+    // ASSERT: actions decreased
+    const stateAfterHarvest = await getPlayerState(page);
+    expect(stateAfterHarvest.actionsRemaining).toBeLessThan(stateBeforeHarvest.actionsRemaining);
+
+    // ASSERT: action:consumed event also fired
+    expect(eventsAfterHarvest.some((e) => e.includes('action:consumed')),
+      'action:consumed event must fire after harvest action').toBe(true);
+
+    console.log('✅ Full harvest cycle verified: plant → water → mature → harvest');
+    console.log(`   Plants: ${plantCountBeforeHarvest} → ${plantCountAfterHarvest}`);
+    console.log(`   Actions: ${stateBeforeHarvest.actionsRemaining} → ${stateAfterHarvest.actionsRemaining}`);
+  });
 });

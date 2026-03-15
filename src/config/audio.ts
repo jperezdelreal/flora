@@ -81,6 +81,12 @@ export const AUDIO = {
       chimeDuration: 0.2,
       chimeStagger: 0.1,
     },
+    MOVE: {
+      type: 'move' as const,
+      duration: 0.12,
+      frequency: 220,
+      noiseFilterFreq: 600,
+    },
   },
 } as const;
 
