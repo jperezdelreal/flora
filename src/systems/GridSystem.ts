@@ -15,6 +15,9 @@ export class GridSystem {
   private selectionHighlight: Graphics;
   private tileClickCallbacks: Array<(row: number, col: number) => void> = [];
   private onTileClickCallback?: (tile: Tile) => void;
+  private tileHoverCallbacks: Array<(row: number, col: number) => void> = [];
+  private tileHoverOutCallbacks: Array<() => void> = [];
+  private lastHoveredTileKey = '';
   private structures: Map<string, Structure> = new Map();
   private structureGraphics: Map<string, Graphics> = new Map();
   private seasonalSoilBase: number | null = null;
@@ -141,6 +144,8 @@ export class GridSystem {
     };
 
     this.container.on('pointerdown', this.onPointerDown.bind(this));
+    this.container.on('pointermove', this.onPointerMove.bind(this));
+    this.container.on('pointerleave', this.onPointerLeave.bind(this));
   }
 
   private onPointerDown(event: FederatedPointerEvent): void {
@@ -174,6 +179,38 @@ export class GridSystem {
     }
   }
 
+  /** TLDR: Handle pointer move — detect tile hover and notify listeners */
+  private onPointerMove(event: FederatedPointerEvent): void {
+    const pos = event.global;
+    const localPos = this.container.toLocal(pos);
+
+    const tile = this.grid.getTileAtPosition(localPos.x, localPos.y, 0, 0);
+    const key = tile ? `${tile.row},${tile.col}` : '';
+
+    if (key === this.lastHoveredTileKey) return;
+
+    if (!tile) {
+      if (this.lastHoveredTileKey) {
+        this.lastHoveredTileKey = '';
+        for (const cb of this.tileHoverOutCallbacks) cb();
+      }
+      return;
+    }
+
+    this.lastHoveredTileKey = key;
+    for (const cb of this.tileHoverCallbacks) {
+      cb(tile.row, tile.col);
+    }
+  }
+
+  /** TLDR: Handle pointer leaving the grid container */
+  private onPointerLeave(): void {
+    if (this.lastHoveredTileKey) {
+      this.lastHoveredTileKey = '';
+      for (const cb of this.tileHoverOutCallbacks) cb();
+    }
+  }
+
   /** Register a callback to be notified when a tile is clicked */
   public onTileClick(callback: ((row: number, col: number) => void) | ((tile: Tile) => void)): void {
     if (callback.length === 1) {
@@ -183,6 +220,16 @@ export class GridSystem {
       // Two parameters - row/col pattern
       this.tileClickCallbacks.push(callback as (row: number, col: number) => void);
     }
+  }
+
+  /** TLDR: Register a callback for tile hover (pointermove) */
+  public onTileHover(callback: (row: number, col: number) => void): void {
+    this.tileHoverCallbacks.push(callback);
+  }
+
+  /** TLDR: Register a callback for when pointer leaves a tile / the grid */
+  public onTileHoverOut(callback: () => void): void {
+    this.tileHoverOutCallbacks.push(callback);
   }
 
   private updateSelectionHighlight(): void {

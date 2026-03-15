@@ -25,7 +25,7 @@ import { PlantRenderer } from '../systems/PlantRenderer';
 import { TileRenderer } from '../systems/TileRenderer';
 import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
 import { DailyChallengeSystem } from '../systems/DailyChallengeSystem';
-import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery, ToolUpgradeNotification } from '../ui';
+import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery, ToolUpgradeNotification, StructureTooltip } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase, ToolUpgradeData } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
@@ -105,6 +105,7 @@ export class GardenScene implements Scene {
   
   // TLDR: Structure placement state
   private structurePlacementMode: StructureType | null = null;
+  private structureTooltip!: StructureTooltip;
 
   // TLDR: BUG-008 — pending tool action after auto-move completes
   private pendingToolAction: { row: number; col: number } | null = null;
@@ -373,6 +374,10 @@ export class GardenScene implements Scene {
     // TLDR: Initialize hazard tooltip (hover details)
     this.hazardTooltip = new HazardTooltip();
     this.container.addChild(this.hazardTooltip.getContainer());
+
+    // TLDR: Initialize structure tooltip (hover details for placed structures)
+    this.structureTooltip = new StructureTooltip();
+    this.container.addChild(this.structureTooltip.getContainer());
 
     // TLDR: Initialize Encyclopedia UI — clamped positioning for small screens (BUG-010)
     this.encyclopedia = new Encyclopedia();
@@ -665,6 +670,26 @@ export class GardenScene implements Scene {
 
       // TLDR: BUG-003 fix — move to tile regardless of occupancy
       this.playerSystem.handleTileClick(row, col);
+    });
+
+    // TLDR: Structure tooltip on tile hover (#335)
+    this.gridSystem.onTileHover((row, col) => {
+      const structure = this.gridSystem.getStructureAt(row, col);
+      if (structure) {
+        const screenPos = this.getTileScreenPosition(row, col);
+        this.structureTooltip.show(
+          { type: structure.type, row, col },
+          screenPos.x,
+          screenPos.y,
+          this._ctx.app.screen.width,
+          this._ctx.app.screen.height,
+        );
+      } else {
+        this.structureTooltip.hide();
+      }
+    });
+    this.gridSystem.onTileHoverOut(() => {
+      this.structureTooltip.hide();
     });
 
     // Apply seasonal palette (soil color, ambient particles)
@@ -1817,7 +1842,6 @@ export class GardenScene implements Scene {
     const newGrid = new GardenGrid({ rows, cols, tileSize: 64, padding: 4 });
     this.gridSystem.resize(newGrid);
     this.grid = newGrid;
-    this.gridSystem.centerInViewport(this._ctx.app.screen.width, this._ctx.app.screen.height);
     this.gridSystem.setSeason(this.currentSeason);
 
     // TLDR: Re-place structures that still fit on the new grid
@@ -1826,6 +1850,15 @@ export class GardenScene implements Scene {
         const structure = Structure.fromState(state);
         this.gridSystem.placeStructure(structure);
       }
+    }
+
+    // TLDR: Re-apply responsive layout so grid scales correctly for new dimensions
+    this.applyResponsiveLayout(this._ctx);
+
+    // TLDR: Sync TileRenderer to new grid if present
+    if (this.tileRenderer) {
+      this.tileRenderer.setGrid(newGrid);
+      this.tileRenderer.setSeason(this.currentSeason);
     }
 
     eventBus.emit('grid:expanded', { rows, cols });
@@ -2682,6 +2715,17 @@ export class GardenScene implements Scene {
   }
 
   /** TLDR: Return screen coordinates for a tile center — accounts for grid container position and scale */
+  private getTileScreenPosition(row: number, col: number): { x: number; y: number } {
+    const container = this.gridSystem.getContainer();
+    const { tileSize } = this.grid.config;
+    const localX = col * tileSize + tileSize / 2;
+    const localY = row * tileSize + tileSize / 2;
+    const worldX = container.x + localX * (container.scale?.x ?? 1);
+    const worldY = container.y + localY * (container.scale?.y ?? 1);
+    return { x: Math.round(worldX), y: Math.round(worldY) };
+  }
+
+  /** TLDR: Return screen coordinates for a tile center — accounts for grid container position and scale */
   public getTestTileScreenPosition(row: number, col: number): { x: number; y: number } {
     const container = this.gridSystem.getContainer();
     const { tileSize } = this.grid.config;
@@ -2740,6 +2784,7 @@ export class GardenScene implements Scene {
     this.hazardUI.destroy();
     this.hazardWarning.destroy();
     this.hazardTooltip.destroy();
+    this.structureTooltip.destroy();
     this.hud.destroy();
     this.seedInventory.destroy();
     this.plantInfoPanel.destroy();
