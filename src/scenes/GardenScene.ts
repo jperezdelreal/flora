@@ -30,6 +30,7 @@ import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
 import { GAME, TOUCH, SCENES, COLORS, UI_COLORS } from '../config';
 import { MenuScene } from './MenuScene';
+import { setResultsData } from './ResultsScene';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, COMPOST_TOOL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
 import { Season, SEASON_CONFIG, SEASON_ORDER, MULTI_SEASON_DAYS, MULTI_SEASON_SCORE_MULTIPLIER, getRandomSeason } from '../config/seasons';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
@@ -1057,8 +1058,30 @@ export class GardenScene implements Scene {
     const milestone = this.scoringSystem.getCurrentMilestone();
     const personalBest = this.scoringSystem.getPersonalBest();
     const highScores = this.scoringSystem.getHighScores();
-    
-    this.scoreSummary.show(breakdown, milestone, personalBest, highScores, isNewRecord);
+
+    // TLDR: Record run completion for unlock progression
+    this.unlockSystem.recordRunCompleted();
+    this.achievementSystem.onRunEnd();
+
+    // TLDR: Collect harvested plants summary for ResultsScene
+    const harvestedPlants = Array.from(this.harvestedSeeds.entries()).map(([plantId, count]) => {
+      const config = this.plantSystem.getPlant(plantId)?.getConfig();
+      return { name: config?.displayName || plantId, count };
+    });
+
+    // TLDR: Stage results data and transition to dedicated ResultsScene (#304)
+    setResultsData({
+      breakdown,
+      milestone,
+      personalBest,
+      highScores,
+      isNewRecord,
+      harvestedPlants,
+      newDiscoveries: Array.from(this.newDiscoveriesThisSeason),
+      isMultiSeasonRun: this.isMultiSeasonRun,
+    });
+
+    this._ctx.sceneManager.transitionTo(SCENES.RESULTS, { type: 'fade' }).catch(console.error);
 
     // TLDR: Emit multi-season completion event
     if (this.isMultiSeasonRun && this.multiSeasonIndex >= SEASON_ORDER.length - 1) {
