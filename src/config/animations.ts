@@ -29,12 +29,31 @@ export const ANIMATION = {
   WATER_RIPPLE_MAX_RADIUS: 28,
   WATER_RIPPLE_COLOR: 0x4fc3f7,
 
-  // Synergy glow pulse
+  // Synergy glow pulse (particle burst on activation)
   SYNERGY_GLOW_PULSE_SPEED: 2.0,
   SYNERGY_GLOW_MIN_ALPHA: 0.15,
   SYNERGY_GLOW_MAX_ALPHA: 0.6,
   SYNERGY_GLOW_RADIUS: 22,
   SYNERGY_GLOW_DURATION: 4.0,
+
+  // TLDR: Persistent synergy aura on bonused plants (#316)
+  SYNERGY_AURA_RADIUS: 20,
+  SYNERGY_AURA_MIN_ALPHA: 0.1,
+  SYNERGY_AURA_MAX_ALPHA: 0.4,
+  SYNERGY_AURA_PULSE_SPEED: 1.8,
+
+  // TLDR: Connection lines between synergized plants (#316)
+  SYNERGY_LINE_WIDTH: 2,
+  SYNERGY_LINE_ALPHA: 0.45,
+  SYNERGY_LINE_DASH_SPEED: 2.0,
+
+  // TLDR: Negative synergy red flash (#316)
+  NEGATIVE_SYNERGY_FLASH_DURATION: 0.6,
+  NEGATIVE_SYNERGY_FLASH_ALPHA: 0.35,
+
+  // TLDR: Placement preview synergy hint (#316)
+  SYNERGY_PREVIEW_ALPHA: 0.3,
+  SYNERGY_PREVIEW_LINE_ALPHA: 0.25,
 
   // Day advance sky lerp
   DAY_SKY_LERP_DURATION: 1.0,
@@ -98,6 +117,10 @@ export const ANIMATION = {
   SCORE_COUNTUP_DURATION: 2.5,
   SCORE_COUNTUP_CATEGORY_STAGGER: 0.3,
   SCORE_BUTTON_ENABLE_DELAY: 0.5,
+
+  GUIDANCE_HINT_FADE_IN: 0.3,
+  GUIDANCE_HINT_HOLD: 6.0,
+  GUIDANCE_HINT_FADE_OUT: 0.5,
 } as const;
 
 // TLDR: Plant color palettes per rarity for growth visuals
@@ -117,10 +140,13 @@ export const RARITY_COLORS: Record<string, number[]> = {
   heirloom: [0xffd54f, 0xffe082, 0xfff9c4],
 };
 
-// TLDR: Synergy glow colors
+// TLDR: Synergy glow colors (positive + negative)
 export const SYNERGY_GLOW_COLORS: Record<string, number> = {
   shade_bonus: 0x4fc3f7,
   nitrogen_bonus: 0x66bb6a,
   polyculture: 0xffd54f,
   pest_deterrent: 0xce93d8,
+  water_competition: 0xff5252,
+  allelopathy: 0xff8a65,
+  pest_attraction: 0xef5350,
 };
