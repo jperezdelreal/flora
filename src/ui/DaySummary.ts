@@ -1,5 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
-import { UI_COLORS } from '../config';
+import { UI_COLORS, GAME } from '../config';
 
 export interface DaySummaryData {
   day: number;
@@ -30,13 +30,17 @@ export class DaySummary {
 
     // TLDR: Full-screen semi-transparent overlay with warm tone
     const overlay = new Graphics();
-    overlay.rect(0, 0, 800, 600);
+    overlay.rect(0, 0, GAME.WIDTH, GAME.HEIGHT);
     overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.8 });
     this.container.addChild(overlay);
 
     // TLDR: Summary panel with warm cozy palette
     const panel = new Graphics();
-    panel.roundRect(150, 100, 500, 400, 16);
+    const panelWidth = GAME.WIDTH * 0.625;
+    const panelHeight = GAME.HEIGHT * 0.667;
+    const panelX = (GAME.WIDTH - panelWidth) / 2;
+    const panelY = GAME.HEIGHT * 0.167;
+    panel.roundRect(panelX, panelY, panelWidth, panelHeight, 16);
     panel.fill({ color: UI_COLORS.MENU_PANEL_BG, alpha: 0.98 });
     panel.stroke({ color: UI_COLORS.MENU_PANEL_BORDER, width: 3 });
     this.container.addChild(panel);
@@ -53,8 +57,8 @@ export class DaySummary {
       },
     });
     this.titleText.anchor.set(0.5, 0);
-    this.titleText.x = 400;
-    this.titleText.y = 130;
+    this.titleText.x = GAME.WIDTH / 2;
+    this.titleText.y = panelY + 30;
     this.container.addChild(this.titleText);
 
     // Summary content
@@ -68,29 +72,31 @@ export class DaySummary {
         lineHeight: 24,
       },
     });
-    this.summaryText.x = 200;
-    this.summaryText.y = 200;
+    this.summaryText.x = panelX + 50;
+    this.summaryText.y = panelY + 100;
     this.container.addChild(this.summaryText);
 
     // TLDR: Next Season button with warm cozy palette
+    const buttonWidth = 200;
+    const buttonHeight = 50;
     this.nextButton = new Graphics();
-    this.nextButton.roundRect(0, 0, 200, 50, 8);
+    this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
     this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
     this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
-    this.nextButton.x = 300;
-    this.nextButton.y = 420;
+    this.nextButton.x = (GAME.WIDTH - buttonWidth) / 2;
+    this.nextButton.y = panelY + panelHeight - 80;
     this.nextButton.eventMode = 'static';
     this.nextButton.cursor = 'pointer';
     this.nextButton.on('pointerdown', () => this.handleNextClick());
     this.nextButton.on('pointerover', () => {
       this.nextButton.clear();
-      this.nextButton.roundRect(0, 0, 200, 50, 8);
+      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.nextButton.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
       this.nextButton.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 2 });
     });
     this.nextButton.on('pointerout', () => {
       this.nextButton.clear();
-      this.nextButton.roundRect(0, 0, 200, 50, 8);
+      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
@@ -106,8 +112,8 @@ export class DaySummary {
       },
     });
     this.nextButtonText.anchor.set(0.5);
-    this.nextButtonText.x = 400;
-    this.nextButtonText.y = 445;
+    this.nextButtonText.x = GAME.WIDTH / 2;
+    this.nextButtonText.y = this.nextButton.y + buttonHeight / 2;
     this.container.addChild(this.nextButtonText);
   }
 

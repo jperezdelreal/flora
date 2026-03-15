@@ -6,7 +6,7 @@ import {
   getColorVisionLabel,
 } from '../utils/accessibility';
 import { eventBus } from '../core/EventBus';
-import { UI_COLORS } from '../config';
+import { UI_COLORS, GAME } from '../config';
 
 export interface PauseMenuCallbacks {
   onResume?: () => void;
@@ -48,13 +48,17 @@ export class PauseMenu {
 
     // TLDR: Full-screen semi-transparent overlay with warm tone
     const overlay = new Graphics();
-    overlay.rect(0, 0, 800, 600);
+    overlay.rect(0, 0, GAME.WIDTH, GAME.HEIGHT);
     overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.85 });
     this.container.addChild(overlay);
 
     // TLDR: Menu panel with warm cozy palette
     const panel = new Graphics();
-    panel.roundRect(250, 100, 300, 520, 16);
+    const panelWidth = GAME.WIDTH * 0.375;
+    const panelHeight = GAME.HEIGHT * 0.867;
+    const panelX = (GAME.WIDTH - panelWidth) / 2;
+    const panelY = GAME.HEIGHT * 0.167;
+    panel.roundRect(panelX, panelY, panelWidth, panelHeight, 16);
     panel.fill({ color: UI_COLORS.MENU_PANEL_BG, alpha: 0.98 });
     panel.stroke({ color: UI_COLORS.MENU_PANEL_BORDER, width: 3 });
     this.container.addChild(panel);
@@ -71,8 +75,8 @@ export class PauseMenu {
       },
     });
     title.anchor.set(0.5, 0);
-    title.x = 400;
-    title.y = 110;
+    title.x = GAME.WIDTH / 2;
+    title.y = panelY + 10;
     this.container.addChild(title);
 
     // Menu items
@@ -86,7 +90,7 @@ export class PauseMenu {
     ];
 
     menuOptions.forEach((option, index) => {
-      const y = 160 + index * 50;
+      const y = panelY + 60 + index * 50;
       const item = this.createMenuItem(option.label, option.action, y);
       this.menuItems.push(item);
     });
@@ -164,22 +168,26 @@ export class PauseMenu {
       targetButton = this.colorblindButton;
     }
 
+    const buttonWidth = GAME.WIDTH * 0.325;
+    const buttonHeight = 45;
     this.focusRing.roundRect(
       targetButton.x - 3,
       targetButton.y - 3,
-      266,
-      51,
+      buttonWidth + 6,
+      buttonHeight + 6,
       10,
     );
     this.focusRing.stroke({ color: 0xffff00, width: 3 });
   }
 
   private createMenuItem(label: string, action: string, y: number): { text: Text; button: Graphics; action: string } {
+    const buttonWidth = GAME.WIDTH * 0.325;
+    const buttonHeight = 45;
     const button = new Graphics();
-    button.roundRect(0, 0, 260, 45, 8);
+    button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
     button.fill({ color: UI_COLORS.MENU_ITEM_BG });
     button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
-    button.x = 270;
+    button.x = (GAME.WIDTH - buttonWidth) / 2;
     button.y = y;
     button.eventMode = 'static';
     button.cursor = 'pointer';
@@ -196,21 +204,21 @@ export class PauseMenu {
       },
     });
     text.anchor.set(0.5);
-    text.x = 400;
-    text.y = y + 22;
+    text.x = GAME.WIDTH / 2;
+    text.y = y + buttonHeight / 2;
     this.container.addChild(text);
 
     // TLDR: Hover effects with warm green palette
     button.on('pointerover', () => {
       button.clear();
-      button.roundRect(0, 0, 260, 45, 8);
+      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       button.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       button.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     button.on('pointerout', () => {
       button.clear();
-      button.roundRect(0, 0, 260, 45, 8);
+      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       button.fill({ color: UI_COLORS.MENU_ITEM_BG });
       button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
@@ -262,13 +270,16 @@ export class PauseMenu {
   }
 
   private createMuteToggle(): void {
-    const y = 470;
+    const panelY = GAME.HEIGHT * 0.167;
+    const y = panelY + 370;
+    const buttonWidth = GAME.WIDTH * 0.325;
+    const buttonHeight = 45;
     
     this.muteButton = new Graphics();
-    this.muteButton.roundRect(0, 0, 260, 45, 8);
+    this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
     this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
     this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
-    this.muteButton.x = 270;
+    this.muteButton.x = (GAME.WIDTH - buttonWidth) / 2;
     this.muteButton.y = y;
     this.muteButton.eventMode = 'static';
     this.muteButton.cursor = 'pointer';
@@ -285,20 +296,20 @@ export class PauseMenu {
       },
     });
     this.muteText.anchor.set(0.5);
-    this.muteText.x = 400;
-    this.muteText.y = y + 22;
+    this.muteText.x = GAME.WIDTH / 2;
+    this.muteText.y = y + buttonHeight / 2;
     this.container.addChild(this.muteText);
 
     this.muteButton.on('pointerover', () => {
       this.muteButton.clear();
-      this.muteButton.roundRect(0, 0, 260, 45, 8);
+      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.muteButton.on('pointerout', () => {
       this.muteButton.clear();
-      this.muteButton.roundRect(0, 0, 260, 45, 8);
+      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
       this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
@@ -310,13 +321,16 @@ export class PauseMenu {
 
   /** TLDR: Colorblind mode toggle — cycles through vision modes */
   private createColorblindToggle(): void {
-    const y = 525;
+    const panelY = GAME.HEIGHT * 0.167;
+    const y = panelY + 425;
+    const buttonWidth = GAME.WIDTH * 0.325;
+    const buttonHeight = 45;
 
     this.colorblindButton = new Graphics();
-    this.colorblindButton.roundRect(0, 0, 260, 45, 8);
+    this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
     this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
     this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
-    this.colorblindButton.x = 270;
+    this.colorblindButton.x = (GAME.WIDTH - buttonWidth) / 2;
     this.colorblindButton.y = y;
     this.colorblindButton.eventMode = 'static';
     this.colorblindButton.cursor = 'pointer';
@@ -333,20 +347,20 @@ export class PauseMenu {
       },
     });
     this.colorblindText.anchor.set(0.5);
-    this.colorblindText.x = 400;
-    this.colorblindText.y = y + 22;
+    this.colorblindText.x = GAME.WIDTH / 2;
+    this.colorblindText.y = y + buttonHeight / 2;
     this.container.addChild(this.colorblindText);
 
     this.colorblindButton.on('pointerover', () => {
       this.colorblindButton.clear();
-      this.colorblindButton.roundRect(0, 0, 260, 45, 8);
+      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.colorblindButton.on('pointerout', () => {
       this.colorblindButton.clear();
-      this.colorblindButton.roundRect(0, 0, 260, 45, 8);
+      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
       this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
