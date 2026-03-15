@@ -184,3 +184,12 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Negative synergy flash**: Red glow burst via ParticleSystem.glow() triggered by synergy:warning EventBus event
 - **Convention**: All synergy colors from SYNERGY_GLOW_COLORS config constant — never hardcoded in rendering code
 - **Key files**: src/config/animations.ts, src/systems/PlantRenderer.ts, src/systems/SynergySystem.ts, src/ui/PlantInfoPanel.ts, src/scenes/GardenScene.ts
+
+### Seasonal Audio Depth & Soundscape (Issue #325, PR #333)
+- **Seasonal ambient profiles**: 4 unique procedural soundscapes in AUDIO.SEASONAL_AMBIENT config — spring (birds+rain), summer (crickets+breeze), fall (wind+rustling), winter (silence+frost crackle)
+- **Crossfade system**: 2s smooth crossfade between seasonal ambients via crossfadeToSeason(). Listens for `multiseason:transition` EventBus event. Fades out current on ambient bus, fades in new on temp bus, rebuilds on main bus after transition
+- **startAmbient(season?)**: Optional SeasonKey parameter selects seasonal vs generic ambient. GardenScene passes currentSeason; MenuScene/ResultsScene use generic
+- **5 new SFX**: DAY_ADVANCE (bell+shimmer), DISCOVERY (4-note ascending), ACHIEVEMENT (5-note fanfare), FROST_CRACK (noise snap+tinkle), SYNERGY (3-note harmonic)
+- **SFX audit**: 16 total procedural SFX covering all game actions. Volume balanced: ambient 0.3, SFX 0.5, master 1.0
+- **Convention**: All seasonal parameters (frequencies, noise cutoffs, nature sound timing) are config-driven in `src/config/audio.ts` — never hardcoded in AudioManager
+- **Key files**: src/config/audio.ts (seasonal profiles, new SFX defs), src/systems/AudioManager.ts (seasonal engine, crossfade, nature sounds), src/scenes/GardenScene.ts (passes season to startAmbient)
