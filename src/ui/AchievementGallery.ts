@@ -1,9 +1,10 @@
 // TLDR: Achievement gallery — grid display of locked/unlocked badges, follows Encyclopedia pattern
 
-import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
+import { Container, Graphics, Text, FederatedPointerEvent, Ticker } from 'pixi.js';
 import type { AchievementConfig, AchievementCategory } from '../config/achievements';
 import { ACHIEVEMENT_CATEGORIES, CATEGORY_LABELS } from '../config/achievements';
 import type { AchievementState } from '../systems/AchievementSystem';
+import { UI_COLORS } from '../config';
 
 const CARD_WIDTH = 180;
 const CARD_HEIGHT = 160;
@@ -38,6 +39,12 @@ export class AchievementGallery {
   private scrollUpIndicator!: Container;
   private scrollDownIndicator!: Container;
   private boundOnKeyDown: (e: KeyboardEvent) => void;
+  private lockedTooltip: Container | null = null;
+  private tooltipTimer: ReturnType<typeof setTimeout> | null = null;
+  private shakeTarget: Container | null = null;
+  private shakeStartTime = 0;
+  private shakeDuration = 0.3;
+  private boundTickerUpdate: () => void;
 
   constructor() {
     this.container = new Container();
@@ -142,6 +149,10 @@ export class AchievementGallery {
       else if (e.key === 'Escape') { this.hide(); e.preventDefault(); }
     };
     window.addEventListener('keydown', this.boundOnKeyDown);
+
+    // TLDR: Ticker for shake animation
+    this.boundTickerUpdate = () => this.updateShakeAnimation();
+    Ticker.shared.add(this.boundTickerUpdate);
   }
 
   /** TLDR: Set entries and rebuild grid */
@@ -334,9 +345,120 @@ export class AchievementGallery {
       rewardPreview.y = 120;
       rewardPreview.alpha = 0.5;
       card.addChild(rewardPreview);
+
+      // TLDR: Add click feedback for locked achievements (shake + tooltip)
+      bg.eventMode = 'static';
+      bg.cursor = 'pointer';
+      bg.on('pointerdown', () => {
+        this.triggerLockedFeedback(card, entry, x, y);
+      });
     }
 
     return card;
+  }
+
+  /** TLDR: Trigger shake animation and tooltip when clicking locked achievement */
+  private triggerLockedFeedback(card: Container, entry: GalleryEntry, cardX: number, cardY: number): void {
+    // TLDR: Start shake animation
+    this.shakeTarget = card;
+    this.shakeStartTime = Date.now();
+
+    // TLDR: Clear existing tooltip timer
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
+    }
+
+    // TLDR: Remove existing tooltip
+    if (this.lockedTooltip) {
+      this.entriesContainer.removeChild(this.lockedTooltip);
+      this.lockedTooltip = null;
+    }
+
+    // TLDR: Create tooltip with hint text
+    const tooltip = new Container();
+    const tooltipBg = new Graphics();
+    const hintText = `Complete ${this.getUnlockHint(entry.config)} to unlock`;
+    
+    const tooltipLabel = new Text({
+      text: hintText,
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 12,
+        fill: UI_COLORS.TEXT_PRIMARY,
+        align: 'center',
+        wordWrap: true,
+        wordWrapWidth: 160,
+      },
+    });
+    tooltipLabel.anchor.set(0.5, 0);
+    
+    const padding = 8;
+    const bgWidth = Math.max(tooltipLabel.width + padding * 2, 160);
+    const bgHeight = tooltipLabel.height + padding * 2;
+    
+    tooltipBg.roundRect(0, 0, bgWidth, bgHeight, 6);
+    tooltipBg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.95 });
+    tooltipBg.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 });
+    
+    tooltip.addChild(tooltipBg);
+    tooltipLabel.x = bgWidth / 2;
+    tooltipLabel.y = padding;
+    tooltip.addChild(tooltipLabel);
+    
+    // TLDR: Position tooltip above card
+    tooltip.x = cardX + CARD_WIDTH / 2 - bgWidth / 2;
+    tooltip.y = cardY - bgHeight - 10;
+    
+    this.entriesContainer.addChild(tooltip);
+    this.lockedTooltip = tooltip;
+
+    // TLDR: Auto-hide tooltip after 3 seconds
+    this.tooltipTimer = setTimeout(() => {
+      if (this.lockedTooltip === tooltip) {
+        this.entriesContainer.removeChild(tooltip);
+        this.lockedTooltip = null;
+      }
+      this.tooltipTimer = null;
+    }, 3000);
+  }
+
+  /** TLDR: Get unlock hint text based on achievement config */
+  private getUnlockHint(config: AchievementConfig): string {
+    const cat = config.category;
+    if (cat === 'harvest') return 'harvest goals';
+    if (cat === 'exploration') return 'exploration goals';
+    if (cat === 'mastery') return 'mastery goals';
+    if (cat === 'survival') return 'survival goals';
+    if (cat === 'synergy') return 'synergy goals';
+    return 'special requirements';
+  }
+
+  /** TLDR: Update shake animation each frame */
+  private updateShakeAnimation(): void {
+    if (!this.shakeTarget) return;
+
+    const elapsed = (Date.now() - this.shakeStartTime) / 1000;
+    if (elapsed > this.shakeDuration) {
+      // TLDR: Animation complete, reset
+      this.shakeTarget.x = Math.round(this.shakeTarget.x);
+      this.shakeTarget.y = Math.round(this.shakeTarget.y);
+      this.shakeTarget = null;
+      return;
+    }
+
+    // TLDR: Bounce shake with decay
+    const progress = elapsed / this.shakeDuration;
+    const intensity = 6 * (1 - progress);
+    const frequency = 12;
+    const offsetX = Math.sin(elapsed * frequency * Math.PI * 2) * intensity;
+    const offsetY = Math.cos(elapsed * frequency * 1.5 * Math.PI * 2) * intensity * 0.5;
+
+    const originalX = Math.round(this.shakeTarget.x);
+    const originalY = Math.round(this.shakeTarget.y);
+    
+    this.shakeTarget.x = originalX + offsetX;
+    this.shakeTarget.y = originalY + offsetY;
   }
 
   /** TLDR: Update stats display */
@@ -402,6 +524,11 @@ export class AchievementGallery {
   }
 
   destroy(): void {
+    if (this.tooltipTimer) {
+      clearTimeout(this.tooltipTimer);
+      this.tooltipTimer = null;
+    }
+    Ticker.shared.remove(this.boundTickerUpdate);
     window.removeEventListener('keydown', this.boundOnKeyDown);
     this.container.destroy({ children: true });
   }

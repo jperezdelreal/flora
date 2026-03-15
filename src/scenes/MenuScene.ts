@@ -1,6 +1,6 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
-import { GAME, SCENES, COLORS } from '../config';
+import { GAME, SCENES, COLORS, UI_COLORS } from '../config';
 import { audioManager, ParticleSystem, AnimationSystem, Easing, SaveManager } from '../systems';
 
 type MenuState = 'title' | 'main' | 'settings' | 'credits';
@@ -259,7 +259,15 @@ export class MenuScene implements Scene {
       this.mainMenuLayer.addChild(text);
 
       if (item.enabled) {
-        bg.on('pointerover', () => { this.selectedIndex = i; this.highlightMenuItem(i); });
+        bg.on('pointerover', () => { 
+          this.selectedIndex = i; 
+          this.highlightMenuItem(i); 
+          // TLDR: Add warm glow and subtle scale on hover
+          bg.scale.set(1.03);
+        });
+        bg.on('pointerout', () => {
+          bg.scale.set(1.0);
+        });
         bg.on('pointerdown', () => { this.activateMenuItem(i); });
       }
       this.menuItemGraphics.push({ bg, text, enabled: item.enabled });
@@ -567,13 +575,13 @@ export class MenuScene implements Scene {
       bg.clear();
       bg.roundRect(cx - 150, y, 300, 46, 10);
       if (selected && enabled) {
-        bg.fill({ color: 0x3e7a38, alpha: 0.9 });
-        bg.stroke({ color: 0x88d498, width: 3 });
-        text.style.fill = '#ffffff';
+        bg.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG, alpha: 0.9 });
+        bg.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 3 });
+        text.style.fill = UI_COLORS.TEXT_PRIMARY;
       } else {
-        bg.fill({ color: 0x1a1a1a, alpha: 0.85 });
-        bg.stroke({ color: 0x3e7a38, width: 2 });
-        text.style.fill = enabled ? '#cccccc' : '#666666';
+        bg.fill({ color: UI_COLORS.MENU_ITEM_BG, alpha: 0.85 });
+        bg.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
+        text.style.fill = enabled ? '#cccccc' : UI_COLORS.TEXT_DISABLED;
       }
     }
   }
