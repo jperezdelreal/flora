@@ -110,3 +110,30 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 ✅ Each seed card clearly shows plant name, rarity, growth time, water needs
 ✅ Visual hierarchy: selected seeds stand out (1.08x scale)
 ✅ Start Run action obvious and inviting (large green button with hover effect)
+
+### 2025-07-25: Visual Polish — Parallax Menu & Hover Glow (Issue #326, PR #332)
+
+**What I built:**
+- Parallax depth effect on MenuScene background: mid-ground hills, foreground hills, flower dots shift with mouse
+- Button hover upgrade: 1.05x scale + soft glow halo (was 1.03x, no glow)
+- Consistent back button feedback across credits, customize, settings panels
+- Settings panel buttons now scale on hover/selection
+
+**Architecture decisions:**
+- Parallax uses smoothed lerp (`PARALLAX_SMOOTHING: 0.08`) toward normalized mouse position — no jarring jumps
+- Three parallax layers with different intensities: BG (0.008), MID (0.015), FG (0.025)
+- Flower dots grouped in a Container for efficient parallax (single transform vs per-dot)
+- Glow halo drawn as a larger rounded rect behind the button with alpha 0.25 — cheap composited bloom
+- All new values in `ANIMATION` constants — no magic numbers
+
+**Technical gotchas:**
+- Working tree state can leak across branches during git operations — always verify branch before committing
+- PixiJS Graphics `.clear()` must be called before redrawing on hover — can't just change fill
+- `bg.scale.set()` scales around the Graphics local origin — works well for centered menu buttons
+
+**Acceptance criteria met:**
+✅ No abrupt scene cuts (all transitions 300-500ms — verified, already in place)
+✅ All menu buttons have visible hover state (1.05x scale + glow)
+✅ Season transitions smooth (2s lerp — verified, already in place)
+✅ Menu has parallax depth effect
+✅ All button colors from config constants

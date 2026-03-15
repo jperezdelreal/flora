@@ -70,6 +70,17 @@ export const ANIMATION = {
   // Scene transitions (mirrors SceneManager defaults)
   SCENE_FADE_DURATION: 0.4,
 
+  // TLDR: Menu button hover polish (#326)
+  MENU_HOVER_SCALE: 1.05,
+  MENU_HOVER_GLOW_ALPHA: 0.25,
+  MENU_HOVER_GLOW_EXPAND: 6,
+
+  // TLDR: Menu background parallax depth (#326)
+  PARALLAX_INTENSITY_BG: 0.008,
+  PARALLAX_INTENSITY_MID: 0.015,
+  PARALLAX_INTENSITY_FG: 0.025,
+  PARALLAX_SMOOTHING: 0.08,
+
   // Harvest screen pulse
   HARVEST_PULSE_OPACITY: 0.25,
   HARVEST_PULSE_DURATION: 0.35,

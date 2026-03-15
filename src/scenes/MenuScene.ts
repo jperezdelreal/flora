@@ -95,6 +95,15 @@ export class MenuScene implements Scene {
   private sparkleTimer = 0;
   private sparkleTarget: Graphics | null = null;
 
+  // TLDR: Parallax depth state (#326)
+  private parallaxTargetX = 0;
+  private parallaxTargetY = 0;
+  private parallaxCurrentX = 0;
+  private parallaxCurrentY = 0;
+  private bgHills: Graphics | null = null;
+  private fgHills: Graphics | null = null;
+  private flowerContainer: Container | null = null;
+
   constructor(saveManager: SaveManager) {
     this.saveManager = saveManager;
     this.particleSystem = new ParticleSystem();
@@ -174,30 +183,33 @@ export class MenuScene implements Scene {
     bg.fill({ color: COLORS.DARK_GREEN });
     this.bgLayer.addChild(bg);
 
-    const hills = new Graphics();
+    // TLDR: Mid-ground hills — parallax layer (#326)
+    this.bgHills = new Graphics();
     const w = this.screenWidth;
     const h = this.screenHeight;
-    hills.moveTo(0, h * 0.7);
-    hills.quadraticCurveTo(w * 0.15, h * 0.55, w * 0.3, h * 0.65);
-    hills.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.65, h * 0.6);
-    hills.quadraticCurveTo(w * 0.85, h * 0.5, w, h * 0.62);
-    hills.lineTo(w, h);
-    hills.lineTo(0, h);
-    hills.closePath();
-    hills.fill({ color: 0x1e4d1a, alpha: 0.6 });
-    this.bgLayer.addChild(hills);
+    this.bgHills.moveTo(0, h * 0.7);
+    this.bgHills.quadraticCurveTo(w * 0.15, h * 0.55, w * 0.3, h * 0.65);
+    this.bgHills.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.65, h * 0.6);
+    this.bgHills.quadraticCurveTo(w * 0.85, h * 0.5, w, h * 0.62);
+    this.bgHills.lineTo(w, h);
+    this.bgHills.lineTo(0, h);
+    this.bgHills.closePath();
+    this.bgHills.fill({ color: 0x1e4d1a, alpha: 0.6 });
+    this.bgLayer.addChild(this.bgHills);
 
-    const fgHills = new Graphics();
-    fgHills.moveTo(0, h * 0.82);
-    fgHills.quadraticCurveTo(w * 0.25, h * 0.72, w * 0.45, h * 0.78);
-    fgHills.quadraticCurveTo(w * 0.7, h * 0.85, w, h * 0.76);
-    fgHills.lineTo(w, h);
-    fgHills.lineTo(0, h);
-    fgHills.closePath();
-    fgHills.fill({ color: 0x163d13, alpha: 0.5 });
-    this.bgLayer.addChild(fgHills);
+    // TLDR: Foreground hills — stronger parallax (#326)
+    this.fgHills = new Graphics();
+    this.fgHills.moveTo(0, h * 0.82);
+    this.fgHills.quadraticCurveTo(w * 0.25, h * 0.72, w * 0.45, h * 0.78);
+    this.fgHills.quadraticCurveTo(w * 0.7, h * 0.85, w, h * 0.76);
+    this.fgHills.lineTo(w, h);
+    this.fgHills.lineTo(0, h);
+    this.fgHills.closePath();
+    this.fgHills.fill({ color: 0x163d13, alpha: 0.5 });
+    this.bgLayer.addChild(this.fgHills);
 
-    // TLDR: Decorative flower dots on hills
+    // TLDR: Decorative flower dots on hills — parallax with fg layer (#326)
+    this.flowerContainer = new Container();
     for (let i = 0; i < 18; i++) {
       const flower = new Graphics();
       const fx = Math.random() * w;
@@ -206,8 +218,9 @@ export class MenuScene implements Scene {
       const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
       flower.circle(fx, fy, 2 + Math.random() * 2);
       flower.fill({ color, alpha: 0.4 + Math.random() * 0.3 });
-      this.bgLayer.addChild(flower);
+      this.flowerContainer.addChild(flower);
     }
+    this.bgLayer.addChild(this.flowerContainer);
   }
 
   private buildTitleScreen(): void {
@@ -294,8 +307,8 @@ export class MenuScene implements Scene {
         bg.on('pointerover', () => { 
           this.selectedIndex = i; 
           this.highlightMenuItem(i); 
-          // TLDR: Add warm glow and subtle scale on hover
-          bg.scale.set(1.03);
+          // TLDR: Scale + glow on hover (#326)
+          bg.scale.set(ANIMATION.MENU_HOVER_SCALE);
         });
         bg.on('pointerout', () => {
           bg.scale.set(1.0);
@@ -528,8 +541,8 @@ export class MenuScene implements Scene {
     const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
     backText.anchor.set(0.5); backText.x = cx; backText.y = this.screenHeight - 80;
     this.creditsLayer.addChild(backText);
-    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: 0x4caf50 }); backBg.stroke({ color: 0x66bb6a, width: 2 }); });
-    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: 0x2a2a2a }); backBg.stroke({ color: 0x4a4a4a, width: 2 }); });
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
     backBg.on('pointerdown', () => { this.showState('settings'); });
   }
 
@@ -612,12 +625,17 @@ export class MenuScene implements Scene {
       const cx = this.screenWidth / 2;
       const y = 150 + i * 58;
       bg.clear();
-      bg.roundRect(cx - 150, y, 300, 46, 10);
       if (selected && enabled) {
+        // TLDR: Glow halo behind selected button (#326)
+        const gx = ANIMATION.MENU_HOVER_GLOW_EXPAND;
+        bg.roundRect(cx - 150 - gx, y - gx, 300 + gx * 2, 46 + gx * 2, 14);
+        bg.fill({ color: UI_COLORS.BUTTON_GLOW, alpha: ANIMATION.MENU_HOVER_GLOW_ALPHA });
+        bg.roundRect(cx - 150, y, 300, 46, 10);
         bg.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG, alpha: 0.9 });
         bg.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 3 });
         text.style.fill = UI_COLORS.TEXT_PRIMARY;
       } else {
+        bg.roundRect(cx - 150, y, 300, 46, 10);
         bg.fill({ color: UI_COLORS.MENU_ITEM_BG, alpha: 0.85 });
         bg.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
         text.style.fill = enabled ? '#cccccc' : UI_COLORS.TEXT_DISABLED;
@@ -669,8 +687,8 @@ export class MenuScene implements Scene {
       const btnY = this.getSettingsButtonY(i);
       bg.clear();
       bg.roundRect(cx - 130, btnY, 260, 40, 8);
-      if (selected) { bg.fill({ color: 0x4caf50 }); bg.stroke({ color: 0x66bb6a, width: 2 }); text.style.fill = '#ffffff'; }
-      else { bg.fill({ color: 0x2a2a2a }); bg.stroke({ color: 0x4a4a4a, width: 2 }); text.style.fill = '#cccccc'; }
+      if (selected) { bg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); text.style.fill = '#ffffff'; bg.scale.set(ANIMATION.MENU_HOVER_SCALE); }
+      else { bg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); text.style.fill = '#cccccc'; bg.scale.set(1.0); }
       text.text = this.settingsItems[i].label;
     }
   }
@@ -700,6 +718,10 @@ export class MenuScene implements Scene {
   }
 
   private handlePointerMove(e: PointerEvent): void {
+    // TLDR: Track mouse for parallax depth effect (#326)
+    this.parallaxTargetX = (e.clientX / this.screenWidth - 0.5) * 2;
+    this.parallaxTargetY = (e.clientY / this.screenHeight - 0.5) * 2;
+
     if (!this.draggingSlider) return;
     const slider = this.draggingSlider;
     const localX = e.clientX - slider.trackX;
@@ -715,6 +737,7 @@ export class MenuScene implements Scene {
     this.particleSystem.update(dt);
     if (this.state === 'title') this.updateTitleAnimations();
     this.updateFireflies(dtSeconds);
+    this.updateParallax();
     if (this.logoGlow && (this.state === 'title' || this.state === 'main')) {
       const pulse = Math.sin(this.elapsed * 1.5) * 0.5 + 0.5;
       this.logoGlow.alpha = 0.08 + pulse * 0.12;
@@ -757,6 +780,29 @@ export class MenuScene implements Scene {
         size: 2 + Math.random() * 2, gravity: -15 - Math.random() * 10,
         fadeOut: true, shrink: false,
       });
+    }
+  }
+
+  // TLDR: Smooth parallax offset on bg layers based on mouse position (#326)
+  private updateParallax(): void {
+    const s = ANIMATION.PARALLAX_SMOOTHING;
+    this.parallaxCurrentX += (this.parallaxTargetX - this.parallaxCurrentX) * s;
+    this.parallaxCurrentY += (this.parallaxTargetY - this.parallaxCurrentY) * s;
+    const px = this.parallaxCurrentX;
+    const py = this.parallaxCurrentY;
+    const w = this.screenWidth;
+    const h = this.screenHeight;
+    if (this.bgHills) {
+      this.bgHills.x = px * w * ANIMATION.PARALLAX_INTENSITY_MID;
+      this.bgHills.y = py * h * ANIMATION.PARALLAX_INTENSITY_BG;
+    }
+    if (this.fgHills) {
+      this.fgHills.x = px * w * ANIMATION.PARALLAX_INTENSITY_FG;
+      this.fgHills.y = py * h * ANIMATION.PARALLAX_INTENSITY_MID;
+    }
+    if (this.flowerContainer) {
+      this.flowerContainer.x = px * w * ANIMATION.PARALLAX_INTENSITY_FG;
+      this.flowerContainer.y = py * h * ANIMATION.PARALLAX_INTENSITY_MID;
     }
   }
 
@@ -858,8 +904,8 @@ export class MenuScene implements Scene {
     const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
     backText.anchor.set(0.5); backText.x = cx; backText.y = this.screenHeight - 60;
     this.customizeLayer.addChild(backText);
-    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: 0x4caf50 }); backBg.stroke({ color: 0x66bb6a, width: 2 }); });
-    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: 0x2a2a2a }); backBg.stroke({ color: 0x4a4a4a, width: 2 }); });
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
     backBg.on('pointerdown', () => { this.showState('main'); });
   }
 
@@ -988,5 +1034,8 @@ export class MenuScene implements Scene {
     this.studioCredit = null;
     this.titlePrompt = null;
     this.ctx = null;
+    this.bgHills = null;
+    this.fgHills = null;
+    this.flowerContainer = null;
   }
 }
