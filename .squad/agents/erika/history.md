@@ -276,3 +276,9 @@ Implemented visual + audio celebration when plants reach GrowthStage.MATURE. Key
 5. **Config Constants**: All 13 values in `ANIMATION.MATURE_*` — no magic numbers. Follows existing convention (HARVEST_*, SYNERGY_GLOW_*).
 
 **Build Status**: Zero new TypeScript errors. Clean Vite production build.
+
+
+### Harvest via performAction Bug Fix (commit 3368120)
+Fixed bug where `performAction()` (test hook) and `executeToolOnCurrentTile()` routed HARVEST through the generic `playerSystem.executeToolAction()` → `TOOL_HARVEST.execute()`, which called `plant.harvest()` directly without going through `PlantSystem.harvestPlant()`. This meant `plant:harvested` was never emitted and the plant was never removed from PlantSystem.
+
+**Fix**: Added `handleHarvestAction()` private method that routes through `PlantSystem.harvestPlant()`, which properly emits `plant:harvested`, updates the encyclopedia, and removes the plant from the system. Both `executeToolOnCurrentTile()` and `performTestAction()` now handle HARVEST the same way SEED is handled — as a special case before falling through to the generic tool path. Also wires up `harvestedSeeds` tracking for the results screen.
