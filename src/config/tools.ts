@@ -118,7 +118,7 @@ export const WATERING_CAN_PROGRESSION: ProgressiveToolConfig = {
 };
 
 export const PEST_SPRAY_PROGRESSION: ProgressiveToolConfig = {
-  type: ToolType.PEST_SPRAY, name: 'Pest Spray', icon: '\uD83E\uDDF4',
+  type: ToolType.PEST_SPRAY, name: 'Pest Spray', icon: '🧪',
   unlockCondition: { type: 'runs', threshold: 10 },
   unlockHint: 'Complete 10 runs to unlock', startsUnlocked: false,
   tiers: [{
@@ -227,7 +227,7 @@ export const TOOL_REMOVE_WEED: ToolConfig = {
 
 export const TOOL_COMPOST: ToolConfig = {
   type: ToolType.COMPOST, name: 'compost', displayName: 'Compost',
-  icon: '\uD83E\uDEB4', description: 'Apply compost to boost soil quality (+20%)',
+  icon: '🪱', description: 'Apply compost to boost soil quality (+20%)',
   validate: (tile: Tile, _plant: Plant | null): boolean => { return tile.soilQuality < 100; },
   execute: (tile: Tile, _plant: Plant | null): ToolActionResult => {
     if (tile.soilQuality >= 100) return { success: false, message: 'Soil quality is already at maximum' };
@@ -237,7 +237,7 @@ export const TOOL_COMPOST: ToolConfig = {
 
 export const TOOL_PEST_SPRAY: ToolConfig = {
   type: ToolType.PEST_SPRAY, name: 'pest_spray', displayName: 'Pest Spray',
-  icon: '\uD83E\uDDF4', description: 'Remove pests from target + adjacent tiles',
+  icon: '🧪', description: 'Remove pests from target + adjacent tiles',
   validate: (tile: Tile, _plant: Plant | null): boolean => { return tile.hasPest(); },
   execute: (tile: Tile, plant: Plant | null): ToolActionResult => {
     if (!tile.hasPest()) return { success: false, message: 'No pests to spray here' };
@@ -289,9 +289,10 @@ function getSoilOptimalPlants(soilQuality: number, moisture: number): string[] {
   return [...new Set(suggestions)].slice(0, 3);
 }
 
+// TLDR: Ordered to match keyboard shortcuts 1-9 (#294)
 export const ALL_TOOLS: ToolConfig[] = [
-  TOOL_WATER, TOOL_HARVEST, TOOL_REMOVE_PEST, TOOL_REMOVE_WEED, TOOL_COMPOST,
-  TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS, TOOL_SEED,
+  TOOL_SEED, TOOL_WATER, TOOL_HARVEST, TOOL_REMOVE_PEST, TOOL_REMOVE_WEED,
+  TOOL_COMPOST, TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS,
 ];
 
 export const TOOL_BY_TYPE: Record<ToolType, ToolConfig> = {

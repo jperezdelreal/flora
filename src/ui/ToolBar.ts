@@ -118,17 +118,17 @@ export class ToolBar {
       buttonContainer.addChild(button);
       this.toolButtons.set(tool.type, button);
 
-      // Tool icon
+      // TLDR: Prominent tool icon — large emoji centered in button (#294)
       const iconText = new Text({
         text: tool.icon,
         style: {
-          fontSize: 32,
+          fontSize: 36,
           align: 'center',
         },
       });
       iconText.anchor.set(0.5);
       iconText.x = buttonWidth / 2;
-      iconText.y = buttonHeight / 2 - 14;
+      iconText.y = buttonHeight / 2 - 16;
       buttonContainer.addChild(iconText);
       this.toolIcons.set(tool.type, iconText);
 
@@ -159,18 +159,18 @@ export class ToolBar {
       buttonContainer.addChild(tierText);
       this.toolTierTexts.set(tool.type, tierText);
 
-      // Tool name
+      // TLDR: Tool name below icon in smaller text (#294)
       const nameText = new Text({
         text: tool.displayName,
         style: {
-          fontSize: 12,
+          fontSize: 10,
           fill: UI_COLORS.TEXT_PRIMARY,
           align: 'center',
         },
       });
       nameText.anchor.set(0.5);
       nameText.x = buttonWidth / 2;
-      nameText.y = buttonHeight - 15;
+      nameText.y = buttonHeight - 12;
       buttonContainer.addChild(nameText);
       this.toolTexts.set(tool.type, nameText);
 

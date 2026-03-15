@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { Season, SEASON_CONFIG } from '../config/seasons';
 import { type HudThemeConfig, DEFAULT_HUD_THEME, getHudTheme } from '../config/cosmetics';
+import { UI_COLORS } from '../config';
 
 export type GamePhase = 'planting' | 'tending' | 'harvest' | 'day_end';
 
@@ -62,6 +63,9 @@ export class HUD {
   // TLDR: Action flash for visual feedback when actions are consumed (#250)
   private actionFlashAlpha = 0;
   private actionFlashBg!: Graphics;
+
+  // TLDR: ESC pause hint — shown on days 1-2 only (#295)
+  private escHintText: Text;
 
   // TLDR: Active HUD theme (cosmetic reward)
   private activeTheme: HudThemeConfig = DEFAULT_HUD_THEME;
@@ -260,6 +264,20 @@ export class HUD {
     this.hintText.visible = false;
     this.container.addChild(this.hintText);
 
+    // TLDR: Subtle ESC pause hint — visible on days 1-2 for discoverability (#295)
+    this.escHintText = new Text({
+      text: '⏸ Press ESC to pause',
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 11,
+        fill: UI_COLORS.TEXT_HINT,
+        align: 'right',
+      },
+    });
+    this.escHintText.anchor.set(1, 0);
+    this.escHintText.visible = true;
+    this.container.addChild(this.escHintText);
+
     this.highlightPhase('planting');
 
     // TLDR: Initial layout at default width
@@ -356,6 +374,10 @@ export class HUD {
 
     this.hintText.x = 30;
     this.hintText.y = phaseY + 42;
+
+    // TLDR: ESC hint positioned at right edge of phase bar (#295)
+    this.escHintText.x = width - 12;
+    this.escHintText.y = phaseY + 9;
   }
 
   /**
@@ -385,6 +407,9 @@ export class HUD {
   ): void {
     // Primary: Day counter
     this.dayText.text = `Day ${day} / ${maxDays}`;
+
+    // TLDR: ESC hint visible only on days 1-2 for new-player discoverability (#295)
+    this.escHintText.visible = day <= 2;
 
     // Secondary: Day progress bar
     const barWidth = Math.min(160, this.panelWidth * 0.35);
