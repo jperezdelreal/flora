@@ -20,6 +20,7 @@ const TRACKED_EVENTS: Array<keyof EventMap> = [
   'seed:selected',
   'pest:spawned',
   'pest:removed',
+  'action:consumed',
 ];
 
 export interface FloraTestHooks {
@@ -30,8 +31,12 @@ export interface FloraTestHooks {
   getPlayerState: () => {
     day: number;
     actionsRemaining: number;
+    maxActions: number;
     selectedTool: string | null;
     gridPosition: { row: number; col: number };
+    row: number;
+    col: number;
+    isMoving: boolean;
   };
   getGridState: () => {
     rows: number;
@@ -50,6 +55,7 @@ export interface FloraTestHooks {
   getEvents: () => string[];
   clearEvents: () => void;
   getSeedPool: () => string[];
+  selectTool: (tool: string) => void;
 }
 
 interface FloraEventLogEntry {
@@ -94,7 +100,7 @@ export function setupTestHooks(sceneManager: SceneManager): void {
 
     getPlayerState: () => {
       const garden = getGardenScene(sceneManager);
-      if (!garden) return { day: 0, actionsRemaining: 0, selectedTool: null, gridPosition: { row: 0, col: 0 } };
+      if (!garden) return { day: 0, actionsRemaining: 0, maxActions: 0, selectedTool: null, gridPosition: { row: 0, col: 0 }, row: 0, col: 0, isMoving: false };
       return garden.getTestPlayerState();
     },
 
@@ -137,6 +143,12 @@ export function setupTestHooks(sceneManager: SceneManager): void {
       if (!garden) return [];
       return garden.getTestSeedPool();
     },
+
+    // TLDR: Select a tool by string name for E2E tests (#284)
+    selectTool: (tool: string) => {
+      const garden = getGardenScene(sceneManager);
+      if (garden) garden.selectTestTool(tool);
+    },
   };
 }
 
@@ -154,8 +166,12 @@ type GardenTestable = {
   getTestPlayerState: () => {
     day: number;
     actionsRemaining: number;
+    maxActions: number;
     selectedTool: string | null;
     gridPosition: { row: number; col: number };
+    row: number;
+    col: number;
+    isMoving: boolean;
   };
   getTestGridState: () => {
     rows: number;
@@ -172,6 +188,7 @@ type GardenTestable = {
   }>;
   getTestTileScreenPosition: (row: number, col: number) => { x: number; y: number };
   getTestSeedPool: () => string[];
+  selectTestTool: (tool: string) => void;
 };
 
 function toGardenTestable(): GardenTestable {
