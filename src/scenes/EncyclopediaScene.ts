@@ -1,7 +1,7 @@
 import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { eventBus } from '../core/EventBus';
-import { SCENES, COLORS } from '../config';
+import { SCENES, COLORS, GAME } from '../config';
 import { EncyclopediaSystem, EncyclopediaEntry } from '../systems/EncyclopediaSystem';
 import { ParticleSystem } from '../systems';
 import { announce } from '../utils/accessibility';
@@ -49,8 +49,8 @@ export class EncyclopediaScene implements Scene {
   private encyclopediaSystem: EncyclopediaSystem;
 
   private ctx: SceneContext | null = null;
-  private screenWidth = 800;
-  private screenHeight = 600;
+  private screenWidth: number = GAME.WIDTH;
+  private screenHeight: number = GAME.HEIGHT;
   private elapsed = 0;
   private fireflyCooldown = 0;
 

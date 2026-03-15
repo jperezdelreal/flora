@@ -32,8 +32,6 @@ export class MenuScene implements Scene {
   readonly name = 'menu';
   /** TLDR: When true, init() skips title screen and shows main menu directly */
   static skipTitle = false;
-  /** TLDR: When true, init() skips title screen and shows main menu directly */
-  static skipTitle = false;
   private container = new Container();
   private particleSystem: ParticleSystem;
   private animationSystem: AnimationSystem;
@@ -110,15 +108,9 @@ async init(ctx: SceneContext): Promise<void> {
     this.buildSettingsPanel();
     this.buildCreditsPage();
 
-<<<<<<< HEAD
-    // TLDR: Skip title screen when returning from sub-scenes (e.g. Encyclopedia) when returning from sub-scenes
-    if (MenuScene.skipTitle) {
-      MenuScene.skipTitle = false;
-=======
     // TLDR: Skip title screen when returning from sub-scenes (e.g. Encyclopedia)
     if (MenuScene.skipTitle) {
       MenuScene.skipTitle = false;
->>>>>>> 5f46b75 (feat: Encyclopedia standalone scene accessible from main menu)
       this.titleFadeComplete = true;
       this.showState('main');
     } else {
@@ -585,11 +577,7 @@ async init(ctx: SceneContext): Promise<void> {
       case 'newRun': this.ctx.sceneManager.transitionTo(SCENES.SEED_SELECTION, { type: 'crossfade' }).catch(console.error); break;
       case 'continue': this.ctx.sceneManager.transitionTo(SCENES.GARDEN, { type: 'fade' }).catch(console.error); break;
       case 'encyclopedia': this.ctx.sceneManager.transitionTo(SCENES.ENCYCLOPEDIA, { type: 'crossfade' }).catch(console.error); break;
-<<<<<<< HEAD
       case 'achievements': this.ctx.sceneManager.transitionTo(SCENES.ACHIEVEMENTS, { type: 'crossfade' }).catch(console.error); break;
-=======
-      case 'achievements': break;
->>>>>>> 5f46b75 (feat: Encyclopedia standalone scene accessible from main menu)
       case 'settings': this.showState('settings'); break;
     }
   }
