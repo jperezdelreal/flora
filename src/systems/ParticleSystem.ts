@@ -155,9 +155,8 @@ export class ParticleSystem implements System {
   burst(config: BurstConfig): void {
     if (shouldReduceMotion()) return;
 
-    // Cap burst count to half the pool max to prevent exceeding pool capacity
-    const maxBurst = Math.floor(this.graphicsPool.availableCount + (256 - this.graphicsPool.activeCount));
-    const safeCount = Math.min(config.count, maxBurst, 128);
+    // Cap burst count to prevent unbounded particle allocation
+    const safeCount = Math.min(config.count, 128);
 
     for (let i = 0; i < safeCount; i++) {
       const angle = (Math.PI * 2 * i) / config.count + (Math.random() - 0.5) * 0.5;

@@ -37,6 +37,7 @@ import { Season, SEASON_CONFIG, SEASON_ORDER, MULTI_SEASON_DAYS, MULTI_SEASON_SC
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus, type EventMap } from '../core/EventBus';
 import { audioManager } from '../systems';
+import type { SeasonKey } from '../config/audio';
 import { ANIMATION, SYNERGY_GLOW_COLORS } from '../config/animations';
 import {
   getPlantVisual,
@@ -669,8 +670,8 @@ export class GardenScene implements Scene {
     // Apply seasonal palette (soil color, ambient particles)
     this.applySeason(false);
 
-    // Start ambient audio loop
-    audioManager.startAmbient();
+    // Start ambient audio loop with seasonal variation
+    audioManager.startAmbient(this.currentSeason as SeasonKey);
 
     // Initial render
     this.gridSystem.update();
@@ -1705,8 +1706,8 @@ export class GardenScene implements Scene {
   }
 
   private setupAudioListeners(): void {
-    // TLDR: Start ambient audio when scene initializes
-    audioManager.startAmbient();
+    // TLDR: Start ambient audio with seasonal variation
+    audioManager.startAmbient(this.currentSeason as SeasonKey);
 
     // TLDR: Plant lifecycle sounds
     this.listenTo('plant:created', () => {
