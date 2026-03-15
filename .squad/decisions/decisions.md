@@ -262,3 +262,108 @@ All full-screen modal overlays (PauseMenu, ScoreSummary, DaySummary) are now chi
 ⚠️ PauseMenu constructor signature changed — any other callers need updating
 
 ---
+
+## 2026-03-15T19:14:00Z: Playwright Headed Tests as Verification Gate
+
+**By:** joperezdelreal (via Copilot)  
+**Tier:** T0  
+**Status:** ✅ ACTIVE
+
+### What
+Playwright headed tests MUST run after every batch of agent work as a verification gate. If tests fail, create issues from failures. No more "builds clean" without gameplay verification.
+
+### Why
+The team was shipping code that "compiles" but doesn't actually work as a playable game. Playwright with window.__FLORA__ hooks is the only real QA the team has. It must be part of every cycle, not optional.
+
+---
+
+## 2026-03-15T20:02:00Z: Oak Sprint Planning Directive
+
+**By:** joperezdelreal (via Copilot)  
+**Tier:** T0  
+**Status:** ✅ ACTIVE
+
+### What
+Oak MUST always facilitate Sprint Planning — he's the Lead and carries responsibility if the project fails. Playwright headed tests MUST run before each Sprint Planning to validate current state. 12-hour continuous work session — no stopping.
+
+### Why
+User request — accountability and quality gate enforcement. Ensures game state is validated before planning next work.
+
+---
+
+## 2026-03-16T00:00:00Z: Season Selection & Multi-Season Architecture
+
+**By:** Erika (Systems Dev)  
+**Issue:** #201  
+**Date:** 2026-03-16  
+**Status:** ✅ IMPLEMENTED
+
+### Problem
+Season was randomly assigned in both SeedSelectionScene and GardenScene independently. Players had no control over which season they played. No multi-season run mode existed.
+
+### Decision: Shared State via SeedSelectionSystem
+
+**Season Data Flow:**
+- SeedSelectionSystem stores `selectedSeason` and `multiSeasonMode`
+- SeedSelectionScene sets these before transitioning to GardenScene
+- GardenScene reads them in init() instead of calling getRandomSeason()
+- No changes to SceneManager.transitionTo() API needed
+
+**Rationale:** SeedSelectionSystem is already shared between both scenes (injected via main.ts constructor). Using it as a data bus for season state avoids modifying the scene transition API or introducing a new global store.
+
+### Decision: Multi-Season as In-Scene Transitions
+
+**Multi-season runs transition between seasons within GardenScene** rather than reloading the scene. `advanceMultiSeason()` swaps season config, resets day counter, and re-applies visuals while preserving plants, structures, and score state.
+
+**Rationale:** Full scene reload would destroy plant state, structures, and accumulated score. In-scene transitions keep the garden continuous across seasons — plants survive season changes, which is the core gameplay fantasy.
+
+### Decision: Score Multiplier on ScoringSystem
+
+**ScoringSystem.setScoreMultiplier()** applies a multiplier to the total score in `getScoreBreakdown()`. Multi-season runs get 2× multiplier.
+
+**Rationale:** Applying the multiplier at the system level (not in GardenScene) keeps scoring logic centralized. The multiplier stacks with existing scoring rules cleanly.
+
+### Decision: Season Preference Persistence
+
+**Selected season is persisted to localStorage** (`flora_season_preference`). Loaded on SeedSelectionScene init.
+
+**Rationale:** Players developing strategies for specific seasons shouldn't re-select every time. Low-cost persistence improves repeat player experience.
+
+### Consequences
+- ✅ Players choose their season before each run
+- ✅ Multi-season mode provides end-game challenge for 30+ run veterans
+- ✅ Season-specific seed pools create meaningful strategic choices
+- ✅ Daily challenges override season selection (no conflicts)
+- ⚠️ SeedSelectionSystem now has UI state responsibility (selectedSeason, multiSeasonMode)
+- ⚠️ Constructor signature for SeedSelectionScene is more complex (UnlockSystem param)
+
+---
+
+## 2026-01-27T00:00:00Z: Cosmetic Reward System — Design Decisions
+
+**Date:** 2025-01-27  
+**Issue:** #198  
+**Author:** Misty (Web UI Dev)  
+**Status:** ✅ IMPLEMENTED
+
+### Decisions
+
+#### 1. Config-driven cosmetic definitions
+All cosmetic definitions live in `src/config/cosmetics.ts` as typed readonly records. This keeps visual data centralized and makes it easy to add new skins/themes/badges without touching UI components.
+
+#### 2. HUD theme as palette object
+HUD themes are full `HudThemeConfig` objects with panel bg, border, text colors, accent, progress bar, phase bar, and hint colors. The HUD reads from `this.activeTheme` rather than inline hex values, enabling runtime theme switching.
+
+#### 3. Seed skins as optional parameter
+`SeedPacketDisplay` accepts an optional `SeedSkinConfig` in its constructor. When null, default rarity colors are used. This keeps the component backward-compatible.
+
+#### 4. Cosmetic persistence in SettingsSaveData
+Active cosmetic selections (activeSeedSkin, activeHudTheme, activeBadges) are stored in `SettingsSaveData` alongside colorblind/accessibility settings. This ensures cosmetics persist across sessions.
+
+#### 5. Customize menu gated by unlocks
+The "Customize" menu item is only enabled when `unlockedCosmetics.length > 0`. This prevents confusion for new players who haven't earned any rewards yet.
+
+#### 6. Sparkle animation for apply feedback
+When a cosmetic is first applied, a 0.5s alpha oscillation effect plays on the selected row. This provides immediate, cozy visual feedback without being disruptive.
+
+---
