@@ -2117,18 +2117,32 @@ export class GardenScene implements Scene {
 
   // ── Test hook getters (Playwright integration) ────────────────────────
 
+  /** TLDR: Select a tool by string name for Playwright test hooks (#284) */
+  public selectTestTool(tool: string): void {
+    this.player.selectTool(tool as ToolType);
+  }
+
   /** TLDR: Return player state snapshot for Playwright test hooks */
   public getTestPlayerState(): {
     day: number;
     actionsRemaining: number;
+    maxActions: number;
     selectedTool: string | null;
     gridPosition: { row: number; col: number };
+    row: number;
+    col: number;
+    isMoving: boolean;
   } {
+    const pos = this.player.getGridPosition();
     return {
       day: this.player.getCurrentDay(),
       actionsRemaining: this.player.getActionsRemaining(),
+      maxActions: this.player.getMaxActions(),
       selectedTool: this.player.getSelectedTool(),
-      gridPosition: this.player.getGridPosition(),
+      gridPosition: pos,
+      row: pos.row,
+      col: pos.col,
+      isMoving: this.player.isMoving(),
     };
   }
 
