@@ -168,3 +168,10 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Screenshots**: Captured at day-start, post-actions, and day-arrival to `playtest-screenshots/multiday-*`
 - **Convention**: For Playwright E2E tests on PixiJS games, ALWAYS use `window.__FLORA__` test hooks for game interactions, not browser click events
 - **Key files**: `tests/e2e/flora-gameplay.spec.ts` (test), `src/utils/testHooks.ts` (hook wiring), `src/scenes/GardenScene.ts` (test methods)
+
+### ResultsScene -- Dedicated Season-End Scene (Issue #304, PR #312)
+- **ResultsScene created**: src/scenes/ResultsScene.ts -- full Scene implementation with animated score breakdown, harvested plants, discoveries, milestone badge, and navigation buttons
+- **Data staging pattern**: Module-level setResultsData() function stages ResultsData before transition. GardenScene calls it then transitionTo(SCENES.RESULTS). ResultsScene reads and clears pending data in init()
+- **Score count-up animation**: Numbers animate from 0 to target over 1.5s using ease-out cubic, updated per-frame in update(dt) where dt is in seconds
+- **GardenScene change**: showScoreSummary() no longer calls scoreSummary.show() overlay -- instead collects all run data, calls setResultsData(), and transitions to ResultsScene
+- **Key files**: src/scenes/ResultsScene.ts, src/config/index.ts, src/scenes/index.ts, src/main.ts, src/scenes/GardenScene.ts
