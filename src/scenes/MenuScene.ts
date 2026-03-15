@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { GAME, SCENES, COLORS, UI_COLORS } from '../config';
+import { ANIMATION } from '../config/animations';
 import { audioManager, ParticleSystem, AnimationSystem, Easing, SaveManager } from '../systems';
 import { eventBus } from '../core/EventBus';
 import {
