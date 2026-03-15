@@ -43,6 +43,7 @@ import {
 } from '../config/plantVisuals';
 import { TutorialSystem } from '../systems/TutorialSystem';
 import { WeedSystem } from '../systems/WeedSystem';
+import { shouldReduceMotion } from '../utils/accessibility';
 import {
   getViewportInfo,
   calculateGridScale,
@@ -1651,45 +1652,17 @@ export class GardenScene implements Scene {
 
     // Update selected tile info and plant info panel
     const selectedTile = this.gridSystem.getSelectedTile();
-    if (selectedTile && !this.player.isMoving()) {
-      const pos = this.player.getGridPosition();
-      if (selectedTile.row !== pos.row || selectedTile.col !== pos.col) {
-        // Show plant info panel if tile has a plant
-        if (selectedTile.state === TileState.OCCUPIED) {
-          const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
-          if (plant) {
-            // Convert grid position to screen position for tooltip
-            const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
-            const gridPos = this.gridSystem.getContainer().position;
-            this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
-            const synergies = plant.getActiveSynergies();
-            const negSynergies = plant.getNegativeSynergies();
-            if (synergies.size > 0 || negSynergies.size > 0) {
-              this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
-            } else { this.synergyTooltip.hide(); }
-          } else {
-            this.plantInfoPanel.hide();
-            this.synergyTooltip.hide();
-          }
-        } else {
-          this.plantInfoPanel.hide();
-          this.synergyTooltip.hide();
-        }
-      } else if (selectedTile.state === TileState.OCCUPIED) {
-        const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
-        if (plant) {
-          const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
-          const gridPos = this.gridSystem.getContainer().position;
-          this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
-          const synergies = plant.getActiveSynergies();
-          const negSynergies = plant.getNegativeSynergies();
-          if (synergies.size > 0 || negSynergies.size > 0) {
-            this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
-          } else { this.synergyTooltip.hide(); }
-        } else {
-          this.plantInfoPanel.hide();
-          this.synergyTooltip.hide();
-        }
+    if (selectedTile && !this.player.isMoving() && selectedTile.state === TileState.OCCUPIED) {
+      const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
+      if (plant) {
+        const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
+        const gridPos = this.gridSystem.getContainer().position;
+        this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+        const synergies = plant.getActiveSynergies();
+        const negSynergies = plant.getNegativeSynergies();
+        if (synergies.size > 0 || negSynergies.size > 0) {
+          this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
+        } else { this.synergyTooltip.hide(); }
       } else {
         this.plantInfoPanel.hide();
         this.synergyTooltip.hide();
@@ -2145,6 +2118,9 @@ export class GardenScene implements Scene {
    * TLDR: Full-screen white flash on harvest for impact
    */
   private triggerScreenPulse(): void {
+    // TLDR: Skip screen flash when reduced motion is active
+    if (shouldReduceMotion()) return;
+
     const overlay = new Graphics();
     overlay.rect(0, 0, this._ctx.app.screen.width, this._ctx.app.screen.height);
     overlay.fill({ color: 0xffffff, alpha: ANIMATION.HARVEST_PULSE_OPACITY });

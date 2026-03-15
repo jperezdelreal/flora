@@ -112,6 +112,12 @@ export const UI_COLORS = {
   FLOWER_SKY_BLUE: 0x87ceeb,
   FLOWER_PLUM: 0xdda0dd,
   TOOLBAR_SEPARATOR: 0x6b5b4e,
+  // TLDR: Button hover glow color (#326)
+  BUTTON_GLOW: 0x88d498,
+  BACK_BUTTON_BG: 0x2a2a2a,
+  BACK_BUTTON_BORDER: 0x4a4a4a,
+  BACK_BUTTON_HOVER_BG: 0x4caf50,
+  BACK_BUTTON_HOVER_BORDER: 0x66bb6a,
 } as const;
 
 /** TLDR: Touch gesture tuning values */

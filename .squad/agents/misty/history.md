@@ -4,6 +4,17 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Accessibility Audit — Reduced Motion, Monochromacy, ARIA (Issue #328, PR #330)
+- **#328**: Comprehensive accessibility audit — verified and fixed gaps
+- **Monochromacy palette**: Added 5th colorblind mode (grayscale) to `src/config/accessibility.ts` — `ColorVisionMode` union now includes `'monochromacy'`
+- **Reduced motion**: `shouldReduceMotion()` helper checks user pref + OS `prefers-reduced-motion`; `setReducedMotion()` persists toggle
+- **ParticleSystem guards**: `burst()`, `ripple()`, `waterDroplets()`, `startAmbientParticles()` all return early when reduced motion active; `glow()` shows static mid-alpha
+- **PlantRenderer guards**: Sway rotation + x-offset skip when `shouldReduceMotion()`
+- **GardenScene guards**: `triggerScreenPulse()` skips when reduced motion
+- **PauseMenu toggle**: New reduced motion button (🐇/🐢), `totalFocusable` now menu + 3 (mute, colorblind, motion)
+- **ARIA announcements added**: `plant:grew`, `pest:removed`, `tool:upgraded`, `synergy:activated`, `weed:spawned`, `weed:removed`, `scene:transition`
+- **Convention**: All colors from config constants, all comments "TLDR:"
+
 ### Progressive Tool Tier Unlocks + Visual Preview (Issue #317, PR #323)
 - **#317**: Tool progression now visible to players — tier stars, hover tooltips, upgrade notifications
 - **New file**: `src/ui/ToolUpgradeNotification.ts` — Toast-style notification with bouncy scale entrance (easeOutBack), queue support, golden border

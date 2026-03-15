@@ -97,7 +97,7 @@ export function setColorVisionMode(mode: ColorVisionMode): void {
 
 /** TLDR: Cycle to next color vision mode (for toggle button) */
 export function cycleColorVisionMode(): ColorVisionMode {
-  const modes: ColorVisionMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia'];
+  const modes: ColorVisionMode[] = ['normal', 'deuteranopia', 'protanopia', 'tritanopia', 'monochromacy'];
   const currentIdx = modes.indexOf(currentPrefs.colorVisionMode);
   const nextIdx = (currentIdx + 1) % modes.length;
   const nextMode = modes[nextIdx];
@@ -112,6 +112,7 @@ export function getColorVisionLabel(mode: ColorVisionMode): string {
     deuteranopia: 'Deuteranopia (Red-Green)',
     protanopia: 'Protanopia (Red)',
     tritanopia: 'Tritanopia (Blue-Yellow)',
+    monochromacy: 'Monochromacy (Grayscale)',
   };
   return labels[mode];
 }
@@ -135,4 +136,15 @@ export function drawFocusRing(target: Container): Graphics {
 export function prefersReducedMotion(): boolean {
   if (typeof window === 'undefined') return false;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** TLDR: Check if motion should be reduced (user pref OR OS pref) */
+export function shouldReduceMotion(): boolean {
+  return currentPrefs.reducedMotion || prefersReducedMotion();
+}
+
+/** TLDR: Set reduced motion preference and persist */
+export function setReducedMotion(enabled: boolean): void {
+  currentPrefs.reducedMotion = enabled;
+  saveAccessibilityPrefs(currentPrefs);
 }

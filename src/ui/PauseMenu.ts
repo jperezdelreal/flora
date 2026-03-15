@@ -4,6 +4,9 @@ import {
   cycleColorVisionMode,
   getAccessibilityPrefs,
   getColorVisionLabel,
+  shouldReduceMotion,
+  setReducedMotion,
+  announce,
 } from '../utils/accessibility';
 import { eventBus } from '../core/EventBus';
 import { UI_COLORS } from '../config';
@@ -33,6 +36,8 @@ export class PauseMenu {
   private muteText!: Text;
   private colorblindButton!: Graphics;
   private colorblindText!: Text;
+  private reducedMotionButton!: Graphics;
+  private reducedMotionText!: Text;
   private focusIndex: number = 0;
   private focusRing: Graphics;
   private boundKeyHandler: (e: KeyboardEvent) => void;
@@ -64,7 +69,7 @@ export class PauseMenu {
     // TLDR: Menu panel with warm cozy palette, centered on actual screen
     this.panel = new Graphics();
     const panelWidth = Math.min(300, screenWidth * 0.375);
-    const panelHeight = Math.min(520, screenHeight * 0.867);
+    const panelHeight = Math.min(575, screenHeight * 0.96);
     const panelX = (screenWidth - panelWidth) / 2;
     const panelY = Math.max(20, (screenHeight - panelHeight) / 2);
     this.panel.roundRect(panelX, panelY, panelWidth, panelHeight, 16);
@@ -106,6 +111,7 @@ export class PauseMenu {
 
     this.createMuteToggle();
     this.createColorblindToggle();
+    this.createReducedMotionToggle();
 
     // TLDR: Add focus ring on top of everything
     this.container.addChild(this.focusRing);
@@ -141,9 +147,9 @@ export class PauseMenu {
     window.addEventListener('keydown', this.boundKeyHandler);
   }
 
-  /** TLDR: Total focusable items = menu items + mute + colorblind */
+  /** TLDR: Total focusable items = menu items + mute + colorblind + reduced motion */
   private get totalFocusable(): number {
-    return this.menuItems.length + 2;
+    return this.menuItems.length + 3;
   }
 
   /** TLDR: Move keyboard focus up or down the menu */
@@ -158,8 +164,10 @@ export class PauseMenu {
       this.handleAction(this.menuItems[this.focusIndex].action);
     } else if (this.focusIndex === this.menuItems.length) {
       this.toggleMute();
-    } else {
+    } else if (this.focusIndex === this.menuItems.length + 1) {
       this.toggleColorblind();
+    } else {
+      this.toggleReducedMotion();
     }
   }
 
@@ -173,8 +181,10 @@ export class PauseMenu {
       targetButton = this.menuItems[this.focusIndex].button;
     } else if (this.focusIndex === this.menuItems.length) {
       targetButton = this.muteButton;
-    } else {
+    } else if (this.focusIndex === this.menuItems.length + 1) {
       targetButton = this.colorblindButton;
+    } else {
+      targetButton = this.reducedMotionButton;
     }
 
     const buttonWidth = Math.min(260, this.screenWidth * 0.325);
@@ -279,7 +289,7 @@ export class PauseMenu {
   }
 
   private createMuteToggle(): void {
-    const panelHeight = Math.min(520, this.screenHeight * 0.867);
+    const panelHeight = Math.min(575, this.screenHeight * 0.96);
     const panelY = Math.max(20, (this.screenHeight - panelHeight) / 2);
     const y = panelY + 370;
     const buttonWidth = Math.min(260, this.screenWidth * 0.325);
@@ -331,7 +341,7 @@ export class PauseMenu {
 
   /** TLDR: Colorblind mode toggle — cycles through vision modes */
   private createColorblindToggle(): void {
-    const panelHeight = Math.min(520, this.screenHeight * 0.867);
+    const panelHeight = Math.min(575, this.screenHeight * 0.96);
     const panelY = Math.max(20, (this.screenHeight - panelHeight) / 2);
     const y = panelY + 425;
     const buttonWidth = Math.min(260, this.screenWidth * 0.325);
@@ -392,6 +402,72 @@ export class PauseMenu {
     const label = getColorVisionLabel(newMode);
     this.colorblindText.text = `👁 ${label}`;
     eventBus.emit('accessibility:colorVisionChanged', { mode: newMode, label });
+    announce(`Color vision mode: ${label}`, 'polite');
+  }
+
+  /** TLDR: Reduced motion toggle — respects OS preference, allows manual override */
+  private createReducedMotionToggle(): void {
+    const panelHeight = Math.min(575, this.screenHeight * 0.96);
+    const panelY = Math.max(20, (this.screenHeight - panelHeight) / 2);
+    const y = panelY + 475;
+    const buttonWidth = Math.min(260, this.screenWidth * 0.325);
+    const buttonHeight = 45;
+
+    this.reducedMotionButton = new Graphics();
+    this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+    this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
+    this.reducedMotionButton.x = (this.screenWidth - buttonWidth) / 2;
+    this.reducedMotionButton.y = y;
+    this.reducedMotionButton.eventMode = 'static';
+    this.reducedMotionButton.cursor = 'pointer';
+    this.container.addChild(this.reducedMotionButton);
+
+    this.reducedMotionText = new Text({
+      text: this.getReducedMotionLabel(),
+      style: {
+        fontFamily: 'Arial',
+        fontSize: 16,
+        fill: UI_COLORS.TEXT_PRIMARY,
+        fontWeight: 'bold',
+        align: 'center',
+      },
+    });
+    this.reducedMotionText.anchor.set(0.5);
+    this.reducedMotionText.x = this.screenWidth / 2;
+    this.reducedMotionText.y = y + buttonHeight / 2;
+    this.container.addChild(this.reducedMotionText);
+
+    this.reducedMotionButton.on('pointerover', () => {
+      this.reducedMotionButton.clear();
+      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+      this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
+    });
+
+    this.reducedMotionButton.on('pointerout', () => {
+      this.reducedMotionButton.clear();
+      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+      this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
+    });
+
+    this.reducedMotionButton.on('pointerdown', () => {
+      this.toggleReducedMotion();
+    });
+  }
+
+  private getReducedMotionLabel(): string {
+    return shouldReduceMotion() ? '🐢 Motion: Reduced' : '🐇 Motion: Full';
+  }
+
+  private toggleReducedMotion(): void {
+    const current = getAccessibilityPrefs().reducedMotion;
+    setReducedMotion(!current);
+    this.reducedMotionText.text = this.getReducedMotionLabel();
+    const label = !current ? 'Reduced' : 'Full';
+    eventBus.emit('accessibility:settingsChanged', { setting: 'reducedMotion', value: !current });
+    announce(`Motion set to ${label}`, 'polite');
   }
 
   private getMuteLabel(): string {
