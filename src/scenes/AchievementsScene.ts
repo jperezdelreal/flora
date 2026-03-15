@@ -2,12 +2,14 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
-import { SCENES, COLORS } from '../config';
+import { SCENES, COLORS, UI_COLORS } from '../config';
+import { FIREFLY_PARTICLE_COLORS } from '../config/animations';
 import { AchievementSystem } from '../systems/AchievementSystem';
 import { AchievementGallery } from '../ui/AchievementGallery';
 import {
   ACHIEVEMENT_CATEGORIES,
   CATEGORY_LABELS,
+  ACHIEVEMENT_CATEGORY_COLORS,
   getAchievementsByCategory,
 } from '../config/achievements';
 import type { AchievementCategory } from '../config/achievements';
@@ -18,14 +20,6 @@ import { MenuScene } from './MenuScene';
 const HEADER_HEIGHT = 50;
 const PROGRESS_SECTION_HEIGHT = 60;
 const CONTENT_TOP = HEADER_HEIGHT + PROGRESS_SECTION_HEIGHT;
-
-const CATEGORY_COLORS: Record<AchievementCategory, number> = {
-  harvest: 0x4caf50,
-  survival: 0x2196f3,
-  synergy: 0xff9800,
-  exploration: 0x9c27b0,
-  mastery: 0xffd700,
-};
 
 /**
  * TLDR: Standalone achievements scene — browse badges, track progress from the main menu
@@ -119,7 +113,7 @@ export class AchievementsScene implements Scene {
     hills.lineTo(w, h);
     hills.lineTo(0, h);
     hills.closePath();
-    hills.fill({ color: 0x1e4d1a, alpha: 0.6 });
+    hills.fill({ color: UI_COLORS.HILLS_DARK_MID, alpha: 0.6 });
     this.bgLayer.addChild(hills);
 
     const fgHills = new Graphics();
@@ -129,7 +123,7 @@ export class AchievementsScene implements Scene {
     fgHills.lineTo(w, h);
     fgHills.lineTo(0, h);
     fgHills.closePath();
-    fgHills.fill({ color: 0x163d13, alpha: 0.5 });
+    fgHills.fill({ color: UI_COLORS.HILLS_DARK_FG, alpha: 0.5 });
     this.bgLayer.addChild(fgHills);
 
     // TLDR: Decorative flower dots
@@ -137,7 +131,7 @@ export class AchievementsScene implements Scene {
       const flower = new Graphics();
       const fx = Math.random() * w;
       const fy = h * 0.75 + Math.random() * h * 0.2;
-      const flowerColors = [0xffb7c5, 0xffd700, 0xff6b6b, 0x87ceeb, 0xdda0dd];
+      const flowerColors = [UI_COLORS.FLOWER_PINK, UI_COLORS.FLOWER_GOLD, UI_COLORS.FLOWER_RED, UI_COLORS.FLOWER_SKY_BLUE, UI_COLORS.FLOWER_PLUM];
       const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
       flower.circle(fx, fy, 2 + Math.random() * 2);
       flower.fill({ color, alpha: 0.3 + Math.random() * 0.3 });
@@ -152,7 +146,7 @@ export class AchievementsScene implements Scene {
 
     const headerBg = new Graphics();
     headerBg.rect(0, 0, this.screenWidth, HEADER_HEIGHT);
-    headerBg.fill({ color: 0x1a1a1a, alpha: 0.85 });
+    headerBg.fill({ color: UI_COLORS.SCENE_HEADER_BG, alpha: 0.85 });
     this.contentLayer.addChild(headerBg);
 
     const title = new Text({
@@ -160,7 +154,7 @@ export class AchievementsScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 26,
-        fill: '#daa520',
+        fill: UI_COLORS.TEXT_GOLD,
         fontWeight: 'bold',
       },
     });
@@ -177,7 +171,7 @@ export class AchievementsScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 13,
-        fill: '#aaaaaa',
+        fill: UI_COLORS.TEXT_MID_GRAY,
       },
     });
     statsText.anchor.set(1, 0.5);
@@ -191,7 +185,7 @@ export class AchievementsScene implements Scene {
   private buildProgressSection(): void {
     const sectionBg = new Graphics();
     sectionBg.rect(0, HEADER_HEIGHT, this.screenWidth, PROGRESS_SECTION_HEIGHT);
-    sectionBg.fill({ color: 0x1a1a1a, alpha: 0.6 });
+    sectionBg.fill({ color: UI_COLORS.SCENE_HEADER_BG, alpha: 0.6 });
     this.contentLayer.addChild(sectionBg);
 
     const barWidth = 80;
@@ -211,7 +205,7 @@ export class AchievementsScene implements Scene {
         style: {
           fontFamily: 'Arial',
           fontSize: 11,
-          fill: '#cccccc',
+          fill: UI_COLORS.TEXT_LIGHT_GRAY,
           fontWeight: 'bold',
         },
       });
@@ -224,7 +218,7 @@ export class AchievementsScene implements Scene {
       // TLDR: Progress bar background
       const bgBar = new Graphics();
       bgBar.roundRect(x, y + 20, barWidth, barHeight, 3);
-      bgBar.fill({ color: 0x333333, alpha: 0.8 });
+      bgBar.fill({ color: UI_COLORS.PROGRESS_BAR_BG, alpha: 0.8 });
       this.contentLayer.addChild(bgBar);
 
       // TLDR: Progress bar fill
@@ -238,7 +232,7 @@ export class AchievementsScene implements Scene {
       if (fillWidth > 0) {
         const fillBar = new Graphics();
         fillBar.roundRect(x, y + 20, Math.max(fillWidth, 4), barHeight, 3);
-        fillBar.fill({ color: CATEGORY_COLORS[category] });
+        fillBar.fill({ color: ACHIEVEMENT_CATEGORY_COLORS[category] });
         this.contentLayer.addChild(fillBar);
       }
 
@@ -248,7 +242,7 @@ export class AchievementsScene implements Scene {
         style: {
           fontFamily: 'Arial',
           fontSize: 10,
-          fill: '#888888',
+          fill: UI_COLORS.TEXT_DARK_GRAY,
         },
       });
       countText.x = x + barWidth + 4;
@@ -281,8 +275,8 @@ export class AchievementsScene implements Scene {
 
     const backBg = new Graphics();
     backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-    backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-    backBg.stroke({ color: 0x4a4a4a, width: 2 });
+    backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG, alpha: 0.9 });
+    backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 });
     backBg.eventMode = 'static';
     backBg.cursor = 'pointer';
     backBg.accessible = true;
@@ -293,7 +287,7 @@ export class AchievementsScene implements Scene {
       style: {
         fontFamily: 'Arial',
         fontSize: 16,
-        fill: '#c8e6c9',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
       },
     });
@@ -304,14 +298,14 @@ export class AchievementsScene implements Scene {
     backBg.on('pointerover', () => {
       backBg.clear();
       backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-      backBg.fill({ color: 0x4caf50 });
-      backBg.stroke({ color: 0x66bb6a, width: 2 });
+      backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG });
+      backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 });
     });
     backBg.on('pointerout', () => {
       backBg.clear();
       backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-      backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-      backBg.stroke({ color: 0x4a4a4a, width: 2 });
+      backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG, alpha: 0.9 });
+      backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 });
     });
     backBg.on('pointerdown', () => this.goBack());
 
@@ -321,7 +315,7 @@ export class AchievementsScene implements Scene {
     // TLDR: Keyboard hint
     const hint = new Text({
       text: 'Esc to go back · Arrow keys to scroll',
-      style: { fontFamily: 'Arial', fontSize: 11, fill: '#666666' },
+      style: { fontFamily: 'Arial', fontSize: 11, fill: UI_COLORS.TEXT_DIM_GRAY },
     });
     hint.anchor.set(0.5, 0.5);
     hint.x = this.screenWidth / 2;
@@ -361,7 +355,7 @@ export class AchievementsScene implements Scene {
         count: 1,
         speed: 8 + Math.random() * 12,
         lifetime: 2.5 + Math.random() * 2,
-        colors: [0xfff9c4, 0xffe082, 0xc8e6c9, 0xb9f6ca],
+        colors: FIREFLY_PARTICLE_COLORS,
         size: 2 + Math.random() * 2,
         gravity: -15 - Math.random() * 10,
         fadeOut: true,
