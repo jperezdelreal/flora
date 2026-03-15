@@ -56,6 +56,9 @@ export interface FloraTestHooks {
   clearEvents: () => void;
   getSeedPool: () => string[];
   selectTool: (tool: string) => void;
+  performAction: () => { success: boolean; message: string };
+  movePlayer: (row: number, col: number) => void;
+  rest: () => boolean;
 }
 
 interface FloraEventLogEntry {
@@ -149,6 +152,26 @@ export function setupTestHooks(sceneManager: SceneManager): void {
       const garden = getGardenScene(sceneManager);
       if (garden) garden.selectTestTool(tool);
     },
+
+    // TLDR: Execute current tool on player's tile for E2E tests (#299)
+    performAction: () => {
+      const garden = getGardenScene(sceneManager);
+      if (!garden) return { success: false, message: 'Not in garden' };
+      return garden.performTestAction();
+    },
+
+    // TLDR: Move player to tile instantly for E2E tests (#299)
+    movePlayer: (row: number, col: number) => {
+      const garden = getGardenScene(sceneManager);
+      if (garden) garden.moveTestPlayer(row, col);
+    },
+
+    // TLDR: Rest and advance day for E2E tests (#299)
+    rest: () => {
+      const garden = getGardenScene(sceneManager);
+      if (!garden) return false;
+      return garden.performTestRest();
+    },
   };
 }
 
@@ -189,6 +212,9 @@ type GardenTestable = {
   getTestTileScreenPosition: (row: number, col: number) => { x: number; y: number };
   getTestSeedPool: () => string[];
   selectTestTool: (tool: string) => void;
+  performTestAction: () => { success: boolean; message: string };
+  moveTestPlayer: (row: number, col: number) => void;
+  performTestRest: () => boolean;
 };
 
 function toGardenTestable(): GardenTestable {

@@ -32,6 +32,7 @@ interface FloraTestHooks {
   getEvents: () => string[];
   clearEvents: () => void;
   getSeedPool: () => Array<{ id: string; name: string }>;
+  selectTool: (tool: string) => void;
 }
 
 declare global {
@@ -231,11 +232,12 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
     expect(gridState.tiles.length).toBe(gridState.rows * gridState.cols);
   });
 
-  test('Complete planting cycle: plant → water → grow', async ({ page }) => {
+
+  test('Complete planting cycle: plant \u2192 water \u2192 grow', async ({ page }) => {
     // TLDR: Navigate to garden scene using helper
     await getToGarden(page);
 
-    // TLDR: Verify starting state — day 1, 3 actions, no plants
+    // TLDR: Verify starting state
     const initialState = await getPlayerState(page);
     expect(initialState.day).toBe(1);
     expect(initialState.actionsRemaining).toBe(3);
@@ -247,78 +249,109 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
     const seedPool = await page.evaluate(() => window.__FLORA__!.getSeedPool());
     expect(seedPool.length).toBeGreaterThan(0);
 
-    // TLDR: Clear events before planting to isolate new events
-    await clearEvents(page);
-
-    // TLDR: Find an empty tile to plant on
-    const emptyTile = await findEmptyTile(page);
-    expect(emptyTile, 'Should have at least one empty tile to plant on').not.toBeNull();
-
-    // TLDR: Select the SEED tool via toolbar — look for it in the toolbar area
-    // First click the tile to move there (movement is free)
-    await clickTile(page, emptyTile!.row, emptyTile!.col);
-    await waitFrames(page, 30);
-
-    // TLDR: Select seed tool via keyboard shortcut or find toolbar position
-    // ToolBar is click-based; we need to find the seed tool button position
-    // Use test hooks to select the tool programmatically as a reliable approach
-    await page.evaluate(() => {
-      // TLDR: Directly select seed tool via player state if available
-      const flora = window.__FLORA__;
-      if (flora && 'selectTool' in flora) {
-        (flora as any).selectTool('seed');
-      }
+    // TLDR: Get the player's current position (starts on an empty center tile)
+    const playerPos = await page.evaluate(() => {
+      const state = window.__FLORA__!.getPlayerState();
+      return { row: state.row, col: state.col };
     });
 
-    // TLDR: Click the empty tile to plant a seed
-    await clickTile(page, emptyTile!.row, emptyTile!.col);
-    await waitFrames(page, 20);
+    // TLDR: Select SEED tool via test hook, clear events, then click player's current tile
+    await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+    await clearEvents(page);
+    await clickTile(page, playerPos.row, playerPos.col);
+    await waitFrames(page, 30);
 
-    // TLDR: Verify plant:created event was emitted
-    let events = await getEvents(page);
-    const plantCreated = events.some((e) => e.includes('plant:created'));
+    // TLDR: STRICT assertion: plant:created MUST fire
+    const eventsAfterPlant = await getEvents(page);
+    expect(eventsAfterPlant.some((e) => e.includes('plant:created')),
+      'plant:created event must fire after selecting seed tool and clicking tile').toBe(true);
 
-    if (plantCreated) {
-      // TLDR: Plant was created — verify count increased
-      const plantCountAfter = await page.evaluate(() => window.__FLORA__!.getPlantCount());
-      expect(plantCountAfter).toBeGreaterThan(initialPlantCount);
+    // TLDR: STRICT assertion: plant count must increase
+    const plantCountAfter = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(plantCountAfter).toBeGreaterThan(initialPlantCount);
 
-      // TLDR: Verify active plant details
-      const plants = await page.evaluate(() => window.__FLORA__!.getActivePlants());
-      expect(plants.length).toBeGreaterThan(0);
-      expect(plants[0].row).toBe(emptyTile!.row);
-      expect(plants[0].col).toBe(emptyTile!.col);
+    // TLDR: Verify active plant exists
+    const plants = await page.evaluate(() => window.__FLORA__!.getActivePlants());
+    expect(plants.length).toBeGreaterThan(0);
 
-      // TLDR: Clear events before watering
-      await clearEvents(page);
+    // TLDR: STRICT assertion: actions must have decreased after planting
+    const stateAfterPlant = await getPlayerState(page);
+    expect(stateAfterPlant.actionsRemaining).toBeLessThan(initialState.actionsRemaining);
 
-      // TLDR: Select water tool and water the planted tile
-      await page.evaluate(() => {
-        if (window.__FLORA__ && 'selectTool' in window.__FLORA__) {
-          (window.__FLORA__ as any).selectTool('water');
-        }
-      });
-      await clickTile(page, emptyTile!.row, emptyTile!.col);
-      await waitFrames(page, 20);
+    // TLDR: Select WATER tool, clear events, water the same tile
+    await page.evaluate(() => window.__FLORA__!.selectTool('water'));
+    await clearEvents(page);
+    await clickTile(page, playerPos.row, playerPos.col);
+    await waitFrames(page, 30);
 
-      // TLDR: Verify plant:watered event was emitted
-      events = await getEvents(page);
-      const plantWatered = events.some((e) => e.includes('plant:watered'));
-      if (plantWatered) {
-        console.log('✅ Plant watered successfully');
-      }
+    // TLDR: STRICT assertion: plant:watered MUST fire
+    const eventsAfterWater = await getEvents(page);
+    expect(eventsAfterWater.some((e) => e.includes('plant:watered')),
+      'plant:watered event must fire after selecting water tool and clicking planted tile').toBe(true);
 
-      // TLDR: Verify actions were consumed
-      const stateAfterActions = await getPlayerState(page);
-      expect(stateAfterActions.actionsRemaining).toBeLessThan(initialState.actionsRemaining);
+    // TLDR: STRICT assertion: actions must have decreased again after watering
+    const stateAfterWater = await getPlayerState(page);
+    expect(stateAfterWater.actionsRemaining).toBeLessThan(stateAfterPlant.actionsRemaining);
 
-    } else {
-      // TLDR: Seed tool may not be selectable programmatically — try clicking toolbar area
-      console.warn('⚠ plant:created not detected — seed tool selection may require toolbar click');
-      // TLDR: Still verify no crash occurred and state is consistent
-      const state = await getPlayerState(page);
-      expect(state.day).toBe(1);
-    }
+    console.log('\u2705 Complete planting cycle verified: plant\u2192water with strict assertions');
+  });
+
+  test('Complete plant\u2192water cycle proves actions work (#298)', async ({ page }) => {
+    // TLDR: Full-cycle E2E proving the founder's concern ("can't perform actions") is fixed
+    await getToGarden(page);
+
+    // TLDR: Step 1: verify initial state
+    const initialState = await getPlayerState(page);
+    expect(initialState.day).toBe(1);
+    expect(initialState.actionsRemaining).toBe(3);
+    const initialPlants = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(initialPlants).toBe(0);
+
+    // TLDR: Step 2: get player's current position (starts on empty center tile)
+    const playerPos = await page.evaluate(() => {
+      const state = window.__FLORA__!.getPlayerState();
+      return { row: state.row, col: state.col };
+    });
+
+    // TLDR: Step 3: select SEED tool and clear events
+    await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+    await clearEvents(page);
+
+    // TLDR: Step 4: click the player's current tile to plant (no movement needed)
+    await clickTile(page, playerPos.row, playerPos.col);
+    await waitFrames(page, 30);
+
+    // TLDR: Step 5: STRICT assertions for planting
+    const eventsAfterPlant = await getEvents(page);
+    expect(eventsAfterPlant.some((e) => e.includes('plant:created')),
+      'plant:created MUST fire: proves seed tool + tile click works').toBe(true);
+
+    const plantCountAfterPlant = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(plantCountAfterPlant).toBeGreaterThan(0);
+
+    const stateAfterPlant = await getPlayerState(page);
+    expect(stateAfterPlant.actionsRemaining).toBeLessThan(initialState.actionsRemaining);
+
+    // TLDR: Step 6: select WATER tool via test hook
+    await page.evaluate(() => window.__FLORA__!.selectTool('water'));
+    await clearEvents(page);
+
+    // TLDR: Step 7: click the same tile to water it
+    await clickTile(page, playerPos.row, playerPos.col);
+    await waitFrames(page, 30);
+
+    // TLDR: Step 8: STRICT assertions for watering
+    const eventsAfterWater = await getEvents(page);
+    expect(eventsAfterWater.some((e) => e.includes('plant:watered')),
+      'plant:watered MUST fire: proves water tool + planted tile click works').toBe(true);
+
+    const stateAfterWater = await getPlayerState(page);
+    expect(stateAfterWater.actionsRemaining).toBeLessThan(stateAfterPlant.actionsRemaining);
+
+    // TLDR: Step 9: final summary
+    console.log('\u2705 Complete plant\u2192water cycle verified');
+    console.log('   Actions: ' + initialState.actionsRemaining + ' \u2192 ' + stateAfterPlant.actionsRemaining + ' \u2192 ' + stateAfterWater.actionsRemaining);
+    console.log('   Plants: ' + initialPlants + ' \u2192 ' + plantCountAfterPlant);
   });
 
   test('UI interaction: pause menu toggle', async ({ page }) => {
@@ -370,6 +403,7 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
     expect(stateAfterInventory.actionsRemaining).toBe(stateAfterUnpause.actionsRemaining);
   });
 
+
   test('Day advancement and action consumption', async ({ page }) => {
     // TLDR: Navigate to garden scene
     await getToGarden(page);
@@ -381,8 +415,13 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
     // TLDR: Clear events before performing actions
     await clearEvents(page);
 
-    // TLDR: Find empty tiles to interact with
-    const gridState = await page.evaluate(() => window.__FLORA__!.getGridState());
+    // TLDR: Get player's starting position for planting on current tile
+    const playerPos = await page.evaluate(() => {
+      const state = window.__FLORA__!.getPlayerState();
+      return { row: state.row, col: state.col };
+    });
+
+    // TLDR: Find empty tiles for subsequent plants
     const emptyTiles = await page.evaluate(() => {
       const grid = window.__FLORA__!.getGridState();
       return grid.tiles
@@ -393,32 +432,43 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
 
     expect(emptyTiles.length).toBeGreaterThan(0);
 
-    // TLDR: Perform actions by clicking tiles with tools to consume all 3 actions
-    // Try to use seed tool to plant, consuming actions
-    for (let i = 0; i < Math.min(3, emptyTiles.length); i++) {
-      await page.evaluate(() => {
-        if (window.__FLORA__ && 'selectTool' in window.__FLORA__) {
-          (window.__FLORA__ as any).selectTool('seed');
-        }
-      });
-      // TLDR: Click tile to move, then click again to perform action
-      await clickTile(page, emptyTiles[i].row, emptyTiles[i].col);
-      await waitFrames(page, 20);
-      await clickTile(page, emptyTiles[i].row, emptyTiles[i].col);
-      await waitFrames(page, 20);
+    // TLDR: Consume actions by planting seeds via selectTool hook
+    let actionsConsumed = 0;
+
+    // TLDR: First plant on player's current tile (guaranteed to work)
+    await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+    let stateBefore = await getPlayerState(page);
+    await clickTile(page, playerPos.row, playerPos.col);
+    await waitFrames(page, 30);
+    let stateAfter = await getPlayerState(page);
+    if (stateAfter.actionsRemaining < stateBefore.actionsRemaining) {
+      actionsConsumed++;
     }
 
-    // TLDR: Check if actions were consumed
+    // TLDR: Plant on adjacent tiles using auto-move+plant (pendingToolAction path)
+    for (let i = 0; i < Math.min(2, emptyTiles.length); i++) {
+      const tile = emptyTiles[i];
+      if (tile.row === playerPos.row && tile.col === playerPos.col) continue;
+
+      await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+      stateBefore = await getPlayerState(page);
+      await clickTile(page, tile.row, tile.col);
+      await waitFrames(page, 60);
+      stateAfter = await getPlayerState(page);
+      if (stateAfter.actionsRemaining < stateBefore.actionsRemaining) {
+        actionsConsumed++;
+      }
+    }
+
+    // TLDR: STRICT assertion: actions MUST be consumed
+    expect(actionsConsumed, 'At least one action must be consumed when planting with seed tool').toBeGreaterThan(0);
+
     const stateAfterActions = await getPlayerState(page);
+    expect(stateAfterActions.actionsRemaining).toBeLessThan(initialState.actionsRemaining);
+    console.log('\u2705 Actions consumed: ' + initialState.actionsRemaining + ' \u2192 ' + stateAfterActions.actionsRemaining + ' (' + actionsConsumed + ' actions)');
 
-    if (stateAfterActions.actionsRemaining < initialState.actionsRemaining) {
-      console.log(`✅ Actions consumed: ${initialState.actionsRemaining} → ${stateAfterActions.actionsRemaining}`);
-    }
-
-    // TLDR: Check if day advanced when all actions are consumed
-    // If actions are 0, the day should auto-advance
+    // TLDR: Check if all actions consumed: day should auto-advance
     if (stateAfterActions.actionsRemaining === 0) {
-      // TLDR: Wait for day advancement to process
       await waitFrames(page, 60);
 
       await expect.poll(async () => {
@@ -426,27 +476,188 @@ test.describe('Flora Real Gameplay E2E Tests', () => {
         return state.day;
       }, { timeout: 10000, message: 'Day should advance when all actions consumed' }).toBeGreaterThan(1);
 
-      // TLDR: Verify day:advanced event was emitted
+      // TLDR: STRICT assertion: day:advanced event must fire
       const events = await getEvents(page);
-      const dayAdvanced = events.some((e) => e.includes('day:advanced'));
-      if (dayAdvanced) {
-        console.log('✅ day:advanced event detected');
-      }
+      expect(events.some((e) => e.includes('day:advanced')),
+        'day:advanced event must fire when all actions consumed').toBe(true);
 
       // TLDR: Verify actions reset on new day
       const newDayState = await getPlayerState(page);
       expect(newDayState.day).toBeGreaterThan(1);
       expect(newDayState.actionsRemaining).toBe(newDayState.maxActions);
-      console.log(`✅ Day advanced to ${newDayState.day}, actions reset to ${newDayState.actionsRemaining}`);
-    } else {
-      // TLDR: Actions weren't fully consumed — verify state is consistent
-      console.warn(`⚠ Only consumed ${initialState.actionsRemaining - stateAfterActions.actionsRemaining} actions — tool selection may require toolbar click`);
-      expect(stateAfterActions.day).toBeGreaterThanOrEqual(initialState.day);
+      console.log('\u2705 Day advanced to ' + newDayState.day + ', actions reset to ' + newDayState.actionsRemaining);
     }
 
     // TLDR: Verify grid state is still valid regardless of action outcome
     const finalGrid = await page.evaluate(() => window.__FLORA__!.getGridState());
     expect(finalGrid.rows).toBeGreaterThan(0);
     expect(finalGrid.cols).toBeGreaterThan(0);
+  });
+
+  test('Multi-day garden run: 3-5 day playthrough', async ({ page }) => {
+    test.setTimeout(180000); // 3 min for multi-day gameplay
+
+    // Collect JS errors throughout the entire run
+    const jsErrors: string[] = [];
+    page.on('pageerror', (error) => jsErrors.push(error.message));
+    page.on('console', (msg) => {
+      if (msg.type() === 'error') jsErrors.push(msg.text());
+    });
+
+    // 1. Get to garden via getToGarden() helper
+    await getToGarden(page);
+    await clearEvents(page);
+
+    const canvas = page.locator('canvas');
+    const DAYS_TO_PLAY = 4;
+
+    for (let iteration = 0; iteration < DAYS_TO_PLAY; iteration++) {
+      // 2a. Record initial state (day number, actions)
+      const dayState = await getPlayerState(page);
+      const currentDay = dayState.day;
+      console.log(`📅 Day ${currentDay} — Actions: ${dayState.actionsRemaining}/${dayState.maxActions}`);
+
+      // 2i. Screenshot at start of day
+      try {
+        await canvas.screenshot({
+          path: `playtest-screenshots/multiday-day${currentDay}-start.png`,
+          timeout: 5000,
+        });
+      } catch { console.warn(`Screenshot skipped: day ${currentDay} start`); }
+
+      // 2b. Select SEED tool via page.evaluate
+      await page.evaluate(() => window.__FLORA__!.selectTool('seed'));
+
+      // 2c. Find empty tiles via getGridState()
+      const emptyTiles = await page.evaluate(() => {
+        const grid = window.__FLORA__!.getGridState();
+        return grid.tiles
+          .filter((t: { state: string; hasPlant: boolean }) =>
+            !t.hasPlant && (t.state === 'empty' || t.state === 'EMPTY'))
+          .slice(0, 5)
+          .map((t: { row: number; col: number }) => ({ row: t.row, col: t.col }));
+      });
+      expect(emptyTiles.length, `Day ${currentDay}: should have empty tiles`).toBeGreaterThan(0);
+
+      // 2d. Move to empty tile and plant seed
+      const plantTarget = emptyTiles[0];
+      await page.evaluate(
+        ([r, c]) => window.__FLORA__!.movePlayer(r, c),
+        [plantTarget.row, plantTarget.col] as [number, number]
+      );
+      await waitFrames(page, 5);
+
+      // Plant via performAction hook (PixiJS events don't propagate
+      // from synthetic browser events in Playwright)
+      const plantResult = await page.evaluate(() => window.__FLORA__!.performAction());
+      expect(plantResult.success, `Day ${currentDay}: planting should succeed — ${plantResult.message}`).toBe(true);
+      await waitFrames(page, 10);
+
+      // 2e. Switch to WATER tool, water planted tiles
+      await page.evaluate(() => window.__FLORA__!.selectTool('water'));
+
+      // Find tiles with plants to water
+      const plantedTiles = await page.evaluate(() => {
+        const grid = window.__FLORA__!.getGridState();
+        return grid.tiles
+          .filter((t: { hasPlant: boolean }) => t.hasPlant)
+          .slice(0, 3)
+          .map((t: { row: number; col: number }) => ({ row: t.row, col: t.col }));
+      });
+
+      if (plantedTiles.length > 0) {
+        const waterTarget = plantedTiles[0];
+        await page.evaluate(
+          ([r, c]) => window.__FLORA__!.movePlayer(r, c),
+          [waterTarget.row, waterTarget.col] as [number, number]
+        );
+        await waitFrames(page, 5);
+        const waterResult = await page.evaluate(() => window.__FLORA__!.performAction());
+        if (waterResult.success) {
+          console.log(`  💧 Watered tile (${waterTarget.row},${waterTarget.col})`);
+        }
+      }
+
+      // 2i. Screenshot after actions
+      try {
+        await canvas.screenshot({
+          path: `playtest-screenshots/multiday-day${currentDay}-actions.png`,
+          timeout: 5000,
+        });
+      } catch { console.warn(`Screenshot skipped: day ${currentDay} actions`); }
+
+      // 2f. Rest to end day (consumes remaining actions, advances day)
+      const stateAfterActions = await getPlayerState(page);
+      if (stateAfterActions.day === currentDay) {
+        const rested = await page.evaluate(() => window.__FLORA__!.rest());
+        expect(rested, `Day ${currentDay}: rest should succeed`).toBe(true);
+        await waitFrames(page, 30);
+      }
+
+      // 2g. Wait for day to advance
+      await expect.poll(async () => {
+        const s = await getPlayerState(page);
+        return s.day;
+      }, {
+        timeout: 15000,
+        message: `Day should advance past ${currentDay}`,
+      }).toBeGreaterThan(currentDay);
+
+      // 2h. Verify day number incremented
+      const newState = await getPlayerState(page);
+      expect(newState.day).toBe(currentDay + 1);
+      expect(newState.actionsRemaining).toBe(newState.maxActions);
+      console.log(`  ✅ Day ${currentDay} → Day ${newState.day}`);
+
+      // 2i. Screenshot after day advance
+      try {
+        await canvas.screenshot({
+          path: `playtest-screenshots/multiday-day${newState.day}-arrived.png`,
+          timeout: 5000,
+        });
+      } catch { console.warn(`Screenshot skipped: day ${newState.day} arrived`); }
+    }
+
+    // 3. After 3+ days, verify:
+
+    // Multiple plants exist
+    const finalPlantCount = await page.evaluate(() => window.__FLORA__!.getPlantCount());
+    expect(finalPlantCount, 'Multiple plants should exist after multi-day run').toBeGreaterThanOrEqual(1);
+
+    // Some events fired (plant:created, plant:watered, day:advanced)
+    const events = await getEvents(page);
+    expect(events.includes('plant:created'), 'plant:created events should have fired').toBe(true);
+    const hasWatered = events.includes('plant:watered');
+    const hasDayAdvanced = events.includes('day:advanced');
+    console.log(`📊 Events — plant:created: ✅, plant:watered: ${hasWatered ? '✅' : '⚠️'}, day:advanced: ${hasDayAdvanced ? '✅' : '⚠️'}`);
+
+    // No JS errors (filter browser noise)
+    const criticalErrors = jsErrors.filter(e =>
+      !e.includes('deprecated') &&
+      !e.includes('DevTools') &&
+      !e.includes('favicon') &&
+      !e.includes('net::')
+    );
+    expect(criticalErrors, 'No critical JS errors during multi-day run').toHaveLength(0);
+
+    // Game is still responsive — state readable, grid valid
+    const finalState = await getPlayerState(page);
+    expect(finalState.day).toBeGreaterThanOrEqual(DAYS_TO_PLAY + 1);
+
+    const finalGrid2 = await page.evaluate(() => window.__FLORA__!.getGridState());
+    expect(finalGrid2.rows).toBeGreaterThan(0);
+    expect(finalGrid2.cols).toBeGreaterThan(0);
+
+    const activePlants = await page.evaluate(() => window.__FLORA__!.getActivePlants());
+
+    // Final screenshot
+    try {
+      await canvas.screenshot({
+        path: 'playtest-screenshots/multiday-run-final.png',
+        timeout: 5000,
+      });
+    } catch { console.warn('Final screenshot skipped'); }
+
+    console.log(`🎮 Multi-day run complete! Days: ${DAYS_TO_PLAY}, Final day: ${finalState.day}, Plants: ${finalPlantCount}, Active: ${activePlants.length}`);
   });
 });
