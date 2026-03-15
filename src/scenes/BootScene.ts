@@ -138,9 +138,11 @@ export class BootScene implements Scene {
 
     if (this.progress >= 1 && !this.ready) {
       this.ready = true;
-      this.transitioned = true;
       ctx.sceneManager
         .transitionTo(SCENES.MENU, { type: 'loading', loadingMessage: 'Preparing the garden...' })
+        .then(() => {
+          this.transitioned = true;
+        })
         .catch(console.error);
     }
   }
