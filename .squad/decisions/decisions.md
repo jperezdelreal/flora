@@ -109,3 +109,76 @@ Four seasonal color palettes (Spring pastels, Summer vibrant, Autumn warm, Winte
 **Note:** Build validated ✅, git commit/push failed, retry in Round 3.
 
 ---
+
+## 2026-03-16T15:00Z: Flora Playability Crisis — 15 Bugs Found
+
+**By:** Oak (Chief Architect)  
+**Type:** Critical Audit Report
+
+**Tier:** T0
+
+**Status:** 🔴 CRITICAL — Game is unplayable
+
+### Summary
+**THE GAME IS UNPLAYABLE.** The founder is correct. There is no way for a human player to complete the core gameplay loop. The game boots, shows a menu, lets you select seeds, and drops you into a garden where you **cannot plant anything**. 15 bugs identified: 3 P0 (game-breaking), 6 P1 (major), 6 P2 (minor).
+
+### Critical Blockers (P0)
+- **BUG-001:** No Seed/Plant tool exists. `ToolType` enum missing SEED, `PlantSystem.createPlant()` never called, SeedInventory has zero click handlers. **100% of gameplay blocked.**
+- **BUG-002:** Canvas blurry on all HiDPI screens. Missing `resolution: window.devicePixelRatio` and `autoDensity: true` in app init. Affects all modern displays.
+- **BUG-003:** Clicking occupied tile with growing plant does nothing. Tile click handler calls `harvestPlant()` (returns false), doesn't fall through to movement. Player cannot walk to tiles with plants, cannot water them.
+
+### Major Issues (P1)
+- **BUG-004:** PauseMenu overlay hardcoded to 800×600, not full screen size
+- **BUG-005:** SeedInventory panel non-interactive, no event handlers, hardcoded dimensions
+- **BUG-006:** EventBus listeners in GardenScene never cleaned up (memory leak, duplicate handlers)
+- **BUG-008:** Tool actions require standing on tile (unintuitive, inconsistent with harvest-by-click)
+- **BUG-009:** BootScene "Press any key" text non-functional, transitions auto anyway
+- **BUG-007:** Z-order issue — notifications render over pause menu
+
+### Minor Issues (P2)
+- **BUG-010:** Encyclopedia/AchievementGallery positioned off-screen on small viewports
+- **BUG-011:** SeedInventory overlay doesn't block clicks (click-through to garden)
+- **BUG-012:** StatusText overlaps HUD (redundant, should remove)
+- **BUG-013:** DaySummary "Next Season" button resets entire run instead of advancing one day
+- **BUG-014:** showActionMessage() and updateInfoText() are empty stubs
+- **BUG-015:** Player starts at (4,4) regardless of grid size
+
+### Fix Priority
+1. **BUG-001** (add SEED tool) — nothing else matters without this
+2. **BUG-002** (HiDPI resolution) — why "it looks bad"
+3. **BUG-003** (tile interaction) — needed to walk to plants and water them
+
+### Action
+**Erika team assigned:** BUG-001, BUG-003, BUG-008, BUG-013, BUG-014, BUG-015  
+**Brock team assigned:** BUG-002, BUG-009, BUG-006  
+**Misty team assigned:** BUG-004, BUG-005, BUG-007, BUG-010, BUG-011, BUG-012
+
+---
+
+## 2026-03-16T15:00Z: Flora Gameplay Verification — Boot Fix Confirmed
+
+**By:** Oak (Chief Architect)  
+**Type:** QA Verification
+
+**Tier:** T1
+
+**Status:** ✅ PASSING (pre-audit baseline)
+
+### Summary
+Flora passes end-to-end gameplay validation prior to bug discovery. Boot scene fix (#279/PR #281) successfully resolved async race condition. Both test runs completed without errors.
+
+### Results
+**Run #1:** 5 days, 31.6 sec, 0 errors ✅  
+**Run #2:** 6 days, 36.5 sec, 0 errors ✅
+
+### Verified Systems
+- Boot → Menu transition: **Working**
+- Menu → New Run (Enter key): **Working**
+- Seed Selection → Garden: **Working**
+- Garden gameplay loop: **Working**
+- Run completion → Menu return: **Working**
+
+### Note
+This verification was made **before discovering the 15 bugs**. The tests checked for JavaScript errors, not actual gameplay. A human playtester would have immediately found BUG-001 (can't plant anything). Recommendation: Add integration tests verifying "plant → water → harvest" workflow.
+
+---

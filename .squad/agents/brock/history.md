@@ -123,4 +123,13 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Parallel execution caveat**: Tests pass with workers=1 (serial) but fail randomly with workers=4 (parallel) due to WebGL resource contention — CI already uses workers=1
 - **Key files**: tests/e2e/flora-scenes.spec.ts, playwright.config.ts
 
+### Boot-to-Menu Transition Bug (Issue #279, PR #281)
+- **Bug**: Boot screen stuck at 100% loading, never transitions to MenuScene. FPS running, game loop active, but scene never switches.
+- **Root cause**: BootScene.update() set `this.transitioned = true` IMMEDIATELY before calling async `transitionTo()`. Next frame, update() early-returned due to `if (this.transitioned) return;`, blocking all scene updates and preventing the transition Promise from ever completing.
+- **Fix**: Moved `this.transitioned = true` into `.then()` callback so it only sets AFTER the transition successfully completes.
+- **Convention**: When calling async scene transitions from update(), NEVER set guard flags synchronously. Always wait for the Promise to resolve (via await or .then()) before setting flags that block further updates.
+- **Impact**: P0 critical — game was completely unplayable, stuck on boot screen indefinitely.
+- **Key learning**: Async transitions in synchronous update loops require careful flag management. Setting a "done" flag before an async operation completes creates a race condition where the operation never finishes.
+- **Key file**: src/scenes/BootScene.ts
+
 
