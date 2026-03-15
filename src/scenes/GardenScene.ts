@@ -632,6 +632,9 @@ export class GardenScene implements Scene {
 
     // TLDR: Re-position toolbar centered at bottom
     this.toolBar.position(w / 2 - 135, h - 100);
+    
+    // TLDR: Position rest button to the right of toolbar
+    this.restButton.position(w / 2 + 220, h - 100);
 
     // TLDR: Orientation hint for portrait on small screens
     if (shouldShowOrientationHint(w, h)) {
@@ -850,6 +853,24 @@ export class GardenScene implements Scene {
 
   private showActionMessage(_message: string): void {
     // Action messages handled by HUD
+  }
+
+  /**
+   * TLDR: Handle rest action — skip remaining actions and advance to next day (#244)
+   */
+  private handleRestAction(): void {
+    if (!this.player.hasActionsRemaining()) {
+      return;
+    }
+
+    // TLDR: Execute rest via PlayerSystem
+    this.playerSystem.rest();
+    
+    // TLDR: Visual feedback — update hint
+    this.hud.setHint('🌙 You rest and prepare for tomorrow...');
+    
+    // TLDR: Update UI state
+    this.updateStatusText();
   }
 
   private onDayAdvance(): void {

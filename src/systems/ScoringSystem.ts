@@ -85,6 +85,11 @@ export class ScoringSystem implements System {
     eventBus.on('synergy:activated', () => {
       this.onSynergyActivated();
     });
+    
+    // TLDR: Score rest action for efficiency (#244)
+    eventBus.on('player:rested', () => {
+      this.onRestAction();
+    });
   }
 
   /**
@@ -142,6 +147,20 @@ export class ScoringSystem implements System {
    */
   private onSynergyActivated(): void {
     this.stats.synergiesActivated++;
+  }
+  
+  /**
+   * TLDR: Track rest action usage (small bonus for efficient play) (#244)
+   */
+  private onRestAction(): void {
+    // TLDR: Small bonus for strategic resource management
+    this.lastActionPoints = 5;
+    
+    // TLDR: Emit score update event for UI feedback
+    eventBus.emit('score:updated', { 
+      total: this.getScoreBreakdown().total, 
+      lastAction: this.lastActionPoints 
+    });
   }
 
   /**

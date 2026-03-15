@@ -154,3 +154,30 @@ New players now understand the core game loop within 30 seconds:
 - Select tool → use on tile (costs 1 action) → repeat until 0 actions → day advances → plants grow → get 3 new actions
 
 **Build Status**: Zero TypeScript errors. Clean Vite build.
+
+### Rest Mechanic Implementation (PR #261)
+Implemented issue #244 — rest mechanic for strategic action management. Key decisions:
+
+1. **PlayerSystem.rest() Method**: Central rest logic in PlayerSystem, not Player entity. Consumes all remaining actions, applies soil boost, advances day, emits event, triggers day advance callback.
+
+2. **Soil Quality Boost**: Rest applies +5 soil quality to ALL tiles via `grid.getAllTiles()`. Strategic trade-off: act now vs preserve soil for tomorrow.
+
+3. **RestButton UI Component**: Standalone button component next to ToolBar. Cozy warm green styling (matches START_BUTTON_GREEN). Hover shows hint with benefits. Disabled when no actions remain.
+
+4. **Event-Driven Integration**: `player:rested` event with `{ soilBoost, day }` payload. ScoringSystem subscribes and awards +5 points for efficient play. No penalty for resting.
+
+5. **Dynamic Button State**: GardenScene.update() checks `player.hasActionsRemaining()` each frame and calls `restButton.setEnabled()`. Button grayed out when actions = 0.
+
+6. **UI Positioning**: RestButton positioned at `screenWidth/2 + 220` to the right of ToolBar. Both repositioned on window resize for responsive layout.
+
+7. **Visual Feedback**: HUD.setHint() shows "🌙 You rest and prepare for tomorrow..." when rest is used. Day advance summary shows as normal.
+
+**Integration Points:**
+- EventBus: `player:rested` event added to EventMap
+- PlayerSystem: `rest()` method consumes actions, boosts soil, advances day
+- ScoringSystem: Subscribes to `player:rested`, awards +5 points
+- GardenScene: Instantiates RestButton, handles click, updates enabled state per frame
+- UI exports: RestButton exported from src/ui/index.ts
+
+**Build Status**: Zero TypeScript errors. Clean Vite build.
+
