@@ -5,6 +5,7 @@ import { eventBus } from '../core/EventBus';
 import type { EncyclopediaSystem } from './EncyclopediaSystem';
 import type { SynergySystem } from './SynergySystem';
 import type { WeedSystem } from './WeedSystem';
+import type { MutationSystem, MutationCheckContext } from './MutationSystem';
 
 export interface PlantSystemConfig {
   /** Frames per in-game day (60fps * seconds) */
@@ -14,6 +15,10 @@ export interface PlantSystemConfig {
   /** Optional synergy system for bonus calculation */
   synergySystem?: SynergySystem;
   weedSystem?: WeedSystem;
+  /** Optional mutation system for heirloom variants */
+  mutationSystem?: MutationSystem;
+  /** Optional callback to query soil quality at tile (row, col) → 0-100 */
+  getSoilQuality?: (row: number, col: number) => number;
 }
 
 /**
@@ -99,7 +104,7 @@ export class PlantSystem implements System {
   }
 
   /** Harvest a plant at grid position */
-  harvestPlant(x: number, y: number): { success: boolean; seeds: number; plantId: string; isNewDiscovery: boolean } {
+  harvestPlant(x: number, y: number): { success: boolean; seeds: number; plantId: string; isNewDiscovery: boolean; mutationResult?: { mutated: boolean; variantId?: string; variantName?: string } } {
     const plant = this.getPlantAt(x, y);
     if (!plant) {
       return { success: false, seeds: 0, plantId: '', isNewDiscovery: false };
@@ -109,8 +114,28 @@ export class PlantSystem implements System {
       return { success: false, seeds: 0, plantId: plant.getConfig().id, isNewDiscovery: false };
     }
 
-    const seeds = plant.harvest();
     const plantConfigId = plant.getConfig().id;
+
+    // TLDR: Check for heirloom mutation before harvesting
+    let mutationResult: { mutated: boolean; variantId?: string; variantName?: string } = { mutated: false };
+    if (this.config.mutationSystem) {
+      const context: MutationCheckContext = {
+        soilQuality: this.config.getSoilQuality?.(plant.y, plant.x) ?? 75,
+        fullyWatered: plant.hasPerfectGrowth(),
+        synergyActive: plant.hasSynergyActive(),
+      };
+
+      const result = this.config.mutationSystem.checkMutation(plant, context);
+      if (result.mutated && result.variant) {
+        mutationResult = {
+          mutated: true,
+          variantId: result.variant.id,
+          variantName: result.variant.displayName,
+        };
+      }
+    }
+
+    const seeds = plant.harvest();
 
     // Update local encyclopedia
     this.discoveredPlants.add(plantConfigId);
@@ -133,7 +158,7 @@ export class PlantSystem implements System {
       eventBus.emit('discovery:new', { plantId: plantConfigId, plantName: config?.displayName || plantConfigId });
     }
 
-    return { success: true, seeds, plantId: plantConfigId, isNewDiscovery };
+    return { success: true, seeds, plantId: plantConfigId, isNewDiscovery, mutationResult };
   }
 
   /** Click handler for plant interaction (harvest mature plants) */
