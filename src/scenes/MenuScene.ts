@@ -277,8 +277,8 @@ export class MenuScene implements Scene {
     version.y = this.screenHeight - 12;
     this.mainMenuLayer.addChild(version);
 
-    this.selectedIndex = 0;
-    this.highlightMenuItem(0);
+    // TLDR: Initialize focus to first enabled item
+    this.resetMenuFocus();
   }
 
   private buildSettingsPanel(): void {
@@ -494,7 +494,7 @@ export class MenuScene implements Scene {
     this.mainMenuLayer.visible = state === 'main';
     this.settingsLayer.visible = state === 'settings';
     this.creditsLayer.visible = state === 'credits';
-    if (state === 'main') { this.selectedIndex = 0; this.highlightMenuItem(0); }
+    if (state === 'main') { this.resetMenuFocus(); }
     if (state === 'settings') { this.settingsSelectedIndex = 0; this.highlightSettingsItem(0); }
   }
 
@@ -537,6 +537,14 @@ export class MenuScene implements Scene {
       e.preventDefault();
       this.showState('settings');
     }
+  }
+
+  // TLDR: Reset menu focus to first enabled item (ensures keyboard/visual sync)
+  private resetMenuFocus(): void {
+    const firstEnabledIndex = this.menuItems.findIndex(item => item.enabled);
+    const targetIndex = firstEnabledIndex >= 0 ? firstEnabledIndex : 0;
+    this.selectedIndex = targetIndex;
+    this.highlightMenuItem(targetIndex);
   }
 
   private navigateMenu(direction: number): void {
