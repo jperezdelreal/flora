@@ -8,6 +8,7 @@ import { Container, Graphics } from 'pixi.js';
 import { GrowthStage } from '../entities/Plant';
 import { Season } from '../config/seasons';
 import { ANIMATION, PLANT_STAGE_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
+import { shouldReduceMotion } from '../utils/accessibility';
 import { COLORS } from '../config';
 import { AnimationSystem, Easing } from './AnimationSystem';
 import type { PlantSystem } from './PlantSystem';
@@ -450,7 +451,8 @@ export class PlantRenderer implements System {
       }
 
       // Idle sway: rotation on all non-seed stages
-      if (stage !== GrowthStage.SEED) {
+      // TLDR: Skip sway animation when reduced motion is active
+      if (stage !== GrowthStage.SEED && !shouldReduceMotion()) {
         const rotationScale = stage === GrowthStage.SPROUT ? 0.4 : 1.0;
         visual.rotation = Math.sin(time * ANIMATION.SWAY_FREQUENCY * Math.PI * 2 + phase) *
                           ANIMATION.SWAY_AMPLITUDE * swayIntensity * rotationScale;
@@ -459,7 +461,7 @@ export class PlantRenderer implements System {
       }
 
       // Idle sway: x-offset on mature/growing plants
-      if (isMatureOrGrowing) {
+      if (isMatureOrGrowing && !shouldReduceMotion()) {
         const baseX = this.plantBaseX.get(plantId) ?? visual.x;
         const xSway = Math.sin(time * ANIMATION.SWAY_X_FREQUENCY * Math.PI * 2 + phase * 1.5) *
                        ANIMATION.SWAY_X_AMPLITUDE * swayIntensity;

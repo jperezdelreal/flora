@@ -1,6 +1,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { System } from './index';
 import { ObjectPool } from '../utils/objectPool';
+import { shouldReduceMotion } from '../utils/accessibility';
 
 /**
  * TLDR: Reusable particle emitter — burst, ripple, and glow effects
@@ -149,9 +150,16 @@ export class ParticleSystem implements System {
 
   /**
    * TLDR: Emit a radial burst of particles (harvest pop, seed drops)
+   * Reduced motion: skip burst entirely — essential feedback handled by floating text
    */
   burst(config: BurstConfig): void {
-    for (let i = 0; i < config.count; i++) {
+    if (shouldReduceMotion()) return;
+
+    // Cap burst count to half the pool max to prevent exceeding pool capacity
+    const maxBurst = Math.floor(this.graphicsPool.availableCount + (256 - this.graphicsPool.activeCount));
+    const safeCount = Math.min(config.count, maxBurst, 128);
+
+    for (let i = 0; i < safeCount; i++) {
       const angle = (Math.PI * 2 * i) / config.count + (Math.random() - 0.5) * 0.5;
       const speed = config.speed * (0.5 + Math.random() * 0.5);
       const color = config.colors[Math.floor(Math.random() * config.colors.length)];
@@ -180,8 +188,11 @@ export class ParticleSystem implements System {
 
   /**
    * TLDR: Concentric expanding rings (water ripple)
+   * Reduced motion: skip ripple animation
    */
   ripple(config: RippleConfig): void {
+    if (shouldReduceMotion()) return;
+
     const graphics: Graphics[] = [];
     for (let i = 0; i < config.rings; i++) {
       const ring = this.graphicsPool.acquire();
@@ -203,8 +214,28 @@ export class ParticleSystem implements System {
 
   /**
    * TLDR: Pulsing glow circle (synergy aura)
+   * Reduced motion: show static glow at mid-alpha instead of pulsing
    */
   glow(config: GlowConfig): void {
+    if (shouldReduceMotion()) {
+      const graphic = this.graphicsPool.acquire();
+      graphic.circle(0, 0, config.radius);
+      graphic.fill({ color: config.color, alpha: 0.5 });
+      graphic.x = config.x;
+      graphic.y = config.y;
+      graphic.alpha = (config.minAlpha + config.maxAlpha) / 2;
+      this.container.addChild(graphic);
+      this.glows.push({
+        graphic,
+        elapsed: 0,
+        duration: config.duration,
+        pulseSpeed: 0,
+        minAlpha: graphic.alpha,
+        maxAlpha: graphic.alpha,
+      });
+      return;
+    }
+
     const graphic = this.graphicsPool.acquire();
     graphic.circle(0, 0, config.radius);
     graphic.fill({ color: config.color, alpha: 0.5 });
@@ -255,8 +286,11 @@ export class ParticleSystem implements System {
 
   /**
    * TLDR: Small droplets that splash upward then fall (watering effect)
+   * Reduced motion: skip droplet animation
    */
   waterDroplets(config: WaterDropletsConfig): void {
+    if (shouldReduceMotion()) return;
+
     for (let i = 0; i < config.count; i++) {
       const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.8;
       const speed = 40 + Math.random() * 60;
@@ -286,8 +320,11 @@ export class ParticleSystem implements System {
 
   /**
    * TLDR: Start continuous ambient particles for seasonal atmosphere
+   * Reduced motion: skip ambient particles entirely
    */
   startAmbientParticles(config: AmbientParticleConfig): void {
+    if (shouldReduceMotion()) return;
+
     this.stopAmbientParticles();
     this.ambientConfig = config;
     this.ambientSpawnTimer = 0;

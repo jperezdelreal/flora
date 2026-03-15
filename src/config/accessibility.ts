@@ -1,7 +1,7 @@
 // TLDR: Accessibility configuration — colorblind palettes, focus styles, ARIA settings
 
 /** TLDR: Supported colorblind vision modes */
-export type ColorVisionMode = 'normal' | 'deuteranopia' | 'protanopia' | 'tritanopia';
+export type ColorVisionMode = 'normal' | 'deuteranopia' | 'protanopia' | 'tritanopia' | 'monochromacy';
 
 /** TLDR: Palette override for a single vision mode */
 export interface ColorPalette {
@@ -73,12 +73,27 @@ const TRITANOPIA_PALETTE: ColorPalette = {
   success: 0xc87533,
 };
 
+/** TLDR: Monochromacy-safe palette — grayscale with high-contrast accents */
+const MONOCHROMACY_PALETTE: ColorPalette = {
+  darkGreen: 0x3a3a3a,
+  midGreen: 0x5c5c5c,
+  lightGreen: 0x9e9e9e,
+  paleGreen: 0xd0d0d0,
+  accentGreen: 0x808080,
+  soilBrown: 0x4a4a4a,
+  warning: 0xbfbfbf,
+  danger: 0x1a1a1a,
+  info: 0x6e6e6e,
+  success: 0xa0a0a0,
+};
+
 /** TLDR: Map from vision mode to its palette */
 export const COLOR_PALETTES: Record<ColorVisionMode, ColorPalette> = {
   normal: NORMAL_PALETTE,
   deuteranopia: DEUTERANOPIA_PALETTE,
   protanopia: PROTANOPIA_PALETTE,
   tritanopia: TRITANOPIA_PALETTE,
+  monochromacy: MONOCHROMACY_PALETTE,
 };
 
 /** TLDR: Focus indicator styling for keyboard navigation */

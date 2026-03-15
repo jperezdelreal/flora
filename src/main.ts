@@ -108,6 +108,9 @@ async function main(): Promise<void> {
   eventBus.on('plant:harvested', (data) => {
     announce(`Plant harvested. Seeds collected: ${data.seeds}.`);
   });
+  eventBus.on('plant:grew', (data) => {
+    announce(`Plant reached ${data.stage} stage.`);
+  });
   eventBus.on('day:advanced', (data) => {
     announce(`Day ${data.day} has begun.`);
   });
@@ -126,8 +129,26 @@ async function main(): Promise<void> {
   eventBus.on('pest:spawned', () => {
     announce('A pest has appeared in the garden.');
   });
+  eventBus.on('pest:removed', () => {
+    announce('Pest removed successfully.');
+  });
   eventBus.on('weather:warning', (data) => {
     announce(`Weather warning: ${data.type} expected in ${data.daysUntil} days.`);
+  });
+  eventBus.on('tool:upgraded', (data) => {
+    announce(`Tool upgraded: ${data.toolType} to tier ${data.newTier}.`, 'assertive');
+  });
+  eventBus.on('synergy:activated', (data) => {
+    announce(`Synergy activated: ${data.synergyId}.`);
+  });
+  eventBus.on('weed:spawned', () => {
+    announce('A weed has appeared in the garden.');
+  });
+  eventBus.on('weed:removed', (data) => {
+    announce(`Weed removed. Compost gained: ${data.compostYield}.`);
+  });
+  eventBus.on('scene:transition', (data) => {
+    announce(`Navigating to ${data.to}.`);
   });
 }
 

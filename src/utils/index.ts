@@ -35,6 +35,8 @@ export {
   getColorVisionLabel,
   drawFocusRing,
   prefersReducedMotion,
+  shouldReduceMotion,
+  setReducedMotion,
 } from './accessibility';
 
 // TLDR: Responsive viewport utilities
