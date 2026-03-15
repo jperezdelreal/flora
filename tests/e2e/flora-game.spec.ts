@@ -71,7 +71,7 @@ test.describe('Flora Game E2E Tests', () => {
     // TLDR: Setup error collection before navigation
     const errors = await collectRuntimeErrors(page);
     
-    await page.goto('/');
+    await page.goto('');
     
     // TLDR: Wait for canvas to appear and have dimensions
     const canvas = await waitForCanvas(page);
@@ -88,7 +88,7 @@ test.describe('Flora Game E2E Tests', () => {
   });
 
   test('WebGL context is active', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('');
     await waitForCanvas(page);
     
     // TLDR: Verify WebGL context exists and is functioning
@@ -107,7 +107,7 @@ test.describe('Flora Game E2E Tests', () => {
   });
 
   test('game reaches menu screen', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('');
     await waitForCanvas(page);
     
     // TLDR: Wait for boot scene to complete (loading bar animation)
@@ -122,7 +122,7 @@ test.describe('Flora Game E2E Tests', () => {
   });
 
   test('keyboard navigation works', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('');
     await waitForCanvas(page);
     
     // TLDR: Wait for menu to appear
@@ -156,7 +156,7 @@ test.describe('Flora Game E2E Tests', () => {
       }
     });
     
-    await page.goto('/');
+    await page.goto('');
     await waitForCanvas(page);
     await waitForRenderedFrames(page, 60);
     
