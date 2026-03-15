@@ -52,9 +52,9 @@ export class ToolBar {
       const buttonContainer = new Container();
       const x = index * (buttonWidth + padding);
 
-      // Button background
+      // TLDR: Button background with soft rounded corners
       const button = new Graphics();
-      button.rect(0, 0, buttonWidth, buttonHeight);
+      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
       button.fill({ color: UI_COLORS.BUTTON_BG });
       button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
       button.eventMode = 'static';
@@ -76,7 +76,7 @@ export class ToolBar {
           // TLDR: Hover scale-up feedback
           buttonContainer.scale.set(ANIMATION.BUTTON_HOVER_SCALE);
           button.clear();
-          button.rect(0, 0, buttonWidth, buttonHeight);
+          button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
           button.fill({ color: UI_COLORS.BUTTON_HOVER_BG });
           button.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 });
         }
@@ -198,10 +198,10 @@ export class ToolBar {
     const isLocked = !this.unlockedTools.has(tool);
 
     button.clear();
-    button.rect(0, 0, 80, 80);
+    button.roundRect(0, 0, 80, 80, 8);
     
     if (isLocked) {
-      // Locked appearance — grayed out
+      // TLDR: Locked appearance — warm muted tones
       button.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.5 });
       button.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 });
       icon.visible = false;
@@ -209,7 +209,7 @@ export class ToolBar {
       nameText.style.fill = UI_COLORS.TEXT_DISABLED;
       if (tierText) tierText.visible = false;
     } else {
-      // Unlocked appearance
+      // TLDR: Unlocked appearance — warm earthy palette
       button.fill({ color: UI_COLORS.BUTTON_BG });
       button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
       icon.visible = true;
@@ -252,7 +252,7 @@ export class ToolBar {
       const button = this.toolButtons.get(tool);
       if (button) {
         button.clear();
-        button.rect(0, 0, 80, 80);
+        button.roundRect(0, 0, 80, 80, 8);
         button.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
         button.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 });
       }
@@ -309,9 +309,9 @@ export class ToolBar {
       pulseCount++;
       
       if (pulseCount % 2 === 0) {
-        // Bright state
+        // TLDR: Bright state — warm green glow
         button.clear();
-        button.rect(0, 0, 80, 80);
+        button.roundRect(0, 0, 80, 80, 8);
         button.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT });
         button.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 });
       } else {
@@ -377,7 +377,7 @@ export class ToolBar {
       pulseCount++;
       if (pulseCount % 2 === 0) {
         button.clear();
-        button.rect(0, 0, 80, 80);
+        button.roundRect(0, 0, 80, 80, 8);
         button.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT });
         button.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 });
       } else {

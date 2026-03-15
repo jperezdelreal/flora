@@ -19,6 +19,7 @@ export interface EventMap {
   'plant:died': { plantId: string; reason: string };
   // Player action events
   'action:consumed': { actionsRemaining: number; maxActions: number };
+  'player:rested': { soilBoost: number; day: number };
   // Day/season events
   'day:advanced': { day: number };
   'season:ended': { season: string; day: number };

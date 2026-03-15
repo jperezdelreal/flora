@@ -1,4 +1,5 @@
 import { Container, Graphics, Text } from 'pixi.js';
+import { UI_COLORS } from '../config';
 
 export interface DaySummaryData {
   day: number;
@@ -27,17 +28,17 @@ export class DaySummary {
     this.container = new Container();
     this.container.visible = false;
 
-    // Full-screen semi-transparent overlay
+    // TLDR: Full-screen semi-transparent overlay with warm tone
     const overlay = new Graphics();
     overlay.rect(0, 0, 800, 600);
-    overlay.fill({ color: 0x000000, alpha: 0.7 });
+    overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.8 });
     this.container.addChild(overlay);
 
-    // Summary panel
+    // TLDR: Summary panel with warm cozy palette
     const panel = new Graphics();
     panel.roundRect(150, 100, 500, 400, 16);
-    panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
-    panel.stroke({ color: 0x4caf50, width: 3 });
+    panel.fill({ color: UI_COLORS.MENU_PANEL_BG, alpha: 0.98 });
+    panel.stroke({ color: UI_COLORS.MENU_PANEL_BORDER, width: 3 });
     this.container.addChild(panel);
 
     // Title
@@ -62,7 +63,7 @@ export class DaySummary {
       style: {
         fontFamily: 'Arial',
         fontSize: 16,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         align: 'left',
         lineHeight: 24,
       },
@@ -71,11 +72,11 @@ export class DaySummary {
     this.summaryText.y = 200;
     this.container.addChild(this.summaryText);
 
-    // Next Season button
+    // TLDR: Next Season button with warm cozy palette
     this.nextButton = new Graphics();
     this.nextButton.roundRect(0, 0, 200, 50, 8);
-    this.nextButton.fill({ color: 0x4caf50 });
-    this.nextButton.stroke({ color: 0x66bb6a, width: 2 });
+    this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+    this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     this.nextButton.x = 300;
     this.nextButton.y = 420;
     this.nextButton.eventMode = 'static';
@@ -84,14 +85,14 @@ export class DaySummary {
     this.nextButton.on('pointerover', () => {
       this.nextButton.clear();
       this.nextButton.roundRect(0, 0, 200, 50, 8);
-      this.nextButton.fill({ color: 0x66bb6a });
-      this.nextButton.stroke({ color: 0x81c784, width: 2 });
+      this.nextButton.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
+      this.nextButton.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 2 });
     });
     this.nextButton.on('pointerout', () => {
       this.nextButton.clear();
       this.nextButton.roundRect(0, 0, 200, 50, 8);
-      this.nextButton.fill({ color: 0x4caf50 });
-      this.nextButton.stroke({ color: 0x66bb6a, width: 2 });
+      this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+      this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
     this.container.addChild(this.nextButton);
 
@@ -100,7 +101,7 @@ export class DaySummary {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
       },
     });

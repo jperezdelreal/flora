@@ -249,6 +249,43 @@ export class PlayerSystem implements System {
     return this.player;
   }
 
+  /**
+   * TLDR: Rest action — skip remaining actions, advance day, boost soil quality
+   */
+  rest(): void {
+    if (!this.player.hasActionsRemaining()) {
+      return; // No actions to skip
+    }
+
+    const SOIL_BOOST = 5;
+    
+    // TLDR: Apply soil quality boost to all tiles
+    const allTiles = this.grid.getAllTiles();
+    for (const tile of allTiles) {
+      const newQuality = Math.min(100, tile.soilQuality + SOIL_BOOST);
+      tile.setSoilQuality(newQuality);
+    }
+
+    // TLDR: Consume all remaining actions to force day advance
+    while (this.player.hasActionsRemaining()) {
+      this.player.consumeAction();
+    }
+    
+    // TLDR: Advance to next day
+    this.player.advanceDay();
+
+    // TLDR: Emit rest event for scoring and UI feedback
+    eventBus.emit('player:rested', {
+      soilBoost: SOIL_BOOST,
+      day: this.player.getCurrentDay(),
+    });
+
+    // TLDR: Trigger day advance callback
+    if (this.onDayAdvance) {
+      this.onDayAdvance();
+    }
+  }
+
   destroy(): void {
     this.container.destroy({ children: true });
   }
