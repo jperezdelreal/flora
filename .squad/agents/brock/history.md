@@ -158,3 +158,13 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Fallback preserved**: `drawMatureShapeFallback()` retains original matureShape-based drawing for any future plants not yet in the switch
 - **Convention**: Per-plant drawing uses `const r = shape.mainRadius` for all sizing. All colors from mainColor/accentColor/detailColor parameters — never hardcoded except 0xffffff highlights and 0x000000 shadows
 - **Key files**: `src/config/plantVisuals.ts` (PlantFamily + plantFamily field), `src/systems/PlantRenderer.ts` (drawMatureShape, drawGrowingShape, update pulse)
+
+### Multi-Day Playwright E2E Test & Action Hooks (Issue #299, PR #302)
+- **PixiJS v8 event limitation**: PixiJS's FederatedEvent system does NOT process synthetic browser events from Playwright (page.mouse.click, dispatchEvent, manual PointerEvent). Browser clicks at correct coordinates simply don't register.
+- **Solution**: Added direct game API test hooks that bypass the PixiJS event system entirely: `performAction()`, `movePlayer(row, col)`, `rest()`
+- **GardenScene test methods**: `performTestAction()` calls `executeToolOnCurrentTile()`/`handleSeedPlanting()` directly. `moveTestPlayer(row, col)` calls `player.setGridPosition()`. `performTestRest()` calls `handleRestAction()`.
+- **Test flow per day**: selectTool('seed') → movePlayer(r,c) → performAction() → selectTool('water') → movePlayer(r,c) → performAction() → rest() → verify day incremented
+- **4-day playthrough**: Test plays through 4 complete in-game days, planting 1 seed per day, attempting watering, resting to advance. Validates plant:created events, plant count, no JS errors, game responsiveness.
+- **Screenshots**: Captured at day-start, post-actions, and day-arrival to `playtest-screenshots/multiday-*`
+- **Convention**: For Playwright E2E tests on PixiJS games, ALWAYS use `window.__FLORA__` test hooks for game interactions, not browser click events
+- **Key files**: `tests/e2e/flora-gameplay.spec.ts` (test), `src/utils/testHooks.ts` (hook wiring), `src/scenes/GardenScene.ts` (test methods)

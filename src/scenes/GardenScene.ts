@@ -2239,6 +2239,41 @@ export class GardenScene implements Scene {
     this.player.selectTool(tool as ToolType);
   }
 
+  /** TLDR: Execute the selected tool on the player's current tile for Playwright (#299) */
+  public performTestAction(): { success: boolean; message: string } {
+    const selectedTool = this.player.getSelectedTool();
+    if (!selectedTool) return { success: false, message: 'No tool selected' };
+    if (!this.player.hasActionsRemaining()) return { success: false, message: 'No actions remaining' };
+
+    if (selectedTool === ToolType.SEED) {
+      const pos = this.player.getGridPosition();
+      const tile = this.grid.getTile(pos.row, pos.col);
+      if (!tile || !tile.isEmpty()) return { success: false, message: 'Tile not empty' };
+      this.handleSeedPlanting();
+      return { success: true, message: 'Planted seed' };
+    }
+
+    const result = this.playerSystem.executeToolAction();
+    if (result) {
+      this.showActionMessage(result.message);
+      this.gridSystem.update();
+      return { success: result.success, message: result.message };
+    }
+    return { success: false, message: 'No result' };
+  }
+
+  /** TLDR: Move player to a tile instantly for Playwright (#299) */
+  public moveTestPlayer(row: number, col: number): void {
+    this.player.setGridPosition(row, col);
+  }
+
+  /** TLDR: Trigger rest action for Playwright (#299) */
+  public performTestRest(): boolean {
+    if (!this.player.hasActionsRemaining()) return false;
+    this.handleRestAction();
+    return true;
+  }
+
   /** TLDR: Return player state snapshot for Playwright test hooks */
   public getTestPlayerState(): {
     day: number;
