@@ -12,8 +12,8 @@ export default defineConfig({
     baseURL: process.env.GAME_URL || 'http://localhost:3002/flora/',
     trace: 'on-first-retry',
     actionTimeout: 10000, // TLDR: 10s for individual actions
-    screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    screenshot: 'on',
+    video: 'on',
   },
   projects: [
     {

@@ -207,3 +207,26 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Z-order fix (BUG-007)**: overlayLayer container ensures PauseMenu always renders above all gameplay UI
 - **Conventions applied**: TLDR comments, UI_COLORS for all colors, no inline hex values
 - **Testing**: `tsc --noEmit` and `vite build` both pass clean
+
+### Cosmetic Reward Application (Issue #198, PR #282)
+- **Architecture**: Config-driven cosmetic system with three reward types: seed_skin, hud_theme, badge
+- **Pattern**: Theme palettes as structured data objects; UI components accept optional cosmetic configs; settings persistence via SettingsSaveData
+- **Key file created**:
+  - `src/config/cosmetics.ts` — SeedSkinConfig (4 skins), HudThemeConfig (4 themes + default), BadgeConfig (6 badges), helper functions
+- **Key files updated**:
+  - `src/config/saveSchema.ts` — Extended SettingsSaveData with activeSeedSkin, activeHudTheme, activeBadges
+  - `src/core/EventBus.ts` — Added cosmetic:applied, cosmetic:seedSkinChanged, cosmetic:hudThemeChanged events
+  - `src/ui/HUD.ts` — Theme-aware rendering with applyTheme() method; all colors driven by HudThemeConfig
+  - `src/ui/SeedPacketDisplay.ts` — Optional SeedSkinConfig parameter overrides border/bg/banner colors + emoji badge
+  - `src/ui/SeedInventory.ts` — setSeedSkin() method for card skin indicators
+  - `src/scenes/SeedSelectionScene.ts` — Loads active skin from settings; passes to SeedPacketDisplay
+  - `src/scenes/MenuScene.ts` — New "Customize" menu state with cosmetic selection panel; sparkle animation; save persistence
+  - `src/ui/AchievementGallery.ts` — Dimmed reward preview shows type emoji (🌱/🎨/🏅) for locked achievements
+  - `src/main.ts` — Loads active cosmetic settings for SeedSelectionScene
+- **Design decisions**:
+  - Cosmetics are purely visual — no gameplay impact
+  - "Customize" menu item only enabled when player has unlocked cosmetics
+  - HUD theme uses structured palette object with fallback to DEFAULT_HUD_THEME
+  - Seed skins override packet border/bg/banner colors without touching rarity badge
+  - Sparkle animation via alpha oscillation (0.5s) provides immediate visual feedback on apply
+- **Conventions applied**: All comments "TLDR:", UI_COLORS for base palette, config-driven colors, bound listener cleanup
