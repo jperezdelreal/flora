@@ -1,4 +1,5 @@
 export * from './ToolBar';
+export * from './RestButton';
 export * from './Encyclopedia';
 export * from './DiscoveryPopup';
 export * from './UnlockNotification';

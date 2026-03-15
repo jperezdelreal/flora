@@ -23,7 +23,7 @@ import { AchievementSystem } from '../systems/AchievementSystem';
 import { PlantRenderer } from '../systems/PlantRenderer';
 import { TileRenderer } from '../systems/TileRenderer';
 import { SeedSelectionSystem } from '../systems/SeedSelectionSystem';
-import { ToolBar, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
+import { ToolBar, RestButton, Encyclopedia, DiscoveryPopup, HazardUI, HazardWarning, HazardTooltip, HUD, SeedInventory, PlantInfoPanel, DaySummary, PauseMenu, ScoreSummary, SaveIndicator, SynergyTooltip, TutorialOverlay, AchievementNotification, AchievementGallery } from '../ui';
 import type { DaySummaryData, PauseMenuCallbacks, HazardWarningData, GamePhase } from '../ui';
 import { InputManager } from '../core/InputManager';
 import { TouchController } from '../core/TouchController';
@@ -56,6 +56,7 @@ export class GardenScene implements Scene {
   private player!: Player;
   private playerSystem!: PlayerSystem;
   private toolBar!: ToolBar;
+  private restButton!: RestButton;
   private plants: Map<string, Plant> = new Map();
   private plantSystem!: PlantSystem;
   private encyclopediaSystem!: EncyclopediaSystem;
@@ -256,6 +257,15 @@ export class GardenScene implements Scene {
       this.updateStatusText();
     });
     this.container.addChild(this.toolBar.getContainer());
+
+    // TLDR: Initialize rest button (#244)
+    this.restButton = new RestButton();
+    this.restButton.position(
+      ctx.app.screen.width / 2 + 220,
+      ctx.app.screen.height - 100,
+    );
+    this.restButton.setOnClick(() => this.handleRestAction());
+    this.container.addChild(this.restButton.getContainer());
 
     // TLDR: Wire tool unlock/upgrade events to ToolBar UI
     eventBus.on('tool:unlocked', (data) => {
@@ -1076,6 +1086,10 @@ export class GardenScene implements Scene {
     if (this.isPaused) {
       return;
     }
+    
+    // TLDR: Update rest button enabled state based on actions remaining
+    const hasActions = this.player.hasActionsRemaining();
+    this.restButton.setEnabled(hasActions);
     
     // Update frame counter for day progress tracking
     this.frameCounter++;

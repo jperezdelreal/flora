@@ -6,6 +6,7 @@ import {
   getColorVisionLabel,
 } from '../utils/accessibility';
 import { eventBus } from '../core/EventBus';
+import { UI_COLORS } from '../config';
 
 export interface PauseMenuCallbacks {
   onResume?: () => void;
@@ -45,17 +46,17 @@ export class PauseMenu {
     this.focusRing = new Graphics();
     this.focusRing.visible = false;
 
-    // Full-screen semi-transparent overlay
+    // TLDR: Full-screen semi-transparent overlay with warm tone
     const overlay = new Graphics();
     overlay.rect(0, 0, 800, 600);
-    overlay.fill({ color: 0x000000, alpha: 0.8 });
+    overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.85 });
     this.container.addChild(overlay);
 
-    // Menu panel (expanded for new options)
+    // TLDR: Menu panel with warm cozy palette
     const panel = new Graphics();
     panel.roundRect(250, 100, 300, 520, 16);
-    panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
-    panel.stroke({ color: 0x4caf50, width: 3 });
+    panel.fill({ color: UI_COLORS.MENU_PANEL_BG, alpha: 0.98 });
+    panel.stroke({ color: UI_COLORS.MENU_PANEL_BORDER, width: 3 });
     this.container.addChild(panel);
 
     // Title
@@ -176,8 +177,8 @@ export class PauseMenu {
   private createMenuItem(label: string, action: string, y: number): { text: Text; button: Graphics; action: string } {
     const button = new Graphics();
     button.roundRect(0, 0, 260, 45, 8);
-    button.fill({ color: 0x2a2a2a });
-    button.stroke({ color: 0x4a4a4a, width: 2 });
+    button.fill({ color: UI_COLORS.MENU_ITEM_BG });
+    button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     button.x = 270;
     button.y = y;
     button.eventMode = 'static';
@@ -189,7 +190,7 @@ export class PauseMenu {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -199,19 +200,19 @@ export class PauseMenu {
     text.y = y + 22;
     this.container.addChild(text);
 
-    // Hover effects
+    // TLDR: Hover effects with warm green palette
     button.on('pointerover', () => {
       button.clear();
       button.roundRect(0, 0, 260, 45, 8);
-      button.fill({ color: 0x4caf50 });
-      button.stroke({ color: 0x66bb6a, width: 2 });
+      button.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+      button.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     button.on('pointerout', () => {
       button.clear();
       button.roundRect(0, 0, 260, 45, 8);
-      button.fill({ color: 0x2a2a2a });
-      button.stroke({ color: 0x4a4a4a, width: 2 });
+      button.fill({ color: UI_COLORS.MENU_ITEM_BG });
+      button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
 
     button.on('pointerdown', () => {
@@ -265,8 +266,8 @@ export class PauseMenu {
     
     this.muteButton = new Graphics();
     this.muteButton.roundRect(0, 0, 260, 45, 8);
-    this.muteButton.fill({ color: 0x2a2a2a });
-    this.muteButton.stroke({ color: 0x4a4a4a, width: 2 });
+    this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+    this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     this.muteButton.x = 270;
     this.muteButton.y = y;
     this.muteButton.eventMode = 'static';
@@ -278,7 +279,7 @@ export class PauseMenu {
       style: {
         fontFamily: 'Arial',
         fontSize: 20,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -291,15 +292,15 @@ export class PauseMenu {
     this.muteButton.on('pointerover', () => {
       this.muteButton.clear();
       this.muteButton.roundRect(0, 0, 260, 45, 8);
-      this.muteButton.fill({ color: 0x4caf50 });
-      this.muteButton.stroke({ color: 0x66bb6a, width: 2 });
+      this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+      this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.muteButton.on('pointerout', () => {
       this.muteButton.clear();
       this.muteButton.roundRect(0, 0, 260, 45, 8);
-      this.muteButton.fill({ color: 0x2a2a2a });
-      this.muteButton.stroke({ color: 0x4a4a4a, width: 2 });
+      this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+      this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
 
     this.muteButton.on('pointerdown', () => {
@@ -313,8 +314,8 @@ export class PauseMenu {
 
     this.colorblindButton = new Graphics();
     this.colorblindButton.roundRect(0, 0, 260, 45, 8);
-    this.colorblindButton.fill({ color: 0x2a2a2a });
-    this.colorblindButton.stroke({ color: 0x4a4a4a, width: 2 });
+    this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+    this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     this.colorblindButton.x = 270;
     this.colorblindButton.y = y;
     this.colorblindButton.eventMode = 'static';
@@ -326,7 +327,7 @@ export class PauseMenu {
       style: {
         fontFamily: 'Arial',
         fontSize: 16,
-        fill: '#ffffff',
+        fill: UI_COLORS.TEXT_PRIMARY,
         fontWeight: 'bold',
         align: 'center',
       },
@@ -339,15 +340,15 @@ export class PauseMenu {
     this.colorblindButton.on('pointerover', () => {
       this.colorblindButton.clear();
       this.colorblindButton.roundRect(0, 0, 260, 45, 8);
-      this.colorblindButton.fill({ color: 0x4caf50 });
-      this.colorblindButton.stroke({ color: 0x66bb6a, width: 2 });
+      this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
+      this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.colorblindButton.on('pointerout', () => {
       this.colorblindButton.clear();
       this.colorblindButton.roundRect(0, 0, 260, 45, 8);
-      this.colorblindButton.fill({ color: 0x2a2a2a });
-      this.colorblindButton.stroke({ color: 0x4a4a4a, width: 2 });
+      this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
+      this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
 
     this.colorblindButton.on('pointerdown', () => {
