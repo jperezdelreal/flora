@@ -7,7 +7,7 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: 'html',
-  timeout: 60000, // TLDR: Increase timeout to 60s for WebGL games with slow initialization
+  timeout: 90000, // TLDR: Increase timeout to 90s for WebGL games with slow initialization and extended tests
   use: {
     baseURL: process.env.GAME_URL || 'https://jperezdelreal.github.io/flora/',
     trace: 'on-first-retry',
