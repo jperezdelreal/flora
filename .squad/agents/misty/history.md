@@ -4,6 +4,17 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Season-End Pacing + Menu Nav Verification (Issues #307 + #308, PR #310)
+- **#307**: Menu navigation already fixed — `MenuScene.ts:632-633` properly calls `transitionTo(SCENES.ENCYCLOPEDIA/ACHIEVEMENTS)`. No code change needed.
+- **#308**: Season-end pacing enhancements:
+  - Added "Season Over" banner in `GardenScene.ts` — dark overlay + emoji text + accent lines + seasonal particle burst, with fade-in/hold/fade-out lifecycle
+  - `ScoreSummary.ts` rewritten with staggered score count-up (ease-out cubic), button disabled during animation, sparkle flourish on enable
+  - 10 new constants in `src/config/animations.ts` (SEASON_END_BANNER_*, SCORE_COUNTUP_*, SCORE_BUTTON_ENABLE_DELAY)
+  - All colors from `COLORS`/`UI_COLORS`, all comments "TLDR:"
+- **Key files**: `src/config/animations.ts`, `src/ui/ScoreSummary.ts`, `src/scenes/GardenScene.ts`
+- **Pattern**: Container with labeled children (`label` property) for targeted animation phases (getChildByLabel)
+- **Convention**: Season palette colors from `getSeasonalPalette()`, season display names from `SEASON_CONFIG[season].displayName`
+
 ### Toolbar Icon Polish & ESC Pause Hint (Issues #294 + #295, PR #300)
 - **#294**: Updated compost icon (🪴→🪱), pest spray icon (🧴→🧪); reordered `ALL_TOOLS` to match keyboard shortcut 1-9 order; enlarged icons 32→36px, shrunk name text 12→10px
 - **#295**: Added `escHintText` to HUD — "⏸ Press ESC to pause" using `UI_COLORS.TEXT_HINT`, visible only on days 1-2 via `this.escHintText.visible = day <= 2` in `update()`
