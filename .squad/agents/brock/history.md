@@ -113,4 +113,14 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Convention**: Always add timeout parameters to screenshot operations (`{ timeout: 5000 }`) and wrap in try-catch for headless resilience
 - **Key learning**: Headless Chrome with SwiftShader + PixiJS v8 WebGL is slow but functional — tests must be resilient to timeouts, not force success
 
+### Expanded Playwright E2E Coverage (Issue #270, PR #272)
+- **Serial test execution**: Multiple parallel WebGL contexts in headless Chrome cause timeouts and hangs — use `test.describe.configure({ mode: 'serial' })` for WebGL game tests
+- **Timing strategy**: Replace `waitForRenderedFrames()` with `page.waitForTimeout()` for menu/boot scenes — rAF-based frame counting hangs in headless when multiple contexts compete
+- **Resilient ticker check**: `ensureRenderTicker()` uses `Promise.race()` with 3s fallback and try-catch — gracefully assumes page is active if evaluation times out in headless
+- **Extended test timeouts**: Tests with 30s+ waits need `test.setTimeout(120000)` — default 90s insufficient for initialization + wait + assertions
+- **Test coverage expansion**: 7 new tests covering scene transitions (boot → menu), keyboard navigation (arrows/Enter/Escape/rapid inputs), viewport resize (mobile/tablet/desktop), and 30s stability
+- **Memory leak detection**: Filter console errors for 'memory', 'heap', 'out of', 'webgl...context' keywords to detect WebGL context loss and OOM issues
+- **Parallel execution caveat**: Tests pass with workers=1 (serial) but fail randomly with workers=4 (parallel) due to WebGL resource contention — CI already uses workers=1
+- **Key files**: tests/e2e/flora-scenes.spec.ts, playwright.config.ts
+
 
