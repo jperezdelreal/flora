@@ -650,6 +650,11 @@ export class HUD {
     return this.container;
   }
 
+  /** Update discovery counter display */
+  updateDiscoveryCount(_discovered: number, _total: number): void {
+    // TLDR: Stub — full implementation in discovery-polish branch
+  }
+
   destroy(): void {
     if (this.tertiaryHideTimer !== null) {
       clearTimeout(this.tertiaryHideTimer);

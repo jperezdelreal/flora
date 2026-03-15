@@ -321,6 +321,15 @@ export class PlantRenderer implements System {
         visual.x = baseX + xSway;
       }
 
+      // Mature pulse: subtle scale breathing to signal "harvest me"
+      if (stage === GrowthStage.MATURE && plant.getHealth() > 70) {
+        const keyframe = getStageKeyframe(plant.getConfig().id, stage);
+        const pulseSpeed = visualDef?.glowOnMature ? 2.5 : 1.8;
+        const pulseAmount = visualDef?.glowOnMature ? 0.06 : 0.03;
+        const pulse = 1.0 + Math.sin(time * pulseSpeed + phase) * pulseAmount;
+        visual.scale.set(keyframe.scale * pulse);
+      }
+
       // Synergy shimmer: alpha pulse on plants with active synergies
       const state = plant.getState();
       if (state.activeSynergies && state.activeSynergies.size > 0 && stage === GrowthStage.MATURE) {
@@ -707,7 +716,7 @@ export class PlantRenderer implements System {
     gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
   }
 
-  /** Growing: intermediate form developing toward mature shape with species-specific leaves */
+  /** Growing: intermediate form developing toward mature shape dispatched by plant family */
   private drawGrowingShape(
     gfx: Graphics,
     visualDef: PlantVisualDef,
@@ -718,63 +727,574 @@ export class PlantRenderer implements System {
     alpha: number,
     yOffset: number,
   ): void {
+    const r = shape.mainRadius;
     const stemWidthMap = { thin: 1.2, medium: 1.8, thick: 2.4 };
-    const stemHeight = shape.mainRadius * 1.2;
-    const stemWidth = Math.max(shape.mainRadius * 0.18, stemWidthMap[visualDef.stemStyle]);
-    gfx.rect(-stemWidth / 2, yOffset + shape.mainRadius * 0.3, stemWidth, stemHeight);
+    const stemHeight = r * 1.2;
+    const stemWidth = Math.max(r * 0.18, stemWidthMap[visualDef.stemStyle]);
+    gfx.rect(-stemWidth / 2, yOffset + r * 0.3, stemWidth, stemHeight);
     gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
 
-    // Growing leaves — count and shape determined by species
-    const growingLeafCount = Math.min(visualDef.leafCount, 4);
-
-    if (visualDef.matureShape === 'flower') {
-      const petalCount = Math.max(3, (shape.petals ?? 6) - 2);
-      const petalRadius = shape.mainRadius * 0.35;
-      for (let i = 0; i < petalCount; i++) {
-        const angle = (i / petalCount) * Math.PI * 2;
-        const x = Math.cos(angle) * shape.mainRadius * 0.4;
-        const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.4;
-        gfx.circle(x, y, petalRadius);
+    switch (visualDef.plantFamily) {
+      case 'flower': {
+        // Developing bud with partial petals radiating from center
+        const petalCount = Math.max(3, (shape.petals ?? 6) - 2);
+        const petalRadius = r * 0.35;
+        for (let i = 0; i < petalCount; i++) {
+          const angle = (i / petalCount) * Math.PI * 2;
+          const x = Math.cos(angle) * r * 0.4;
+          const y = yOffset + Math.sin(angle) * r * 0.4;
+          gfx.circle(x, y, petalRadius);
+          gfx.fill({ color: mainColor, alpha: alpha * 0.8 });
+        }
+        gfx.circle(0, yOffset, r * 0.25);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
+        // Stem leaf
+        this.drawLeaf(gfx, visualDef.leafShape, r * 0.4, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.7);
+        break;
+      }
+      case 'herb': {
+        // Small paired leaves along stem + growing tip
+        const pairs = Math.min(visualDef.leafCount, 4);
+        for (let i = 0; i < pairs; i++) {
+          const ly = yOffset + r * 0.3 + (i / pairs) * stemHeight * 0.8;
+          const side = i % 2 === 0 ? 1 : -1;
+          this.drawLeaf(gfx, visualDef.leafShape, side * r * 0.3, ly, r * 0.25, mainColor, alpha * 0.8);
+        }
+        gfx.circle(0, yOffset - r * 0.1, r * 0.18);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.7 });
+        break;
+      }
+      case 'vegetable': {
+        // Small developing fruit + leaves around it
+        gfx.circle(0, yOffset, r * 0.4);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.7 });
+        for (let i = 0; i < 3; i++) {
+          const angle = ((i / 3) * Math.PI) - Math.PI / 2;
+          const lx = Math.cos(angle) * r * 0.5;
+          const ly = yOffset + Math.sin(angle) * r * 0.35;
+          this.drawLeaf(gfx, visualDef.leafShape, lx, ly, r * 0.3, accentColor, alpha * 0.7);
+        }
+        break;
+      }
+      case 'root_veg': {
+        // Root emerging from soil + developing fronds above
+        gfx.moveTo(0, yOffset + r * 0.8);
+        gfx.lineTo(r * 0.25, yOffset + r * 0.2);
+        gfx.lineTo(-r * 0.25, yOffset + r * 0.2);
+        gfx.closePath();
         gfx.fill({ color: mainColor, alpha: alpha * 0.8 });
+        for (let i = 0; i < 3; i++) {
+          const fx = (i - 1) * r * 0.2;
+          gfx.ellipse(fx, yOffset - r * 0.1, r * 0.06, r * 0.35);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        }
+        break;
       }
-      gfx.circle(0, yOffset, shape.mainRadius * 0.25);
-      gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
-    } else if (visualDef.matureShape === 'bush') {
-      const clusters = Math.min(growingLeafCount, 3);
-      for (let i = 0; i < clusters; i++) {
-        const angle = (i / clusters) * Math.PI * 2;
-        const x = Math.cos(angle) * shape.mainRadius * 0.3;
-        const y = yOffset + Math.sin(angle) * shape.mainRadius * 0.3;
-        gfx.circle(x, y, shape.mainRadius * 0.5);
-        gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha: alpha * 0.85 });
+      case 'leafy': {
+        // Developing rosette of overlapping leaves
+        const leafCount = Math.min(visualDef.leafCount, 5);
+        for (let i = 0; i < leafCount; i++) {
+          const angle = (i / leafCount) * Math.PI * 2;
+          const lx = Math.cos(angle) * r * 0.25;
+          const ly = yOffset + Math.sin(angle) * r * 0.2;
+          gfx.ellipse(lx, ly, r * 0.4, r * 0.25);
+          gfx.fill({ color: i % 2 === 0 ? mainColor : accentColor, alpha: alpha * 0.8 });
+        }
+        break;
       }
-      // Fruit preview for berry/strawberry bushes
-      if (visualDef.fruitSize > 0.3) {
-        gfx.circle(shape.mainRadius * 0.2, yOffset - shape.mainRadius * 0.1, shape.mainRadius * 0.15 * visualDef.fruitSize);
-        gfx.fill({ color: detailColor, alpha: alpha * 0.5 });
+      case 'vine': {
+        // Climbing stem with tendril curl + small leaves
+        gfx.circle(r * 0.3, yOffset - r * 0.2, r * 0.15);
+        gfx.stroke({ color: accentColor, alpha: alpha * 0.6, width: 1.5 });
+        for (let i = 0; i < 3; i++) {
+          const side = i % 2 === 0 ? 1 : -1;
+          const ly = yOffset + r * 0.2 + i * r * 0.3;
+          this.drawLeaf(gfx, visualDef.leafShape, side * r * 0.3, ly, r * 0.22, mainColor, alpha * 0.7);
+        }
+        break;
       }
-    } else if (visualDef.matureShape === 'root') {
-      this.drawRoot(gfx, shape, mainColor, accentColor, alpha, yOffset);
-    } else if (visualDef.matureShape === 'star') {
-      gfx.circle(0, yOffset, shape.mainRadius * 0.6);
-      gfx.fill({ color: mainColor, alpha });
-      gfx.circle(0, yOffset, shape.mainRadius * 0.3);
-      gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
-    } else {
-      // Oval/circle/tall/wide: leaves arranged by species parameters
-      gfx.ellipse(0, yOffset, shape.mainRadius * 0.8, shape.mainRadius * 0.7 / shape.aspectRatio);
-      gfx.fill({ color: mainColor, alpha });
-      for (let i = 0; i < growingLeafCount; i++) {
-        const angle = ((i / growingLeafCount) * Math.PI) - Math.PI / 2;
-        const lx = Math.cos(angle) * shape.mainRadius * 0.5;
-        const ly = yOffset + Math.sin(angle) * shape.mainRadius * 0.3;
-        this.drawLeaf(gfx, visualDef.leafShape, lx, ly, shape.mainRadius * 0.3, accentColor, alpha * 0.7);
+      case 'tree': {
+        // Developing trunk + small canopy ellipse
+        gfx.rect(-r * 0.12, yOffset + r * 0.2, r * 0.24, r * 1.0);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.8 });
+        gfx.ellipse(0, yOffset - r * 0.15, r * 0.5, r * 0.4);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.7 });
+        break;
+      }
+      case 'berry': {
+        // Bush forming with small berry hints
+        const clusters = 3;
+        for (let i = 0; i < clusters; i++) {
+          const angle = (i / clusters) * Math.PI * 2;
+          const x = Math.cos(angle) * r * 0.3;
+          const y = yOffset + Math.sin(angle) * r * 0.3;
+          gfx.circle(x, y, r * 0.4);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.75 });
+        }
+        gfx.circle(r * 0.15, yOffset - r * 0.05, r * 0.12);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.5 });
+        break;
+      }
+      case 'melon': {
+        // Vine sprawl with developing fruit
+        gfx.ellipse(0, yOffset + r * 0.1, r * 0.55, r * 0.35);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.6 });
+        this.drawLeaf(gfx, 'round', -r * 0.5, yOffset - r * 0.1, r * 0.3, accentColor, alpha * 0.7);
+        gfx.circle(r * 0.3, yOffset - r * 0.2, r * 0.12);
+        gfx.stroke({ color: accentColor, alpha: alpha * 0.5, width: 1.2 });
+        break;
+      }
+      case 'exotic': {
+        // Star-ish emerging shape with spiky hints
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+          const sx = Math.cos(angle) * r * 0.5;
+          const sy = yOffset + Math.sin(angle) * r * 0.5;
+          gfx.moveTo(0, yOffset);
+          gfx.lineTo(sx, sy);
+          gfx.stroke({ color: mainColor, alpha: alpha * 0.8, width: 2 });
+        }
+        gfx.circle(0, yOffset, r * 0.25);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        break;
+      }
+      default: {
+        // Generic ellipse with leaf ring
+        gfx.ellipse(0, yOffset, r * 0.8, r * 0.7 / shape.aspectRatio);
+        gfx.fill({ color: mainColor, alpha });
+        const leafCount = Math.min(visualDef.leafCount, 4);
+        for (let i = 0; i < leafCount; i++) {
+          const angle = ((i / leafCount) * Math.PI) - Math.PI / 2;
+          const lx = Math.cos(angle) * r * 0.5;
+          const ly = yOffset + Math.sin(angle) * r * 0.3;
+          this.drawLeaf(gfx, visualDef.leafShape, lx, ly, r * 0.3, accentColor, alpha * 0.7);
+        }
+        break;
       }
     }
   }
 
-  /** Mature: full unique shape per plant species with fruit/flower detail and species leaves */
+  /** Mature: full unique shape per plant species — 22 unique silhouettes dispatched by plantId */
   private drawMatureShape(
+    gfx: Graphics,
+    visualDef: PlantVisualDef,
+    shape: PlantShapeData,
+    mainColor: number,
+    accentColor: number,
+    detailColor: number,
+    alpha: number,
+    yOffset: number,
+  ): void {
+    const r = shape.mainRadius;
+
+    switch (visualDef.plantId) {
+      case 'tomato': {
+        // Round red fruit + green calyx star on top + stem
+        gfx.rect(-r * 0.06, yOffset - r * 0.5, r * 0.12, r * 0.5);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        gfx.circle(0, yOffset + r * 0.15, r * 0.55);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+          const sx = Math.cos(angle) * r * 0.3;
+          const sy = yOffset - r * 0.25 + Math.sin(angle) * r * 0.15;
+          gfx.ellipse(sx, sy, r * 0.12, r * 0.06);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.9 });
+        }
+        break;
+      }
+      case 'lettuce': {
+        // 4-ring layered rosette of overlapping leaves
+        for (let ring = 4; ring >= 1; ring--) {
+          const ringR = r * 0.25 * ring;
+          const leaves = 5 + ring;
+          for (let i = 0; i < leaves; i++) {
+            const angle = (i / leaves) * Math.PI * 2 + ring * 0.3;
+            const lx = Math.cos(angle) * ringR * 0.5;
+            const ly = yOffset + Math.sin(angle) * ringR * 0.4;
+            gfx.ellipse(lx, ly, ringR * 0.4, ringR * 0.28);
+            gfx.fill({ color: ring % 2 === 0 ? mainColor : accentColor, alpha: alpha * (0.7 + ring * 0.05) });
+          }
+        }
+        break;
+      }
+      case 'carrot': {
+        // Orange tapered cone pointing down + 5 feathery green fronds above
+        gfx.moveTo(0, yOffset + r * 1.0);
+        gfx.lineTo(r * 0.3, yOffset);
+        gfx.lineTo(-r * 0.3, yOffset);
+        gfx.closePath();
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 5; i++) {
+          const fx = (i - 2) * r * 0.15;
+          gfx.ellipse(fx, yOffset - r * 0.35, r * 0.05, r * 0.4);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        }
+        break;
+      }
+      case 'radish': {
+        // Round pink bulb + tapering root tip + small leaf sprouts
+        gfx.circle(0, yOffset + r * 0.1, r * 0.45);
+        gfx.fill({ color: mainColor, alpha });
+        gfx.moveTo(0, yOffset + r * 0.8);
+        gfx.lineTo(r * 0.08, yOffset + r * 0.5);
+        gfx.lineTo(-r * 0.08, yOffset + r * 0.5);
+        gfx.closePath();
+        gfx.fill({ color: mainColor, alpha: alpha * 0.7 });
+        for (let i = 0; i < 3; i++) {
+          const lx = (i - 1) * r * 0.2;
+          gfx.ellipse(lx, yOffset - r * 0.3, r * 0.08, r * 0.2);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        }
+        break;
+      }
+      case 'pea': {
+        // Vine stem + 3 pea pods with bumps inside + tendril curl
+        gfx.rect(-r * 0.04, yOffset - r * 0.3, r * 0.08, r * 1.3);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        for (let p = 0; p < 3; p++) {
+          const py = yOffset + r * 0.1 + p * r * 0.35;
+          gfx.ellipse(r * 0.2, py, r * 0.3, r * 0.12);
+          gfx.fill({ color: mainColor, alpha });
+          for (let b = 0; b < 3; b++) {
+            gfx.circle(r * 0.1 + b * r * 0.1, py, r * 0.06);
+            gfx.fill({ color: detailColor, alpha: alpha * 0.5 });
+          }
+        }
+        gfx.circle(r * 0.25, yOffset - r * 0.35, r * 0.15);
+        gfx.stroke({ color: accentColor, alpha: alpha * 0.6, width: 1.5 });
+        break;
+      }
+      case 'sunflower': {
+        // Thick stem + elongated golden petals radiating + brown center disk
+        gfx.rect(-r * 0.1, yOffset + r * 0.3, r * 0.2, r * 1.0);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        const petalCount = visualDef.leafCount;
+        for (let i = 0; i < petalCount; i++) {
+          const angle = (i / petalCount) * Math.PI * 2;
+          const px = Math.cos(angle) * r * 0.45;
+          const py = yOffset + Math.sin(angle) * r * 0.45;
+          gfx.ellipse(px, py, r * 0.12, r * 0.35);
+          gfx.fill({ color: mainColor, alpha });
+        }
+        gfx.circle(0, yOffset, r * 0.3);
+        gfx.fill({ color: detailColor || accentColor, alpha });
+        break;
+      }
+      case 'mint': {
+        // Central stem + 4 pairs of serrated leaves at increasing spread
+        gfx.rect(-r * 0.05, yOffset - r * 0.2, r * 0.1, r * 1.2);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        for (let i = 0; i < 4; i++) {
+          const ly = yOffset + r * 0.7 - i * r * 0.25;
+          const spread = r * (0.2 + i * 0.1);
+          this.drawLeaf(gfx, 'serrated', spread, ly, r * 0.3, mainColor, alpha * 0.85);
+          this.drawLeaf(gfx, 'serrated', -spread, ly, r * 0.3, mainColor, alpha * 0.85);
+        }
+        break;
+      }
+      case 'pepper': {
+        // Bell body (wide ellipse) + 3 lobe ridges + stem on top
+        gfx.rect(-r * 0.05, yOffset - r * 0.5, r * 0.1, r * 0.35);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        gfx.ellipse(0, yOffset + r * 0.15, r * 0.45, r * 0.55);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 3; i++) {
+          const lx = (i - 1) * r * 0.2;
+          gfx.ellipse(lx, yOffset + r * 0.15, r * 0.08, r * 0.45);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.2 });
+        }
+        break;
+      }
+      case 'basil': {
+        // Compact dome of 3 pairs of large round leaves + top bud
+        gfx.rect(-r * 0.06, yOffset + r * 0.1, r * 0.12, r * 0.8);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        for (let i = 0; i < 3; i++) {
+          const ly = yOffset + r * 0.5 - i * r * 0.25;
+          const spread = r * (0.35 - i * 0.05);
+          gfx.ellipse(spread, ly, r * 0.25, r * 0.18);
+          gfx.fill({ color: mainColor, alpha: alpha * 0.85 });
+          gfx.ellipse(-spread, ly, r * 0.25, r * 0.18);
+          gfx.fill({ color: mainColor, alpha: alpha * 0.85 });
+        }
+        gfx.circle(0, yOffset - r * 0.1, r * 0.12);
+        gfx.fill({ color: detailColor || accentColor, alpha: alpha * 0.7 });
+        break;
+      }
+      case 'cucumber': {
+        // Elongated vertical oval + lighter stripe ellipses + vine curl + blossom end
+        gfx.ellipse(0, yOffset + r * 0.1, r * 0.3, r * 0.7);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 3; i++) {
+          gfx.ellipse(r * 0.05, yOffset - r * 0.2 + i * r * 0.3, r * 0.06, r * 0.18);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.4 });
+        }
+        gfx.circle(r * 0.35, yOffset - r * 0.5, r * 0.12);
+        gfx.stroke({ color: accentColor, alpha: alpha * 0.5, width: 1.2 });
+        gfx.circle(0, yOffset + r * 0.75, r * 0.08);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.6 });
+        break;
+      }
+      case 'blueberry': {
+        // Branch + leaf backdrop + 5 dark berry circles with crown dots
+        gfx.rect(-r * 0.05, yOffset, r * 0.1, r * 0.8);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        gfx.ellipse(0, yOffset - r * 0.1, r * 0.6, r * 0.45);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.4 });
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2;
+          const bx = Math.cos(angle) * r * 0.3;
+          const by = yOffset + Math.sin(angle) * r * 0.25;
+          gfx.circle(bx, by, r * 0.13);
+          gfx.fill({ color: mainColor, alpha });
+          gfx.circle(bx, by - r * 0.08, r * 0.03);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.6 });
+        }
+        break;
+      }
+      case 'frost_willow': {
+        // Thick trunk + 5 drooping branch ellipses + canopy crown + 3 diamond ice crystals
+        gfx.rect(-r * 0.12, yOffset + r * 0.2, r * 0.24, r * 1.0);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.8 });
+        gfx.ellipse(0, yOffset - r * 0.2, r * 0.65, r * 0.35);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.6 });
+        for (let i = 0; i < 5; i++) {
+          const bx = (i - 2) * r * 0.25;
+          gfx.ellipse(bx, yOffset + r * 0.05, r * 0.1, r * 0.45);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.5 });
+        }
+        for (let i = 0; i < 3; i++) {
+          const dx = (i - 1) * r * 0.35;
+          const dy = yOffset - r * 0.35;
+          gfx.moveTo(dx, dy - r * 0.1);
+          gfx.lineTo(dx + r * 0.06, dy);
+          gfx.lineTo(dx, dy + r * 0.1);
+          gfx.lineTo(dx - r * 0.06, dy);
+          gfx.closePath();
+          gfx.fill({ color: 0xb3e5fc, alpha: alpha * 0.7 });
+        }
+        break;
+      }
+      case 'lavender': {
+        // Thin stem + narrow base leaves + vertical spike of 7 tiny flower circles
+        gfx.rect(-r * 0.03, yOffset - r * 0.3, r * 0.06, r * 1.3);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        this.drawLeaf(gfx, 'narrow', -r * 0.15, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.6);
+        this.drawLeaf(gfx, 'narrow', r * 0.15, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.6);
+        for (let i = 0; i < 7; i++) {
+          const fy = yOffset - r * 0.3 + i * r * 0.12;
+          gfx.circle(0, fy, r * 0.08);
+          gfx.fill({ color: mainColor, alpha: alpha * (0.6 + i * 0.05) });
+        }
+        break;
+      }
+      case 'orchid': {
+        // Thin stem + 3 outer sepal ellipses + 2 inner petal ellipses + central lip + detail dot
+        gfx.rect(-r * 0.03, yOffset + r * 0.3, r * 0.06, r * 0.7);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        for (let i = 0; i < 3; i++) {
+          const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
+          const sx = Math.cos(angle) * r * 0.45;
+          const sy = yOffset + Math.sin(angle) * r * 0.35;
+          gfx.ellipse(sx, sy, r * 0.18, r * 0.35);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        }
+        gfx.ellipse(-r * 0.2, yOffset - r * 0.05, r * 0.22, r * 0.3);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.85 });
+        gfx.ellipse(r * 0.2, yOffset - r * 0.05, r * 0.22, r * 0.3);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.85 });
+        gfx.ellipse(0, yOffset + r * 0.15, r * 0.15, r * 0.22);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
+        gfx.circle(0, yOffset + r * 0.1, r * 0.05);
+        gfx.fill({ color: 0xffffff, alpha: alpha * 0.7 });
+        break;
+      }
+      case 'venus_flytrap': {
+        // 2 stems + upper jaw + lower jaw + inner mouth + 5 white teeth triangles + smaller secondary trap
+        gfx.rect(-r * 0.06, yOffset + r * 0.2, r * 0.08, r * 0.8);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        gfx.rect(r * 0.15, yOffset + r * 0.3, r * 0.06, r * 0.6);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        // Upper jaw
+        gfx.arc(0, yOffset, r * 0.4, Math.PI, 0);
+        gfx.fill({ color: mainColor, alpha });
+        // Lower jaw
+        gfx.arc(0, yOffset + r * 0.05, r * 0.38, 0, Math.PI);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
+        // Inner mouth
+        gfx.ellipse(0, yOffset + r * 0.02, r * 0.25, r * 0.1);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.6 });
+        // 5 white teeth
+        for (let i = 0; i < 5; i++) {
+          const tx = -r * 0.3 + i * r * 0.15;
+          gfx.moveTo(tx, yOffset - r * 0.02);
+          gfx.lineTo(tx + r * 0.04, yOffset + r * 0.08);
+          gfx.lineTo(tx - r * 0.04, yOffset + r * 0.08);
+          gfx.closePath();
+          gfx.fill({ color: 0xffffff, alpha: alpha * 0.8 });
+        }
+        // Smaller secondary trap
+        gfx.arc(r * 0.18, yOffset + r * 0.25, r * 0.18, Math.PI, 0);
+        gfx.fill({ color: mainColor, alpha: alpha * 0.6 });
+        gfx.arc(r * 0.18, yOffset + r * 0.28, r * 0.16, 0, Math.PI);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.5 });
+        break;
+      }
+      case 'heirloom_squash': {
+        // Vine tendril arc + stem + wide oval body + 4 vertical rib ellipses
+        gfx.circle(-r * 0.5, yOffset - r * 0.3, r * 0.2);
+        gfx.stroke({ color: accentColor, alpha: alpha * 0.5, width: 1.5 });
+        gfx.rect(-r * 0.05, yOffset - r * 0.4, r * 0.1, r * 0.3);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        gfx.ellipse(0, yOffset + r * 0.15, r * 0.6, r * 0.45);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 4; i++) {
+          const rx = -r * 0.3 + i * r * 0.2;
+          gfx.ellipse(rx, yOffset + r * 0.15, r * 0.06, r * 0.38);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.25 });
+        }
+        break;
+      }
+      case 'golden_marigold': {
+        // Stem + leaves + outer ring of leafCount circles + inner ring of 8 circles + center
+        gfx.rect(-r * 0.06, yOffset + r * 0.3, r * 0.12, r * 0.7);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        this.drawLeaf(gfx, visualDef.leafShape, -r * 0.35, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.7);
+        this.drawLeaf(gfx, visualDef.leafShape, r * 0.35, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.7);
+        const outerCount = visualDef.leafCount;
+        for (let i = 0; i < outerCount; i++) {
+          const angle = (i / outerCount) * Math.PI * 2;
+          const px = Math.cos(angle) * r * 0.5;
+          const py = yOffset + Math.sin(angle) * r * 0.5;
+          gfx.circle(px, py, r * 0.14);
+          gfx.fill({ color: mainColor, alpha });
+        }
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const px = Math.cos(angle) * r * 0.28;
+          const py = yOffset + Math.sin(angle) * r * 0.28;
+          gfx.circle(px, py, r * 0.1);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.85 });
+        }
+        gfx.circle(0, yOffset, r * 0.15);
+        gfx.fill({ color: detailColor, alpha });
+        break;
+      }
+      case 'ghost_pepper': {
+        // Stem + oval body + 3 wrinkle bump circles + pointed tip triangle + shimmer dots
+        gfx.rect(-r * 0.04, yOffset - r * 0.5, r * 0.08, r * 0.4);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.8 });
+        gfx.ellipse(0, yOffset + r * 0.05, r * 0.3, r * 0.5);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 3; i++) {
+          const by = yOffset - r * 0.1 + i * r * 0.2;
+          gfx.circle(r * 0.15, by, r * 0.08);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.35 });
+        }
+        gfx.moveTo(0, yOffset + r * 0.7);
+        gfx.lineTo(r * 0.08, yOffset + r * 0.5);
+        gfx.lineTo(-r * 0.08, yOffset + r * 0.5);
+        gfx.closePath();
+        gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+        for (let i = 0; i < 4; i++) {
+          gfx.circle(r * 0.1 * (i % 2 === 0 ? 1 : -1), yOffset + r * 0.1 * i - r * 0.15, r * 0.025);
+          gfx.fill({ color: 0xffffff, alpha: alpha * 0.3 });
+        }
+        break;
+      }
+      case 'moonflower': {
+        // Vine stem + leaf + 5 star-petals (elongated ellipses) + luminous center + white inner glow
+        gfx.rect(-r * 0.04, yOffset + r * 0.3, r * 0.08, r * 0.7);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        this.drawLeaf(gfx, 'round', -r * 0.3, yOffset + r * 0.5, r * 0.3, accentColor, alpha * 0.6);
+        for (let i = 0; i < 5; i++) {
+          const angle = (i / 5) * Math.PI * 2 - Math.PI / 2;
+          const px = Math.cos(angle) * r * 0.25;
+          const py = yOffset + Math.sin(angle) * r * 0.25;
+          gfx.ellipse(px, py, r * 0.12, r * 0.4);
+          gfx.fill({ color: mainColor, alpha: alpha * 0.85 });
+        }
+        gfx.circle(0, yOffset, r * 0.2);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.9 });
+        gfx.circle(0, yOffset, r * 0.1);
+        gfx.fill({ color: 0xffffff, alpha: alpha * 0.5 });
+        break;
+      }
+      case 'strawberry': {
+        // Spreading runner + 3 trifoliate leaves + 3 berries (circle + triangle + seed dots)
+        gfx.rect(-r * 0.6, yOffset + r * 0.6, r * 1.2, r * 0.05);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.5 });
+        for (let i = 0; i < 3; i++) {
+          const lx = (i - 1) * r * 0.35;
+          const ly = yOffset + r * 0.3;
+          this.drawLeaf(gfx, 'serrated', lx - r * 0.08, ly, r * 0.2, accentColor, alpha * 0.7);
+          this.drawLeaf(gfx, 'serrated', lx + r * 0.08, ly, r * 0.2, accentColor, alpha * 0.7);
+          this.drawLeaf(gfx, 'serrated', lx, ly - r * 0.1, r * 0.2, accentColor, alpha * 0.7);
+        }
+        for (let i = 0; i < 3; i++) {
+          const bx = (i - 1) * r * 0.35;
+          const by = yOffset + r * 0.05;
+          gfx.circle(bx, by, r * 0.15);
+          gfx.fill({ color: mainColor, alpha });
+          gfx.moveTo(bx, by + r * 0.22);
+          gfx.lineTo(bx + r * 0.1, by);
+          gfx.lineTo(bx - r * 0.1, by);
+          gfx.closePath();
+          gfx.fill({ color: mainColor, alpha: alpha * 0.9 });
+          for (let s = 0; s < 3; s++) {
+            gfx.circle(bx + (s - 1) * r * 0.06, by + r * 0.02, r * 0.02);
+            gfx.fill({ color: detailColor, alpha: alpha * 0.6 });
+          }
+        }
+        break;
+      }
+      case 'sage': {
+        // Woody stem + 5 alternating elongated leaves with fuzzy dots + top bud cluster
+        gfx.rect(-r * 0.06, yOffset - r * 0.1, r * 0.12, r * 1.1);
+        gfx.fill({ color: detailColor, alpha: alpha * 0.6 });
+        for (let i = 0; i < 5; i++) {
+          const side = i % 2 === 0 ? 1 : -1;
+          const ly = yOffset + r * 0.7 - i * r * 0.2;
+          const lx = side * r * 0.25;
+          gfx.ellipse(lx, ly, r * 0.12, r * 0.3);
+          gfx.fill({ color: mainColor, alpha: alpha * 0.8 });
+          gfx.circle(lx, ly, r * 0.03);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.3 });
+        }
+        for (let i = 0; i < 3; i++) {
+          gfx.circle((i - 1) * r * 0.08, yOffset - r * 0.2, r * 0.06);
+          gfx.fill({ color: accentColor, alpha: alpha * 0.7 });
+        }
+        break;
+      }
+      case 'watermelon': {
+        // Vine runner + large oval body + 5 dark stripe ellipses + ground shadow + highlight
+        gfx.rect(-r * 0.7, yOffset + r * 0.55, r * 1.4, r * 0.04);
+        gfx.fill({ color: accentColor, alpha: alpha * 0.4 });
+        // Ground shadow
+        gfx.ellipse(0, yOffset + r * 0.55, r * 0.65, r * 0.08);
+        gfx.fill({ color: 0x333333, alpha: alpha * 0.15 });
+        gfx.ellipse(0, yOffset + r * 0.1, r * 0.6, r * 0.42);
+        gfx.fill({ color: mainColor, alpha });
+        for (let i = 0; i < 5; i++) {
+          const sx = -r * 0.3 + i * r * 0.15;
+          gfx.ellipse(sx, yOffset + r * 0.1, r * 0.04, r * 0.35);
+          gfx.fill({ color: detailColor, alpha: alpha * 0.4 });
+        }
+        // Highlight
+        gfx.ellipse(-r * 0.15, yOffset - r * 0.05, r * 0.15, r * 0.08);
+        gfx.fill({ color: 0xffffff, alpha: alpha * 0.2 });
+        break;
+      }
+      default:
+        this.drawMatureShapeFallback(gfx, visualDef, shape, mainColor, accentColor, detailColor, alpha, yOffset);
+        break;
+    }
+  }
+
+  /** Fallback mature shape using matureShape categories */
+  private drawMatureShapeFallback(
     gfx: Graphics,
     visualDef: PlantVisualDef,
     shape: PlantShapeData,
@@ -787,7 +1307,6 @@ export class PlantRenderer implements System {
     switch (visualDef.matureShape) {
       case 'flower':
         this.drawFlower(gfx, shape, mainColor, accentColor, detailColor, alpha, yOffset);
-        // Species-specific leaf ring around the base
         this.drawLeafRing(gfx, visualDef, shape, accentColor, alpha, yOffset + shape.mainRadius * 0.6, Math.min(visualDef.leafCount, 4));
         break;
       case 'star':
@@ -795,7 +1314,6 @@ export class PlantRenderer implements System {
         break;
       case 'bush':
         this.drawBush(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        // Fruit dots for berry/fruit-bearing bushes
         if (visualDef.fruitSize > 0) {
           const fruitCount = Math.min(visualDef.leafCount, 5);
           for (let i = 0; i < fruitCount; i++) {
@@ -813,9 +1331,7 @@ export class PlantRenderer implements System {
         break;
       default:
         this.drawEllipse(gfx, shape, mainColor, accentColor, alpha, yOffset);
-        // Species-distinguishing leaves around oval/circle/tall/wide shapes
         this.drawLeafRing(gfx, visualDef, shape, accentColor, alpha, yOffset, Math.min(visualDef.leafCount, 6));
-        // Fruit detail for fruit-bearing plants
         if (visualDef.fruitSize > 0.5) {
           gfx.circle(shape.mainRadius * 0.3, yOffset - shape.mainRadius * 0.2, shape.mainRadius * 0.2 * visualDef.fruitSize);
           gfx.fill({ color: detailColor, alpha: alpha * 0.85 });

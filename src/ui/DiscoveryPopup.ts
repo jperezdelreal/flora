@@ -32,6 +32,7 @@ export class DiscoveryPopup {
   private readonly fadeInTime = 300; // 0.3 seconds
   private readonly fadeOutTime = 500; // 0.5 seconds
   private isActive = false;
+  private lastRarity: string = 'common';
 
   constructor() {
     this.container = new Container();
@@ -127,6 +128,7 @@ export class DiscoveryPopup {
     this.plantNameText.text = config.displayName;
     this.rarityText.text = config.rarity.toUpperCase();
     this.descriptionText.text = config.description;
+    this.lastRarity = config.rarity;
 
     // Update rarity badge color
     const rarityColor = RARITY_COLORS[config.rarity];
@@ -189,6 +191,11 @@ export class DiscoveryPopup {
   /** Check if popup is currently showing */
   isShowing(): boolean {
     return this.isActive;
+  }
+
+  /** Check if the last shown plant was rare or higher */
+  isRarePlus(): boolean {
+    return this.lastRarity === 'rare' || this.lastRarity === 'heirloom';
   }
 
   /** Destroy and cleanup */
