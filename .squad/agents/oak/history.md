@@ -2,7 +2,33 @@
 
 FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
-## Learnings
+## Executive Summary (2026-03-15)
+
+**Role:** Lead / Chief Architect — strategic roadmap definition, codebase audits, PR reviews, E2E test infrastructure.
+
+**Recent Focus (Sprints 1-5):**
+- Defined 4 major roadmaps (Phase 1: 8 items; Phase 2: 4 items; Phase 4: 6 items)
+- Established architectural patterns: EventBus, SceneManager, systems-based design, SaveManager, DailyChallengeSystem
+- Conducted performance audit: Fixed 6 EventBus memory leak patterns, implemented dirty tracking optimization (30-40% improvement), audited 20 systems
+- Led Playwright E2E infrastructure: Identified WebGL/headless rendering blocker (#268), fixed baseURL navigation (#269)
+- Approved/reviewed 3+ sprint PRs: Rest Mechanic, Unified Cozy Palette, etc.
+
+**Key Architectural Conventions Established:**
+1. **EventBus subscription cleanup:** All systems must store bound listeners and unsubscribe in destroy()
+2. **Dirty tracking:** Large collections (50+ items) must use dirty tracking instead of O(n) iteration
+3. **Zero inline color values:** All colors must come from config constants
+4. **System delegation:** When systems delegate work, original must early-return to avoid duplication
+5. **Scene lifecycle:** All scenes follow init/update/destroy pattern
+
+**Current Blockers:**
+- #268 (WebGL headless rendering) — blocks E2E validation in CI
+- Achievement threshold fix needed (flora_completionist: 12 → 22)
+
+**Deployment Health:** B− (Functional but not yet testable). 90 successful GH Actions deploys, site loads cleanly, but WebGL timeouts prevent visual E2E validation.
+
+---
+
+## Learnings (Archived)
 
 ### PR #25 Review — Garden UI/HUD (Issue #9)
 - **UI component pattern**: All UI classes follow getContainer()/destroy() lifecycle, self-contained with PixiJS Container ownership. This is the established pattern.
