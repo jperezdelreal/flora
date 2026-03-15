@@ -959,9 +959,8 @@ export class GardenScene implements Scene {
       if (pest) {
         const removed = this.hazardSystem.removePest(pest.id);
         if (removed) {
-          // Clear pest state from tile
+          // TLDR: Clear pest state from tile
           tile.state = TileState.OCCUPIED;
-          // TODO: Deduct action point when action system is implemented
           this.updateInfoText(`Pest removed from [${tile.row}, ${tile.col}]!`);
         }
       }
