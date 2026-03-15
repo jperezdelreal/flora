@@ -83,6 +83,8 @@ export interface EventMap {
   // Tool progression events
   'tool:upgraded': { toolType: string; newTier: number; tierName: string };
   'tool:unlocked': { toolType: string; toolName: string };
+  // TLDR: Keyboard shortcut tool selection event for test hooks (#283)
+  'tool:selected': { toolType: string; toolName: string };
   // TLDR: Touch/responsive events
   'touch:tap': { x: number; y: number };
   'touch:longpress': { x: number; y: number };

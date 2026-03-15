@@ -16,6 +16,7 @@ import { SynergySystem } from '../systems/SynergySystem';
 import { UnlockSystem } from '../systems/UnlockSystem';
 import { ToolSystem } from '../systems/ToolSystem';
 import type { ToolTier } from '../config/tools';
+import { TOOL_BY_TYPE } from '../config/tools';
 import { SaveManager } from '../systems/SaveManager';
 import { AnimationSystem, Easing } from '../systems/AnimationSystem';
 import { ParticleSystem } from '../systems/ParticleSystem';
@@ -718,6 +719,19 @@ export class GardenScene implements Scene {
   }
   
   private setupKeyboardShortcuts(): void {
+    // TLDR: Number-key → ToolType mapping for keyboard tool selection (#283)
+    const keyToolMap: Record<string, ToolType> = {
+      '1': ToolType.SEED,
+      '2': ToolType.WATER,
+      '3': ToolType.HARVEST,
+      '4': ToolType.REMOVE_PEST,
+      '5': ToolType.REMOVE_WEED,
+      '6': ToolType.COMPOST,
+      '7': ToolType.PEST_SPRAY,
+      '8': ToolType.SOIL_TESTER,
+      '9': ToolType.TRELLIS,
+    };
+
     // Store bound reference for proper cleanup
     this.boundOnKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -733,6 +747,21 @@ export class GardenScene implements Scene {
         if (!this.isPaused && !this.encyclopediaVisible) {
           this.seedInventory.toggle();
         }
+      } else if (keyToolMap[e.key] && !this.isPaused && !this.encyclopediaVisible) {
+        // TLDR: Number keys 1-9 select tools via keyboard (#283)
+        const toolType = keyToolMap[e.key];
+        const toolConfig = TOOL_BY_TYPE[toolType];
+
+        this.player.selectTool(toolType);
+        this.toolBar.setSelectedTool(toolType);
+
+        const displayName = toolConfig.displayName;
+        this.hud.setHint(`🔧 ${displayName} tool selected`);
+
+        eventBus.emit('tool:selected', {
+          toolType: toolType,
+          toolName: displayName,
+        });
       }
     };
     window.addEventListener('keydown', this.boundOnKeyDown);
@@ -2117,18 +2146,32 @@ export class GardenScene implements Scene {
 
   // ── Test hook getters (Playwright integration) ────────────────────────
 
+  /** TLDR: Select a tool by string name for Playwright test hooks (#284) */
+  public selectTestTool(tool: string): void {
+    this.player.selectTool(tool as ToolType);
+  }
+
   /** TLDR: Return player state snapshot for Playwright test hooks */
   public getTestPlayerState(): {
     day: number;
     actionsRemaining: number;
+    maxActions: number;
     selectedTool: string | null;
     gridPosition: { row: number; col: number };
+    row: number;
+    col: number;
+    isMoving: boolean;
   } {
+    const pos = this.player.getGridPosition();
     return {
       day: this.player.getCurrentDay(),
       actionsRemaining: this.player.getActionsRemaining(),
+      maxActions: this.player.getMaxActions(),
       selectedTool: this.player.getSelectedTool(),
-      gridPosition: this.player.getGridPosition(),
+      gridPosition: pos,
+      row: pos.row,
+      col: pos.col,
+      isMoving: this.player.isMoving(),
     };
   }
 
