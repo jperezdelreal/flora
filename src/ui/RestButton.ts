@@ -41,7 +41,7 @@ export class RestButton {
         this.container.scale.set(ANIMATION.BUTTON_HOVER_SCALE);
         this.button.clear();
         this.button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
-        this.button.fill({ color: 0x5cbf60 }); // Slightly brighter green
+        this.button.fill({ color: UI_COLORS.START_BUTTON_HOVER_GREEN });
         this.button.stroke({ color: UI_COLORS.START_BUTTON_BORDER, width: 2 });
         
         // TLDR: Show hint on hover
