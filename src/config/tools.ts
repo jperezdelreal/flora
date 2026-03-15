@@ -1,6 +1,7 @@
 import { ToolType } from '../entities/Player';
 import { Tile, TileState } from '../entities/Tile';
 import { Plant } from '../entities/Plant';
+import { COMPOST_TOOL_BOOST } from './structures';
 
 export interface ToolConfig {
   type: ToolType;
@@ -227,11 +228,13 @@ export const TOOL_REMOVE_WEED: ToolConfig = {
 
 export const TOOL_COMPOST: ToolConfig = {
   type: ToolType.COMPOST, name: 'compost', displayName: 'Compost',
-  icon: '🪱', description: 'Apply compost to boost soil quality (+20%)',
+  icon: '🪱', description: `Apply compost to boost soil quality (+${COMPOST_TOOL_BOOST}%)`,
   validate: (tile: Tile, _plant: Plant | null): boolean => { return tile.soilQuality < 100; },
   execute: (tile: Tile, _plant: Plant | null): ToolActionResult => {
     if (tile.soilQuality >= 100) return { success: false, message: 'Soil quality is already at maximum' };
-    return { success: true, message: 'Applied compost! Soil quality boosted.', advanceDay: true };
+    const before = tile.soilQuality;
+    tile.setSoilQuality(tile.soilQuality + COMPOST_TOOL_BOOST);
+    return { success: true, message: `Applied compost! Soil: ${before}% → ${tile.soilQuality}%`, advanceDay: true };
   },
 };
 
