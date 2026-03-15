@@ -73,6 +73,8 @@ export interface EventMap {
   'season:selected': { season: string; isMultiSeason: boolean };
   'multiseason:transition': { fromSeason: string; toSeason: string; seasonIndex: number; totalSeasons: number };
   'multiseason:completed': { finalScore: number; seasonsPlayed: number };
+  // Mutation events
+  'mutation:discovered': { plantId: string; variantId: string; variantName: string; tint: number };
   // Seed selection events
   'seed:selected': { seedId: string };
   // Accessibility events

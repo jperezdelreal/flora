@@ -30,6 +30,16 @@ export interface PlantConfig {
   readonly synergyTraits?: SynergyTrait[];
 }
 
+/** TLDR: Heirloom variant definition for seed mutations */
+export interface HeirloomVariant {
+  readonly id: string;
+  readonly name: string;
+  readonly displayName: string;
+  readonly tint: number; // color tint hex (e.g. gold shimmer, crystal blue)
+  readonly growthSpeedBonus: number; // e.g. 0.10 = 10% faster
+  readonly yieldSeedsBonus: number; // extra seeds on harvest
+}
+
 export interface PlantState {
   readonly plantId: string;
   readonly config: PlantConfig;
@@ -44,6 +54,11 @@ export interface PlantState {
   growthSpeedMultiplier: number; // TLDR: Combined growth speed multiplier from synergies
   waterNeedMultiplier: number; // TLDR: Multiplier for water needs from negative synergies
   negativeSynergies: Set<string>; // TLDR: Active negative synergy IDs
+  // TLDR: Heirloom mutation state
+  isHeirloom: boolean;
+  heirloomVariant: HeirloomVariant | null;
+  /** Whether this plant was grown under perfect conditions (never dried, high health) */
+  perfectGrowth: boolean;
 }
 
 export class Plant implements Entity {
@@ -78,6 +93,9 @@ export class Plant implements Entity {
       growthSpeedMultiplier: 1.0,
       waterNeedMultiplier: 1.0,
       negativeSynergies: new Set(),
+      isHeirloom: false,
+      heirloomVariant: null,
+      perfectGrowth: true,
     };
   }
 
@@ -119,6 +137,8 @@ export class Plant implements Entity {
       // Health degrades if water need is unmet for multiple days
       const healthLoss = 15 * this.state.config.waterNeedPerDay;
       this.state.health = Math.max(0, this.state.health - healthLoss);
+      // TLDR: Perfect growth lost if plant takes drought damage
+      this.state.perfectGrowth = false;
     }
 
     // Advance growth if plant is healthy (with growth speed multiplier)
@@ -161,14 +181,44 @@ export class Plant implements Entity {
     }
   }
 
-  /** Harvest the plant (returns seed yield) */
+  /** Harvest the plant (returns seed yield, boosted by heirloom bonus) */
   harvest(): number {
     if (!this.canHarvest()) {
       return 0;
     }
 
     this.active = false;
-    return this.state.config.yieldSeeds;
+    const baseYield = this.state.config.yieldSeeds;
+    const bonus = this.state.heirloomVariant?.yieldSeedsBonus ?? 0;
+    return baseYield + bonus;
+  }
+
+  /** TLDR: Check if plant had perfect growing conditions */
+  hasPerfectGrowth(): boolean {
+    return this.state.perfectGrowth && this.state.health >= 90;
+  }
+
+  /** TLDR: Check if this plant has an active synergy bonus */
+  hasSynergyActive(): boolean {
+    return this.state.activeSynergies.size > 0;
+  }
+
+  /** TLDR: Mark this plant as an heirloom variant */
+  setHeirloomVariant(variant: HeirloomVariant): void {
+    this.state.isHeirloom = true;
+    this.state.heirloomVariant = variant;
+    // Heirlooms grow slightly faster
+    this.state.growthSpeedMultiplier *= (1 + variant.growthSpeedBonus);
+  }
+
+  /** TLDR: Get heirloom variant if any */
+  getHeirloomVariant(): HeirloomVariant | null {
+    return this.state.heirloomVariant;
+  }
+
+  /** TLDR: Check if this plant is an heirloom */
+  isHeirloom(): boolean {
+    return this.state.isHeirloom;
   }
 
   /** Apply damage to plant health (from pests, hazards, etc.) */

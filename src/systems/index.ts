@@ -36,3 +36,5 @@ export { ToolSystem } from './ToolSystem';
 export type { ToolState } from './ToolSystem';
 export { TileRenderer } from './TileRenderer';
 export type { TileRendererConfig } from './TileRenderer';
+export { MutationSystem } from './MutationSystem';
+export type { MutationCheckContext, MutationResult } from './MutationSystem';
