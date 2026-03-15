@@ -175,3 +175,12 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Score count-up animation**: Numbers animate from 0 to target over 1.5s using ease-out cubic, updated per-frame in update(dt) where dt is in seconds
 - **GardenScene change**: showScoreSummary() no longer calls scoreSummary.show() overlay -- instead collects all run data, calls setResultsData(), and transitions to ResultsScene
 - **Key files**: src/scenes/ResultsScene.ts, src/config/index.ts, src/scenes/index.ts, src/main.ts, src/scenes/GardenScene.ts
+
+### Synergy Visual Feedback (Issue #316, PR #322)
+- **Synergy aura**: addSynergyAura() in PlantRenderer adds colored Graphics circle behind bonused plants, pulsed at SYNERGY_AURA_PULSE_SPEED in update()
+- **Connection lines**: drawConnectionLines() renders lines between synergized plant pairs using Graphics.moveTo/lineTo, throttled to every 6 frames via frameCounter
+- **Placement preview**: showPlacementPreview() draws dashed lines from empty tile to neighbors that would gain synergies. getPlacementPreview() in SynergySystem checks shade, nitrogen, polyculture, water competition, allelopathy
+- **PlantInfoPanel synergy section**: Dynamic synergy breakdown below health bar — lists positive bonuses with modifier values and negative penalties with descriptions
+- **Negative synergy flash**: Red glow burst via ParticleSystem.glow() triggered by synergy:warning EventBus event
+- **Convention**: All synergy colors from SYNERGY_GLOW_COLORS config constant — never hardcoded in rendering code
+- **Key files**: src/config/animations.ts, src/systems/PlantRenderer.ts, src/systems/SynergySystem.ts, src/ui/PlantInfoPanel.ts, src/scenes/GardenScene.ts

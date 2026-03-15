@@ -2,6 +2,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { Plant, WaterState } from '../entities/Plant';
 import type { SoilTestResult } from '../config/tools';
 import { GAME } from '../config';
+import { SYNERGY_BONUSES, NEGATIVE_SYNERGY_EFFECTS } from '../config/synergies';
 
 /**
  * PlantInfoPanel displays detailed information about a plant on hover/click:
@@ -25,6 +26,8 @@ export class PlantInfoPanel {
   private soilInfoContainer!: Container;
   private soilInfoText!: Text;
   private soilOptimalText!: Text;
+  private synergyContainer!: Container;
+  private synergyText!: Text;
 
   constructor() {
     this.container = new Container();
@@ -137,6 +140,18 @@ export class PlantInfoPanel {
     this.soilInfoContainer.addChild(this.soilOptimalText);
 
     this.container.addChild(this.soilInfoContainer);
+
+    this.synergyContainer = new Container();
+    this.synergyContainer.visible = false;
+    this.synergyContainer.y = 140;
+    this.synergyText = new Text({
+      text: '',
+      style: { fontFamily: 'Arial', fontSize: 12, fill: '#ffd700', wordWrap: true, wordWrapWidth: 180 },
+    });
+    this.synergyText.x = 10;
+    this.synergyText.y = 5;
+    this.synergyContainer.addChild(this.synergyText);
+    this.container.addChild(this.synergyContainer);
   }
 
   /**
@@ -199,6 +214,36 @@ export class PlantInfoPanel {
         healthColor = 0xffeb3b; // Yellow for moderate
       }
       this.healthBar.fill({ color: healthColor });
+    }
+
+    const activeSynergies = state.activeSynergies;
+    const negativeSynergies = state.negativeSynergies;
+    const hasSynergies = activeSynergies.size > 0 || negativeSynergies.size > 0;
+    if (hasSynergies) {
+      const lines: string[] = [];
+      for (const id of activeSynergies) {
+        const bonus = SYNERGY_BONUSES[id];
+        if (bonus) {
+          const modifier = bonus.growthSpeedMultiplier ? `+${Math.round((bonus.growthSpeedMultiplier - 1) * 100)}% growth` : bonus.healthBonus ? `+${bonus.healthBonus} health` : bonus.pestResistanceRadius ? `pest shield` : '';
+          lines.push(`✅ ${bonus.name} (${modifier})`);
+        }
+      }
+      for (const id of negativeSynergies) {
+        const effect = NEGATIVE_SYNERGY_EFFECTS[id];
+        if (effect) lines.push(`⚠️ ${effect.name}: ${effect.description}`);
+      }
+      this.synergyText.text = lines.join('\n');
+      this.synergyContainer.visible = true;
+    } else {
+      this.synergyContainer.visible = false;
+    }
+    const bgHeight = hasSynergies ? 140 + this.synergyText.height + 15 : 140;
+    const bg = this.container.children[0] as Graphics;
+    if (bg) {
+      bg.clear();
+      bg.roundRect(0, 0, 200, bgHeight, 8);
+      bg.fill({ color: 0x1a1a1a, alpha: 0.95 });
+      bg.stroke({ color: 0x4caf50, width: 2 });
     }
 
     // Position tooltip near the plant

@@ -356,6 +356,76 @@ export class SynergySystem implements System {
       }));
   }
 
+  getSynergyPairs(plants: Plant[]): Array<{ fromId: string; toId: string; synergyId: string }> {
+    const activePlants = plants.filter((p) => p.active);
+    const pairs: Array<{ fromId: string; toId: string; synergyId: string }> = [];
+    const seen = new Set<string>();
+    for (const plant of activePlants) {
+      if (plant.getActiveSynergies().size === 0) continue;
+      const neighbors = this.getAdjacentPlants(plant, activePlants);
+      for (const neighbor of neighbors) {
+        if (neighbor.getActiveSynergies().size === 0) continue;
+        const pairKey = [plant.id, neighbor.id].sort().join(':');
+        if (seen.has(pairKey)) continue;
+        seen.add(pairKey);
+        let found = false;
+        for (const synergyId of plant.getActiveSynergies()) {
+          if (neighbor.getActiveSynergies().has(synergyId)) {
+            pairs.push({ fromId: plant.id, toId: neighbor.id, synergyId });
+            found = true;
+            break;
+          }
+        }
+        if (!found) {
+          const firstSynergy = plant.getActiveSynergies().values().next().value;
+          if (firstSynergy) {
+            pairs.push({ fromId: plant.id, toId: neighbor.id, synergyId: firstSynergy });
+          }
+        }
+      }
+    }
+    return pairs;
+  }
+
+  getPlacementPreview(plantId: string, x: number, y: number, allPlants: Plant[]): Array<{ neighborId: string; synergyId: string; isNegative: boolean }> {
+    const results: Array<{ neighborId: string; synergyId: string; isNegative: boolean }> = [];
+    const activePlants = allPlants.filter((p) => p.active);
+    const neighbors = this.getAdjacentPlantsAt(x, y, activePlants);
+    const plantConfig = PLANT_BY_ID[plantId];
+    if (!plantConfig) return results;
+    for (const neighbor of neighbors) {
+      const nConfig = neighbor.getConfig();
+      if (plantConfig.synergyTraits?.includes(SynergyTrait.SHADE_PROVIDER) && nConfig.synergyTraits?.includes(SynergyTrait.SHADE_LOVER)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'shade_bonus', isNegative: false });
+      }
+      if (nConfig.synergyTraits?.includes(SynergyTrait.SHADE_PROVIDER) && plantConfig.synergyTraits?.includes(SynergyTrait.SHADE_LOVER)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'shade_bonus', isNegative: false });
+      }
+      if (plantConfig.synergyTraits?.includes(SynergyTrait.NITROGEN_FIXER)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'nitrogen_bonus', isNegative: false });
+      }
+      if (nConfig.synergyTraits?.includes(SynergyTrait.NITROGEN_FIXER)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'nitrogen_bonus', isNegative: false });
+      }
+      if (plantConfig.synergyTraits?.includes(SynergyTrait.WATER_COMPETITOR) && !nConfig.synergyTraits?.includes(SynergyTrait.WATER_COMPETITOR)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'water_competition', isNegative: true });
+      }
+      if (plantConfig.synergyTraits?.includes(SynergyTrait.ALLELOPATHIC) && !nConfig.synergyTraits?.includes(SynergyTrait.ALLELOPATHIC)) {
+        results.push({ neighborId: neighbor.id, synergyId: 'allelopathy', isNegative: true });
+      }
+    }
+    if (neighbors.length >= SYNERGY_CONFIG.polycultureMinTypes - 1) {
+      const uniqueTypes = new Set(neighbors.map((n) => n.getConfig().id));
+      uniqueTypes.add(plantId);
+      if (uniqueTypes.size >= SYNERGY_CONFIG.polycultureMinTypes) {
+        for (const neighbor of neighbors) {
+          results.push({ neighborId: neighbor.id, synergyId: 'polyculture', isNegative: false });
+        }
+      }
+    }
+    return results;
+  }
+
   update(_delta: number): void {
     // Synergies are calculated on-demand when plants change
     // No per-frame update needed
