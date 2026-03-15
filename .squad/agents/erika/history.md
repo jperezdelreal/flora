@@ -257,3 +257,22 @@ Fixed P0 bug where E2E tests showed 0 actions consumed after tool use. Root caus
 2. **testHooks.ts**: Added `selectTool` to `FloraTestHooks` interface and implementation. Added `action:consumed` to `TRACKED_EVENTS` so tests can verify the event. Updated `GardenTestable` type and `getPlayerState` fallback with all new fields.
 
 **Build Status**: Zero new TypeScript errors. Clean Vite production build.
+
+### Maturity Feedback System (PR #292, Issue #286)
+Implemented visual + audio celebration when plants reach GrowthStage.MATURE. Key architectural decisions:
+
+1. **Event-Driven Trigger**: GardenScene subscribes to existing `plant:matured` event (already emitted by PlantSystem.advanceDay when `newStage === GrowthStage.MATURE`). No changes to PlantSystem needed.
+
+2. **Multi-Layered Visual Feedback**: `triggerMaturityCelebration()` orchestrates four simultaneous effects:
+   - `AnimationSystem.scaleBounce()` — 1.3x peak scale pop over 0.3s
+   - `ParticleSystem.burst()` — 5 sparkles in plant baseColor/accentColor/white, negative gravity (-20) for upward float
+   - `PlantRenderer.addMaturityGlow()` — persistent glow graphic behind plant sprite, pulsing via alpha oscillation in update()
+   - `ParticleSystem.floatingText()` — "✨ Ready!" rises and fades over 1.5s
+
+3. **Persistent Glow Architecture**: New `maturityGlows: Map<string, Graphics>` in PlantRenderer. Glow is `addChildAt(glow, 0)` (behind plant shape). Alpha oscillates per-frame in update() using `MATURE_GLOW_PULSE_SPEED`. Auto-cleaned on harvest/death via `removeMaturityGlow()` called from `removePlantVisual()`, `rebuildAllVisuals()`, and `destroy()`.
+
+4. **Audio**: MATURE SFX added to config/audio.ts — two-note sine chime (A4→C5, 0.2s each, 0.1s stagger). AudioManager subscribes to `plant:matured` event with bound handler pattern. Gain at 0.2 (subtle, cozy).
+
+5. **Config Constants**: All 13 values in `ANIMATION.MATURE_*` — no magic numbers. Follows existing convention (HARVEST_*, SYNERGY_GLOW_*).
+
+**Build Status**: Zero new TypeScript errors. Clean Vite production build.
