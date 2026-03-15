@@ -19,6 +19,7 @@ export const SCENES = {
   EXPLORATION: 'exploration',
   GAME_OVER: 'game-over',
   RESULTS: 'results',
+  DAILY_CHALLENGE: 'daily-challenge',
 } as const;
 
 export const GARDEN = {

@@ -70,6 +70,10 @@ export class HUD {
   // TLDR: Active HUD theme (cosmetic reward)
   private activeTheme: HudThemeConfig = DEFAULT_HUD_THEME;
 
+  // TLDR: Daily challenge badge (#314)
+  private dailyBadge: Container;
+  private isDailyMode = false;
+
   constructor() {
     this.container = new Container();
 
@@ -278,6 +282,22 @@ export class HUD {
     this.escHintText.visible = true;
     this.container.addChild(this.escHintText);
 
+    this.dailyBadge = new Container();
+    this.dailyBadge.visible = false;
+    const dailyBg = new Graphics();
+    dailyBg.roundRect(0, 0, 120, 22, 6);
+    dailyBg.fill({ color: 0xffa726, alpha: 0.9 });
+    dailyBg.stroke({ color: 0xffd54f, width: 1 });
+    this.dailyBadge.addChild(dailyBg);
+    const dailyLabel = new Text({
+      text: '📅 DAILY',
+      style: { fontFamily: 'Arial', fontSize: 12, fill: '#ffffff', fontWeight: 'bold', align: 'center' },
+    });
+    dailyLabel.x = 8;
+    dailyLabel.y = 3;
+    this.dailyBadge.addChild(dailyLabel);
+    this.container.addChild(this.dailyBadge);
+
     this.highlightPhase('planting');
 
     // TLDR: Initial layout at default width
@@ -378,6 +398,9 @@ export class HUD {
     // TLDR: ESC hint positioned at right edge of phase bar (#295)
     this.escHintText.x = width - 12;
     this.escHintText.y = phaseY + 9;
+
+    this.dailyBadge.x = 16;
+    this.dailyBadge.y = primaryHeight - 24;
   }
 
   /**
@@ -500,6 +523,15 @@ export class HUD {
       [Season.WINTER]: '#b3d9ff',
     };
     this.seasonText.style.fill = seasonColors[season];
+  }
+
+  setDailyMode(isDaily: boolean, dateString?: string): void {
+    this.isDailyMode = isDaily;
+    this.dailyBadge.visible = isDaily;
+    if (isDaily && dateString) {
+      const label = this.dailyBadge.children[1] as Text;
+      label.text = `📅 DAILY ${dateString}`;
+    }
   }
 
   /**

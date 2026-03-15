@@ -1,5 +1,6 @@
 export { AchievementsScene } from './AchievementsScene';
 export { BootScene } from './BootScene';
+export { DailyChallengeScene } from './DailyChallengeScene';
 export { EncyclopediaScene } from './EncyclopediaScene';
 export { GardenScene } from './GardenScene';
 export { MenuScene } from './MenuScene';
