@@ -1,4 +1,19 @@
-// TLDR: Tutorial step definitions and contextual hint configs
+// TLDR: Tutorial step definitions, contextual hint configs, and guidance hints (#318)
+
+/** TLDR: A contextual guidance hint shown inline in HUD based on game state (#318) */
+export interface GuidanceHint {
+  readonly id: string;
+  readonly message: string;
+  readonly icon: string;
+  readonly priority: number;
+}
+
+export const GUIDANCE_HINTS: readonly GuidanceHint[] = [
+  { id: 'first_plant', message: 'Press 1 to select Seed tool, then click a tile to plant', icon: '🌱', priority: 10 },
+  { id: 'first_water', message: 'Press 2 to select Water, click your plant to help it grow', icon: '💧', priority: 9 },
+  { id: 'first_harvest', message: 'Your plant is ready! Press 3 to select Harvest, click the glowing plant', icon: '🌾', priority: 8 },
+  { id: 'post_harvest', message: 'Great job! Try different plant combinations for synergy bonuses', icon: '✨', priority: 7 },
+] as const;
 
 /** TLDR: A single guided tutorial step shown during first run */
 export interface TutorialStep {

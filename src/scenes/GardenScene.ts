@@ -113,6 +113,9 @@ export class GardenScene implements Scene {
   // Session tracking
   private harvestedSeeds: Map<string, number> = new Map();
   private newDiscoveriesThisSeason: Set<string> = new Set();
+
+  private plantsEverPlanted = 0;
+  private plantsEverHarvested = 0;
   
   // Active season
   private currentSeason: Season = Season.SPRING;
@@ -498,13 +501,11 @@ export class GardenScene implements Scene {
       eventBus.emit('tutorial:skipped', {});
     });
 
-    // TLDR: Start guided tutorial on first run, otherwise enable contextual hints
     if (this.tutorialSystem.isFirstRun()) {
-      this.tutorialSystem.startTutorial();
-      eventBus.emit('tutorial:started', {});
-    } else {
-      this.tutorialSystem.enableContextualHints();
+      this.tutorialSystem.skipTutorial();
+      eventBus.emit('tutorial:skipped', {});
     }
+    this.tutorialSystem.enableContextualHints();
 
     // TLDR: Initialize achievement system (with SaveManager persistence)
     this.achievementSystem = new AchievementSystem(this.saveManager);
@@ -1355,10 +1356,21 @@ export class GardenScene implements Scene {
   }
 
   /**
-   * TLDR: Get contextual hint based on current phase and actions (#250)
+   * TLDR: Get contextual hint based on current phase, actions, and guidance (#250 #318)
    */
   private getContextualHint(phase: GamePhase, actions: number): string {
-    // TLDR: Show remaining actions hint when player has actions left
+    const activePlants = Array.from(this.plants.values()).filter(p => p.active);
+    const maturePlants = activePlants.filter(p => p.getState().growthStage === GrowthStage.MATURE);
+    const guidanceHint = this.tutorialSystem.evaluateGuidance({
+      plantsAlive: activePlants.length,
+      plantsEverPlanted: this.plantsEverPlanted,
+      plantsEverHarvested: this.plantsEverHarvested,
+      maturePlantsCount: maturePlants.length,
+      day: this.player.getState().currentDay,
+    });
+    if (guidanceHint) {
+      return guidanceHint.icon + ' ' + guidanceHint.message;
+    }
     if (actions > 1) {
       return `💡 You have ${actions} actions left! Keep planting, watering, or harvesting`;
     }
@@ -1668,14 +1680,19 @@ export class GardenScene implements Scene {
     // TLDR: Plant lifecycle sounds
     this.listenTo('plant:created', () => {
       audioManager.playSFX('PLANT');
+      this.plantsEverPlanted++;
+      this.tutorialSystem.markGuidanceSeen('first_plant');
     });
 
     this.listenTo('plant:watered', () => {
       audioManager.playSFX('WATER');
+      this.tutorialSystem.markGuidanceSeen('first_water');
     });
 
     this.listenTo('plant:harvested', () => {
       audioManager.playSFX('HARVEST');
+      this.plantsEverHarvested++;
+      this.tutorialSystem.markGuidanceSeen('first_harvest');
     });
 
     this.listenTo('plant:died', () => {

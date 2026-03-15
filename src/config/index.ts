@@ -110,6 +110,7 @@ export const UI_COLORS = {
   FLOWER_RED: 0xff6b6b,
   FLOWER_SKY_BLUE: 0x87ceeb,
   FLOWER_PLUM: 0xdda0dd,
+  TOOLBAR_SEPARATOR: 0x6b5b4e,
 } as const;
 
 /** TLDR: Touch gesture tuning values */

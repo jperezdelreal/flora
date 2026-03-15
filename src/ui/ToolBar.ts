@@ -1,450 +1,141 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import { ToolType } from '../entities/Player';
-import { ALL_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier } from '../config/tools';
+import { ALL_TOOLS, CORE_TOOLS, ADVANCED_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier, type ToolConfig } from '../config/tools';
 import { ANIMATION } from '../config/animations';
 import { UI_COLORS } from '../config';
 import type { ToolSystem } from '../systems/ToolSystem';
 
 export class ToolBar {
   private container: Container;
-  private toolButtons: Map<ToolType, Graphics>;
-  private toolTexts: Map<ToolType, Text>;
-  private toolIcons: Map<ToolType, Text>;
-  private toolLockIcons: Map<ToolType, Text>;
-  private toolTierTexts: Map<ToolType, Text>;
-  private toolHintTexts: Map<ToolType, Text>;
-  private toolShortcutTexts: Map<ToolType, Text>;
+  private coreContainer: Container;
+  private advancedContainer: Container;
+  private expandButton: Graphics;
+  private expandText: Text;
+  private toolButtons: Map<ToolType, Graphics> = new Map();
+  private toolTexts: Map<ToolType, Text> = new Map();
+  private toolIcons: Map<ToolType, Text> = new Map();
+  private toolLockIcons: Map<ToolType, Text> = new Map();
+  private toolTierTexts: Map<ToolType, Text> = new Map();
+  private toolHintTexts: Map<ToolType, Text> = new Map();
+  private toolShortcutTexts: Map<ToolType, Text> = new Map();
+  private toolButtonContainers: Map<ToolType, Container> = new Map();
   private selectedTool: ToolType | null = null;
   private unlockedTools: Set<ToolType> = new Set();
   private onToolSelect?: (tool: ToolType | null) => void;
   private toolSystem?: ToolSystem;
+  private advancedExpanded = false;
 
   constructor(toolSystem?: ToolSystem) {
     this.container = new Container();
-    this.toolButtons = new Map();
-    this.toolTexts = new Map();
-    this.toolIcons = new Map();
-    this.toolLockIcons = new Map();
-    this.toolTierTexts = new Map();
-    this.toolHintTexts = new Map();
-    this.toolShortcutTexts = new Map();
+    this.coreContainer = new Container();
+    this.advancedContainer = new Container();
     this.toolSystem = toolSystem;
-
     if (toolSystem) {
-      // TLDR: Determine unlocked tools from ToolSystem
       for (const tool of ALL_TOOLS) {
-        if (toolSystem.isToolUnlocked(tool.type)) {
-          this.unlockedTools.add(tool.type);
-        }
+        if (toolSystem.isToolUnlocked(tool.type)) this.unlockedTools.add(tool.type);
       }
     } else {
-      // TLDR: Fallback — all tools start unlocked (MVP behavior)
-      ALL_TOOLS.forEach((tool) => this.unlockedTools.add(tool.type));
+      CORE_TOOLS.forEach((tool: ToolConfig) => this.unlockedTools.add(tool.type));
     }
-    
+    this.expandButton = new Graphics();
+    this.expandText = new Text({ text: '\u25b8 More', style: { fontSize: 11, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' } });
     this.initializeToolBar();
   }
 
   private initializeToolBar(): void {
-    const buttonWidth = 80;
-    const buttonHeight = 80;
-    const padding = 10;
-
-    // TLDR: Keyboard shortcut key mapping — matches GardenScene keyToolMap (#283)
-    const toolShortcutKey: Record<string, string> = {
-      [ToolType.SEED]: '1',
-      [ToolType.WATER]: '2',
-      [ToolType.HARVEST]: '3',
-      [ToolType.REMOVE_PEST]: '4',
-      [ToolType.REMOVE_WEED]: '5',
-      [ToolType.COMPOST]: '6',
-      [ToolType.PEST_SPRAY]: '7',
-      [ToolType.SOIL_TESTER]: '8',
-      [ToolType.TRELLIS]: '9',
-    };
-
-    ALL_TOOLS.forEach((tool, index) => {
-      const buttonContainer = new Container();
-      const x = index * (buttonWidth + padding);
-
-      // TLDR: Button background with soft rounded corners
-      const button = new Graphics();
-      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
-      button.fill({ color: UI_COLORS.BUTTON_BG });
-      button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
-      button.eventMode = 'static';
-      button.cursor = 'pointer';
-
-      button.on('pointerdown', () => {
-        if (this.unlockedTools.has(tool.type)) {
-          // TLDR: Click scale feedback — brief squish
-          buttonContainer.scale.set(ANIMATION.BUTTON_CLICK_SCALE);
-          setTimeout(() => {
-            buttonContainer.scale.set(1);
-          }, ANIMATION.BUTTON_BOUNCE_DURATION * 1000);
-          this.selectTool(tool.type);
-        }
-      });
-
-      button.on('pointerover', () => {
-        if (this.unlockedTools.has(tool.type)) {
-          // TLDR: Hover scale-up feedback
-          buttonContainer.scale.set(ANIMATION.BUTTON_HOVER_SCALE);
-          button.clear();
-          button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
-          button.fill({ color: UI_COLORS.BUTTON_HOVER_BG });
-          button.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 });
-        }
-        // TLDR: Show unlock hint on hover for locked tools
-        const hintText = this.toolHintTexts.get(tool.type);
-        if (hintText && !this.unlockedTools.has(tool.type)) {
-          hintText.visible = true;
-        }
-      });
-
-      button.on('pointerout', () => {
-        // TLDR: Reset scale on pointer out
-        buttonContainer.scale.set(1);
-        if (this.selectedTool !== tool.type) {
-          this.updateButtonAppearance(tool.type);
-        }
-        // TLDR: Hide unlock hint
-        const hintText = this.toolHintTexts.get(tool.type);
-        if (hintText) {
-          hintText.visible = false;
-        }
-      });
-
-      buttonContainer.addChild(button);
-      this.toolButtons.set(tool.type, button);
-
-      // TLDR: Prominent tool icon — large emoji centered in button (#294)
-      const iconText = new Text({
-        text: tool.icon,
-        style: {
-          fontSize: 36,
-          align: 'center',
-        },
-      });
-      iconText.anchor.set(0.5);
-      iconText.x = buttonWidth / 2;
-      iconText.y = buttonHeight / 2 - 16;
-      buttonContainer.addChild(iconText);
-      this.toolIcons.set(tool.type, iconText);
-
-      // Lock icon (initially hidden)
-      const lockIcon = new Text({
-        text: '🔒',
-        style: {
-          fontSize: 28,
-          align: 'center',
-        },
-      });
-      lockIcon.anchor.set(0.5);
-      lockIcon.x = buttonWidth / 2;
-      lockIcon.y = buttonHeight / 2 - 14;
-      lockIcon.visible = false;
-      buttonContainer.addChild(lockIcon);
-      this.toolLockIcons.set(tool.type, lockIcon);
-
-      // TLDR: Tier indicator (stars) — top-right corner
-      const tierText = new Text({
-        text: '',
-        style: { fontSize: 10, fill: UI_COLORS.TEXT_TIER_STAR, align: 'right' },
-      });
-      tierText.anchor.set(1, 0);
-      tierText.x = buttonWidth - 4;
-      tierText.y = 2;
-      tierText.visible = false;
-      buttonContainer.addChild(tierText);
-      this.toolTierTexts.set(tool.type, tierText);
-
-      // TLDR: Tool name below icon in smaller text (#294)
-      const nameText = new Text({
-        text: tool.displayName,
-        style: {
-          fontSize: 10,
-          fill: UI_COLORS.TEXT_PRIMARY,
-          align: 'center',
-        },
-      });
-      nameText.anchor.set(0.5);
-      nameText.x = buttonWidth / 2;
-      nameText.y = buttonHeight - 12;
-      buttonContainer.addChild(nameText);
-      this.toolTexts.set(tool.type, nameText);
-
-      // TLDR: Unlock hint text (shown on hover for locked tools)
-      const progressiveConfig = PROGRESSIVE_TOOL_BY_TYPE[tool.type];
-      const hintStr = progressiveConfig?.unlockHint ?? '';
-      const hintText = new Text({
-        text: hintStr,
-        style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, align: 'center', wordWrap: true, wordWrapWidth: 100 },
-      });
-      hintText.anchor.set(0.5, 1);
-      hintText.x = buttonWidth / 2;
-      hintText.y = -4;
-      hintText.visible = false;
-      buttonContainer.addChild(hintText);
-      this.toolHintTexts.set(tool.type, hintText);
-
-      // TLDR: Keyboard shortcut badge — top-left corner (#283)
-      const shortcutKey = toolShortcutKey[tool.type] ?? '';
-      if (shortcutKey) {
-        const shortcutBg = new Graphics();
-        shortcutBg.roundRect(0, 0, 16, 16, 3);
-        shortcutBg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 });
-        shortcutBg.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 1 });
-        shortcutBg.x = 2;
-        shortcutBg.y = 2;
-        buttonContainer.addChild(shortcutBg);
-
-        const shortcutText = new Text({
-          text: shortcutKey,
-          style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' },
-        });
-        shortcutText.anchor.set(0.5);
-        shortcutText.x = 10;
-        shortcutText.y = 10;
-        buttonContainer.addChild(shortcutText);
-        this.toolShortcutTexts.set(tool.type, shortcutText);
-      }
-
-      buttonContainer.x = x;
-      this.container.addChild(buttonContainer);
-    });
-
-    // TLDR: Apply initial appearance for all tools
-    for (const tool of ALL_TOOLS) {
-      this.updateButtonAppearance(tool.type);
-    }
+    const bw = 80, bh = 80, pad = 10;
+    const keys: Record<string, string> = { [ToolType.SEED]: '1', [ToolType.WATER]: '2', [ToolType.HARVEST]: '3', [ToolType.REMOVE_PEST]: '4', [ToolType.REMOVE_WEED]: '5', [ToolType.COMPOST]: '6', [ToolType.PEST_SPRAY]: '7', [ToolType.SOIL_TESTER]: '8', [ToolType.TRELLIS]: '9' };
+    CORE_TOOLS.forEach((t: ToolConfig, i: number) => this.createToolButton(t, i * (bw + pad), keys, this.coreContainer));
+    this.container.addChild(this.coreContainer);
+    const ebw = 36, ebx = CORE_TOOLS.length * (bw + pad);
+    this.expandButton.roundRect(0, 0, ebw, bh, 8);
+    this.expandButton.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 });
+    this.expandButton.stroke({ color: UI_COLORS.TOOLBAR_SEPARATOR, width: 1.5 });
+    this.expandButton.eventMode = 'static'; this.expandButton.cursor = 'pointer'; this.expandButton.x = ebx;
+    this.expandText.anchor.set(0.5); this.expandText.x = ebx + ebw / 2; this.expandText.y = bh / 2;
+    this.expandButton.on('pointerdown', () => this.toggleAdvanced());
+    this.expandButton.on('pointerover', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 8); this.expandButton.fill({ color: UI_COLORS.BUTTON_HOVER_BG, alpha: 0.9 }); this.expandButton.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 1.5 }); });
+    this.expandButton.on('pointerout', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 8); this.expandButton.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); this.expandButton.stroke({ color: UI_COLORS.TOOLBAR_SEPARATOR, width: 1.5 }); });
+    this.container.addChild(this.expandButton); this.container.addChild(this.expandText);
+    this.advancedContainer.x = ebx + ebw + pad;
+    ADVANCED_TOOLS.forEach((t: ToolConfig, i: number) => this.createToolButton(t, i * (bw + pad), keys, this.advancedContainer));
+    this.advancedContainer.visible = false;
+    this.container.addChild(this.advancedContainer);
+    for (const t of ALL_TOOLS) this.updateButtonAppearance(t.type);
   }
 
-  /**
-   * TLDR: Update button visual state based on locked/unlocked status
-   */
-  private updateButtonAppearance(tool: ToolType): void {
-    const button = this.toolButtons.get(tool);
-    const icon = this.toolIcons.get(tool);
-    const lockIcon = this.toolLockIcons.get(tool);
-    const nameText = this.toolTexts.get(tool);
-    const tierText = this.toolTierTexts.get(tool);
-    
-    if (!button || !icon || !lockIcon || !nameText) return;
-
-    const isLocked = !this.unlockedTools.has(tool);
-
-    button.clear();
-    button.roundRect(0, 0, 80, 80, 8);
-    
-    if (isLocked) {
-      // TLDR: Locked appearance — warm muted tones
-      button.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.5 });
-      button.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 });
-      icon.visible = false;
-      lockIcon.visible = true;
-      nameText.style.fill = UI_COLORS.TEXT_DISABLED;
-      if (tierText) tierText.visible = false;
-    } else {
-      // TLDR: Unlocked appearance — warm earthy palette
-      button.fill({ color: UI_COLORS.BUTTON_BG });
-      button.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 });
-      icon.visible = true;
-      lockIcon.visible = false;
-      nameText.style.fill = UI_COLORS.TEXT_PRIMARY;
-
-      // TLDR: Show tier stars if tool has multiple tiers
-      if (tierText && this.toolSystem) {
-        const hasMultipleTiers = this.toolSystem.hasMultipleTiers(tool);
-        if (hasMultipleTiers) {
-          const currentTier = this.toolSystem.getToolTier(tool);
-          tierText.text = TIER_STARS[currentTier];
-          tierText.visible = true;
-        } else {
-          tierText.visible = false;
-        }
-      }
+  private createToolButton(tool: ToolConfig, x: number, sk: Record<string, string>, parent: Container): void {
+    const bw = 80, bh = 80, bc = new Container();
+    const btn = new Graphics(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); btn.eventMode = 'static'; btn.cursor = 'pointer';
+    btn.on('pointerdown', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_CLICK_SCALE); setTimeout(() => bc.scale.set(1), ANIMATION.BUTTON_BOUNCE_DURATION * 1000); this.selectTool(tool.type); } });
+    btn.on('pointerover', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_HOVER_SCALE); btn.clear(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_HOVER_BG }); btn.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 }); } const h = this.toolHintTexts.get(tool.type); if (h && !this.unlockedTools.has(tool.type)) h.visible = true; });
+    btn.on('pointerout', () => { bc.scale.set(1); if (this.selectedTool !== tool.type) this.updateButtonAppearance(tool.type); const h = this.toolHintTexts.get(tool.type); if (h) h.visible = false; });
+    bc.addChild(btn); this.toolButtons.set(tool.type, btn);
+    const ic = new Text({ text: tool.icon, style: { fontSize: 36, align: 'center' } }); ic.anchor.set(0.5); ic.x = bw / 2; ic.y = bh / 2 - 16; bc.addChild(ic); this.toolIcons.set(tool.type, ic);
+    const lk = new Text({ text: '\ud83d\udd12', style: { fontSize: 28, align: 'center' } }); lk.anchor.set(0.5); lk.x = bw / 2; lk.y = bh / 2 - 14; lk.visible = false; bc.addChild(lk); this.toolLockIcons.set(tool.type, lk);
+    const tt = new Text({ text: '', style: { fontSize: 10, fill: UI_COLORS.TEXT_TIER_STAR, align: 'right' } }); tt.anchor.set(1, 0); tt.x = bw - 4; tt.y = 2; tt.visible = false; bc.addChild(tt); this.toolTierTexts.set(tool.type, tt);
+    const nt = new Text({ text: tool.displayName, style: { fontSize: 10, fill: UI_COLORS.TEXT_PRIMARY, align: 'center' } }); nt.anchor.set(0.5); nt.x = bw / 2; nt.y = bh - 12; bc.addChild(nt); this.toolTexts.set(tool.type, nt);
+    const pc = PROGRESSIVE_TOOL_BY_TYPE[tool.type]; const hs = pc?.unlockHint ?? '';
+    const ht = new Text({ text: hs, style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, align: 'center', wordWrap: true, wordWrapWidth: 100 } }); ht.anchor.set(0.5, 1); ht.x = bw / 2; ht.y = -4; ht.visible = false; bc.addChild(ht); this.toolHintTexts.set(tool.type, ht);
+    const key = sk[tool.type] ?? '';
+    if (key) {
+      const sbg = new Graphics(); sbg.roundRect(0, 0, 16, 16, 3); sbg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); sbg.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 1 }); sbg.x = 2; sbg.y = 2; bc.addChild(sbg);
+      const st = new Text({ text: key, style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' } }); st.anchor.set(0.5); st.x = 10; st.y = 10; bc.addChild(st); this.toolShortcutTexts.set(tool.type, st);
     }
+    bc.x = x; this.toolButtonContainers.set(tool.type, bc); parent.addChild(bc);
+  }
+
+  private toggleAdvanced(): void { this.advancedExpanded = !this.advancedExpanded; this.advancedContainer.visible = this.advancedExpanded; this.expandText.text = this.advancedExpanded ? '\u25c2 Less' : '\u25b8 More'; }
+
+  private updateButtonAppearance(tool: ToolType): void {
+    const btn = this.toolButtons.get(tool), ic = this.toolIcons.get(tool), lk = this.toolLockIcons.get(tool), nm = this.toolTexts.get(tool), tr = this.toolTierTexts.get(tool);
+    if (!btn || !ic || !lk || !nm) return;
+    const locked = !this.unlockedTools.has(tool); btn.clear(); btn.roundRect(0, 0, 80, 80, 8);
+    if (locked) { btn.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.5 }); btn.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 }); ic.visible = false; lk.visible = true; nm.style.fill = UI_COLORS.TEXT_DISABLED; if (tr) tr.visible = false; }
+    else { btn.fill({ color: UI_COLORS.BUTTON_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); ic.visible = true; lk.visible = false; nm.style.fill = UI_COLORS.TEXT_PRIMARY; if (tr && this.toolSystem) { if (this.toolSystem.hasMultipleTiers(tool)) { tr.text = TIER_STARS[this.toolSystem.getToolTier(tool)]; tr.visible = true; } else { tr.visible = false; } } }
   }
 
   private selectTool(tool: ToolType): void {
-    // Don't select locked tools
-    if (!this.unlockedTools.has(tool)) {
-      return;
+    if (!this.unlockedTools.has(tool)) return;
+    if (this.selectedTool) this.updateButtonAppearance(this.selectedTool);
+    if (this.selectedTool === tool) { this.selectedTool = null; } else {
+      this.selectedTool = tool; const btn = this.toolButtons.get(tool);
+      if (btn) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_SELECTED_BG }); btn.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 }); }
     }
-
-    // Deselect previous tool
-    if (this.selectedTool) {
-      const prevButton = this.toolButtons.get(this.selectedTool);
-      if (prevButton) {
-        this.updateButtonAppearance(this.selectedTool);
-      }
-    }
-
-    // Select new tool (or deselect if clicking same tool)
-    if (this.selectedTool === tool) {
-      this.selectedTool = null;
-    } else {
-      this.selectedTool = tool;
-      const button = this.toolButtons.get(tool);
-      if (button) {
-        button.clear();
-        button.roundRect(0, 0, 80, 80, 8);
-        button.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
-        button.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 });
-      }
-    }
-
-    // TLDR: Persist selection in ToolSystem
-    if (this.toolSystem) {
-      this.toolSystem.setSelectedTool(this.selectedTool);
-    }
-
-    if (this.onToolSelect) {
-      this.onToolSelect(this.selectedTool);
-    }
+    if (this.toolSystem) this.toolSystem.setSelectedTool(this.selectedTool);
+    if (this.onToolSelect) this.onToolSelect(this.selectedTool);
   }
 
-  /**
-   * TLDR: Unlock a tool and play highlight animation
-   */
   unlockTool(tool: ToolType): void {
-    if (this.unlockedTools.has(tool)) {
-      return; // Already unlocked
-    }
-
-    this.unlockedTools.add(tool);
-    this.updateButtonAppearance(tool);
-    this.playUnlockAnimation(tool);
+    if (this.unlockedTools.has(tool)) return;
+    this.unlockedTools.add(tool); this.updateButtonAppearance(tool); this.playUnlockAnimation(tool);
+    if (ADVANCED_TOOLS.some((t: ToolConfig) => t.type === tool) && !this.advancedExpanded) this.toggleAdvanced();
   }
 
-  /**
-   * TLDR: Update tier display for a tool (called after tier upgrade)
-   */
-  updateToolTier(tool: ToolType, tier: ToolTier): void {
-    const tierText = this.toolTierTexts.get(tool);
-    if (tierText) {
-      tierText.text = TIER_STARS[tier];
-      tierText.visible = true;
-    }
-    this.playUpgradeAnimation(tool);
-  }
+  updateToolTier(tool: ToolType, tier: ToolTier): void { const t = this.toolTierTexts.get(tool); if (t) { t.text = TIER_STARS[tier]; t.visible = true; } this.playUpgradeAnimation(tool); }
 
-  /**
-   * TLDR: Play highlight animation on newly unlocked tool
-   */
   private playUnlockAnimation(tool: ToolType): void {
-    const button = this.toolButtons.get(tool);
-    if (!button) return;
-
-    // Simple pulse animation (3 pulses)
-    let pulseCount = 0;
-    const pulseInterval = 300; // milliseconds
-    const maxPulses = 6;
-
-    const pulseTimer = setInterval(() => {
-      pulseCount++;
-      
-      if (pulseCount % 2 === 0) {
-        // TLDR: Bright state — warm green glow
-        button.clear();
-        button.roundRect(0, 0, 80, 80, 8);
-        button.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT });
-        button.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 });
-      } else {
-        // Normal state
-        this.updateButtonAppearance(tool);
-      }
-
-      if (pulseCount >= maxPulses) {
-        clearInterval(pulseTimer);
-        this.updateButtonAppearance(tool);
-      }
-    }, pulseInterval);
+    const btn = this.toolButtons.get(tool); if (!btn) return; let c = 0;
+    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 300);
   }
 
-  setSelectedTool(tool: ToolType | null): void {
-    if (tool && tool !== this.selectedTool) {
-      this.selectTool(tool);
-    } else if (!tool && this.selectedTool) {
-      this.selectTool(this.selectedTool); // Toggle off
-    }
-  }
+  setSelectedTool(tool: ToolType | null): void { if (tool && tool !== this.selectedTool) this.selectTool(tool); else if (!tool && this.selectedTool) this.selectTool(this.selectedTool); }
+  getSelectedTool(): ToolType | null { return this.selectedTool; }
+  setOnToolSelect(cb: (tool: ToolType | null) => void): void { this.onToolSelect = cb; }
 
-  getSelectedTool(): ToolType | null {
-    return this.selectedTool;
-  }
-
-  setOnToolSelect(callback: (tool: ToolType | null) => void): void {
-    this.onToolSelect = callback;
-  }
-
-  /** TLDR: Refresh unlocked state from ToolSystem (call after loading save) */
   refreshFromToolSystem(): void {
     if (!this.toolSystem) return;
-
-    for (const tool of ALL_TOOLS) {
-      const wasUnlocked = this.unlockedTools.has(tool.type);
-      const isNowUnlocked = this.toolSystem.isToolUnlocked(tool.type);
-      if (!wasUnlocked && isNowUnlocked) {
-        this.unlockedTools.add(tool.type);
-      }
-      this.updateButtonAppearance(tool.type);
-    }
-
-    // TLDR: Restore persisted tool selection
-    const savedTool = this.toolSystem.getSelectedTool();
-    if (savedTool && this.unlockedTools.has(savedTool)) {
-      this.selectTool(savedTool);
-    }
+    for (const t of ALL_TOOLS) { if (!this.unlockedTools.has(t.type) && this.toolSystem.isToolUnlocked(t.type)) this.unlockedTools.add(t.type); this.updateButtonAppearance(t.type); }
+    if (ADVANCED_TOOLS.some((t: ToolConfig) => this.unlockedTools.has(t.type)) && !this.advancedExpanded) this.toggleAdvanced();
+    const saved = this.toolSystem.getSelectedTool(); if (saved && this.unlockedTools.has(saved)) this.selectTool(saved);
   }
 
-  /**
-   * TLDR: Play upgrade animation when tool tier increases
-   */
   private playUpgradeAnimation(tool: ToolType): void {
-    const button = this.toolButtons.get(tool);
-    if (!button) return;
-
-    let pulseCount = 0;
-    const pulseInterval = 250;
-    const maxPulses = 4;
-
-    const pulseTimer = setInterval(() => {
-      pulseCount++;
-      if (pulseCount % 2 === 0) {
-        button.clear();
-        button.roundRect(0, 0, 80, 80, 8);
-        button.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT });
-        button.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 });
-      } else {
-        this.updateButtonAppearance(tool);
-      }
-      if (pulseCount >= maxPulses) {
-        clearInterval(pulseTimer);
-        this.updateButtonAppearance(tool);
-      }
-    }, pulseInterval);
+    const btn = this.toolButtons.get(tool); if (!btn) return; let c = 0;
+    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 4) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 250);
   }
 
-  position(x: number, y: number): void {
-    this.container.x = x;
-    this.container.y = y;
-  }
-
-  getContainer(): Container {
-    return this.container;
-  }
-
-  destroy(): void {
-    this.container.destroy({ children: true });
-    this.toolButtons.clear();
-    this.toolTexts.clear();
-    this.toolIcons.clear();
-    this.toolLockIcons.clear();
-    this.toolTierTexts.clear();
-    this.toolHintTexts.clear();
-    this.toolShortcutTexts.clear();
-    this.unlockedTools.clear();
-  }
+  position(x: number, y: number): void { this.container.x = x; this.container.y = y; }
+  getContainer(): Container { return this.container; }
+  destroy(): void { this.container.destroy({ children: true }); this.toolButtons.clear(); this.toolTexts.clear(); this.toolIcons.clear(); this.toolLockIcons.clear(); this.toolTierTexts.clear(); this.toolHintTexts.clear(); this.toolShortcutTexts.clear(); this.toolButtonContainers.clear(); this.unlockedTools.clear(); }
 }

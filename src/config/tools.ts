@@ -298,6 +298,15 @@ export const ALL_TOOLS: ToolConfig[] = [
   TOOL_COMPOST, TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS,
 ];
 
+export const CORE_TOOLS: ToolConfig[] = [
+  TOOL_SEED, TOOL_WATER, TOOL_HARVEST,
+];
+
+export const ADVANCED_TOOLS: ToolConfig[] = [
+  TOOL_REMOVE_PEST, TOOL_REMOVE_WEED, TOOL_COMPOST,
+  TOOL_PEST_SPRAY, TOOL_SOIL_TESTER, TOOL_TRELLIS,
+];
+
 export const TOOL_BY_TYPE: Record<ToolType, ToolConfig> = {
   [ToolType.WATER]: TOOL_WATER,
   [ToolType.HARVEST]: TOOL_HARVEST,

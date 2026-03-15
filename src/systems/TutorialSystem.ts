@@ -5,8 +5,10 @@ import {
   TUTORIAL_STEPS,
   TUTORIAL_HINTS,
   TUTORIAL_STORAGE_KEY,
+  GUIDANCE_HINTS,
   type TutorialStep,
   type TutorialHint,
+  type GuidanceHint,
 } from '../config/tutorial';
 import type { System } from './index';
 
@@ -16,6 +18,15 @@ export interface TutorialSaveData {
   tutorialSkipped: boolean;
   seenHints: string[];
   completedSteps: string[];
+  guidanceSeen: string[];
+}
+
+export interface GuidanceState {
+  plantsAlive: number;
+  plantsEverPlanted: number;
+  plantsEverHarvested: number;
+  maturePlantsCount: number;
+  day: number;
 }
 
 /** TLDR: Callback for UI layer when a tutorial step should be shown/advanced */
@@ -140,13 +151,36 @@ export class TutorialSystem implements System {
     }
   }
 
-  /** TLDR: Reset tutorial state entirely (for testing or new game+) */
+  evaluateGuidance(gameState: GuidanceState): GuidanceHint | null {
+    if (this.isTutorialActive) return null;
+    for (const hint of GUIDANCE_HINTS) {
+      if (this.state.guidanceSeen.includes(hint.id)) continue;
+      let shouldShow = false;
+      switch (hint.id) {
+        case 'first_plant': shouldShow = gameState.plantsEverPlanted === 0; break;
+        case 'first_water': shouldShow = gameState.plantsAlive > 0 && gameState.plantsEverHarvested === 0 && gameState.maturePlantsCount === 0; break;
+        case 'first_harvest': shouldShow = gameState.maturePlantsCount > 0 && gameState.plantsEverHarvested === 0; break;
+        case 'post_harvest': shouldShow = gameState.plantsEverHarvested > 0; break;
+      }
+      if (shouldShow) return hint;
+    }
+    return null;
+  }
+
+  markGuidanceSeen(hintId: string): void {
+    if (!this.state.guidanceSeen.includes(hintId)) {
+      this.state.guidanceSeen.push(hintId);
+      this.saveState();
+    }
+  }
+
   reset(): void {
     this.state = {
       tutorialCompleted: false,
       tutorialSkipped: false,
       seenHints: [],
       completedSteps: [],
+      guidanceSeen: [],
     };
     this.isTutorialActive = false;
     this.currentStepIndex = 0;
@@ -243,6 +277,7 @@ export class TutorialSystem implements System {
           tutorialSkipped: data.tutorialSkipped ?? false,
           seenHints: data.seenHints ?? [],
           completedSteps: data.completedSteps ?? [],
+          guidanceSeen: data.guidanceSeen ?? [],
         };
       }
     } catch (error) {
@@ -253,6 +288,7 @@ export class TutorialSystem implements System {
       tutorialSkipped: false,
       seenHints: [],
       completedSteps: [],
+      guidanceSeen: [],
     };
   }
 
