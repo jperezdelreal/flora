@@ -180,6 +180,8 @@ export class PlantSystem implements System {
       this.config.synergySystem.calculateSynergies(this.getActivePlants());
     }
 
+    // TLDR: Combine plant advancement and dead plant detection into single pass
+    const deadPlants: Plant[] = [];
     const plants = this.getActivePlants();
     for (const plant of plants) {
       const oldStage = plant.getGrowthStage();
@@ -209,11 +211,11 @@ export class PlantSystem implements System {
       // TLDR: Emit death event if plant died (became inactive)
       if (wasActive && !isActive) {
         eventBus.emit('plant:died', { plantId: plant.id, reason: 'neglect' });
+        deadPlants.push(plant);
       }
     }
 
     // Remove dead plants
-    const deadPlants = Array.from(this.plants.values()).filter((p) => !p.active);
     for (const plant of deadPlants) {
       this.removePlant(plant.id);
     }

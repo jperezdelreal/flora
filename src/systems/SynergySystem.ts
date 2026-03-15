@@ -18,10 +18,17 @@ export class SynergySystem implements System {
   readonly name = 'SynergySystem';
   private tutorialShown = false;
 
+  // TLDR: Store bound listeners for cleanup
+  private boundPlantCreated!: () => void;
+  private boundPlantHarvested!: () => void;
+
   constructor() {
     // TLDR: Subscribe to plant events for synergy recalculation
-    eventBus.on('plant:created', () => this.scheduleSynergyCheck());
-    eventBus.on('plant:harvested', () => this.scheduleSynergyCheck());
+    this.boundPlantCreated = () => this.scheduleSynergyCheck();
+    eventBus.on('plant:created', this.boundPlantCreated);
+    
+    this.boundPlantHarvested = () => this.scheduleSynergyCheck();
+    eventBus.on('plant:harvested', this.boundPlantHarvested);
   }
 
   private synergyCheckScheduled = false;
@@ -355,6 +362,9 @@ export class SynergySystem implements System {
   }
 
   destroy(): void {
+    // TLDR: Cleanup all EventBus subscriptions to prevent memory leaks
+    eventBus.off('plant:created', this.boundPlantCreated);
+    eventBus.off('plant:harvested', this.boundPlantHarvested);
     this.tutorialShown = false;
     this.synergyCheckScheduled = false;
   }

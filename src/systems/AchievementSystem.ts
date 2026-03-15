@@ -65,6 +65,16 @@ export class AchievementSystem implements System {
   private saveManager?: SaveManager;
   private currentSeason: Season = Season.SPRING;
 
+  // TLDR: Store bound listeners for cleanup
+  private boundPlantHarvested!: (data: { plantId: string }) => void;
+  private boundPlantDied!: () => void;
+  private boundPlantCreated!: (data: { plantId: string }) => void;
+  private boundSynergyActivated!: () => void;
+  private boundDiscoveryNew!: () => void;
+  private boundDayAdvanced!: (data: { day: number }) => void;
+  private boundDroughtStarted!: () => void;
+  private boundDroughtEnded!: () => void;
+
   constructor(saveManager?: SaveManager) {
     this.saveManager = saveManager;
     this.state = this.loadState();
@@ -137,52 +147,60 @@ export class AchievementSystem implements System {
   // ------ EventBus Subscriptions ------
 
   private subscribeToEvents(): void {
-    eventBus.on('plant:harvested', (data) => {
+    this.boundPlantHarvested = (data) => {
       this.onPlantHarvested(data.plantId);
-    });
+    };
+    eventBus.on('plant:harvested', this.boundPlantHarvested);
 
-    eventBus.on('plant:died', () => {
+    this.boundPlantDied = () => {
       this.run.plantsDiedThisRun++;
       if (this.run.droughtActive) {
         this.run.plantsDiedDuringDrought++;
       }
-    });
+    };
+    eventBus.on('plant:died', this.boundPlantDied);
 
-    eventBus.on('plant:created', (data) => {
+    this.boundPlantCreated = (data) => {
       this.run.activePlantTypes.add(data.plantId.split('-')[0]);
-    });
+    };
+    eventBus.on('plant:created', this.boundPlantCreated);
 
-    eventBus.on('synergy:activated', () => {
+    this.boundSynergyActivated = () => {
       this.state.counters.synergiesActivated++;
       this.checkThreshold('synergy_adept', this.state.counters.synergiesActivated);
       this.saveState();
-    });
+    };
+    eventBus.on('synergy:activated', this.boundSynergyActivated);
 
-    eventBus.on('discovery:new', () => {
+    this.boundDiscoveryNew = () => {
       this.state.counters.discoveredSpecies++;
       this.checkThreshold('plant_explorer', this.state.counters.discoveredSpecies);
       this.checkThreshold('flora_completionist', this.state.counters.discoveredSpecies);
       this.saveState();
-    });
+    };
+    eventBus.on('discovery:new', this.boundDiscoveryNew);
 
-    eventBus.on('day:advanced', (data) => {
+    this.boundDayAdvanced = (data) => {
       // TLDR: Reset daily harvest counter on new day
       this.run.harvestsToday = 0;
       this.run.currentDay = data.day;
-    });
+    };
+    eventBus.on('day:advanced', this.boundDayAdvanced);
 
-    eventBus.on('drought:started', () => {
+    this.boundDroughtStarted = () => {
       this.run.droughtActive = true;
       this.run.plantsDiedDuringDrought = 0;
-    });
+    };
+    eventBus.on('drought:started', this.boundDroughtStarted);
 
-    eventBus.on('drought:ended', () => {
+    this.boundDroughtEnded = () => {
       // TLDR: Drought Survivor — ended drought with zero deaths during it
       if (this.run.plantsDiedDuringDrought === 0) {
         this.tryUnlock('drought_survivor');
       }
       this.run.droughtActive = false;
-    });
+    };
+    eventBus.on('drought:ended', this.boundDroughtEnded);
   }
 
   // ------ Internal Logic ------
@@ -325,6 +343,15 @@ export class AchievementSystem implements System {
   }
 
   destroy(): void {
+    // TLDR: Cleanup all EventBus subscriptions to prevent memory leaks
+    eventBus.off('plant:harvested', this.boundPlantHarvested);
+    eventBus.off('plant:died', this.boundPlantDied);
+    eventBus.off('plant:created', this.boundPlantCreated);
+    eventBus.off('synergy:activated', this.boundSynergyActivated);
+    eventBus.off('discovery:new', this.boundDiscoveryNew);
+    eventBus.off('day:advanced', this.boundDayAdvanced);
+    eventBus.off('drought:started', this.boundDroughtStarted);
+    eventBus.off('drought:ended', this.boundDroughtEnded);
     this.unlockCallbacks = [];
   }
 }

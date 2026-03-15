@@ -20,13 +20,21 @@ export class WeedSystem implements System {
   private season: Season;
   private compostPoints = 0;
 
+  // TLDR: Store bound listeners for cleanup
+  private boundDayAdvanced!: () => void;
+  private boundPlantDied!: (data: { plantId: string }) => void;
+
   constructor(config: WeedSystemConfig) {
     this.grid = config.grid;
     this.season = config.season;
-    eventBus.on('day:advanced', () => { this.onDayAdvance(); });
-    eventBus.on('plant:died', (data) => {
+    
+    this.boundDayAdvanced = () => { this.onDayAdvance(); };
+    eventBus.on('day:advanced', this.boundDayAdvanced);
+    
+    this.boundPlantDied = (data) => {
       this.generateCompost(COMPOST_CONFIG.DEAD_PLANT_YIELD, `dead_plant_${data.plantId}`);
-    });
+    };
+    eventBus.on('plant:died', this.boundPlantDied);
   }
 
   private onDayAdvance(): void {
@@ -168,6 +176,9 @@ export class WeedSystem implements System {
   update(_delta: number): void {}
 
   destroy(): void {
+    // TLDR: Cleanup all EventBus subscriptions to prevent memory leaks
+    eventBus.off('day:advanced', this.boundDayAdvanced);
+    eventBus.off('plant:died', this.boundPlantDied);
     this.weeds.clear();
     this.compostPoints = 0;
   }

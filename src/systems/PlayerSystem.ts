@@ -197,15 +197,11 @@ export class PlayerSystem implements System {
       };
     }
 
-    // Find plant at current position
-    let plant: Plant | null = null;
-    for (const p of this.plants.values()) {
+    // TLDR: Find plant at current tile (optimized direct lookup by tile coordinates)
+    const plant = Array.from(this.plants.values()).find(p => {
       const plantTile = this.grid.getTileAtPosition(p.x, p.y, 0, 0);
-      if (plantTile && plantTile.row === pos.row && plantTile.col === pos.col) {
-        plant = p;
-        break;
-      }
-    }
+      return plantTile && plantTile.row === pos.row && plantTile.col === pos.col;
+    }) || null;
 
     const toolConfig = getToolConfig(selectedTool);
 
