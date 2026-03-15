@@ -4,6 +4,12 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 
 ## Learnings
 
+### Toolbar Icon Polish & ESC Pause Hint (Issues #294 + #295, PR #300)
+- **#294**: Updated compost icon (🪴→🪱), pest spray icon (🧴→🧪); reordered `ALL_TOOLS` to match keyboard shortcut 1-9 order; enlarged icons 32→36px, shrunk name text 12→10px
+- **#295**: Added `escHintText` to HUD — "⏸ Press ESC to pause" using `UI_COLORS.TEXT_HINT`, visible only on days 1-2 via `this.escHintText.visible = day <= 2` in `update()`
+- **Key files**: `src/config/tools.ts` (icons, order), `src/ui/ToolBar.ts` (sizing), `src/ui/HUD.ts` (ESC hint)
+- **Convention**: All colors from config constants (`UI_COLORS`), all comments "TLDR:"
+
 ### Harvest Particle Effects and Game Feel Juice (Issue #199, PR #208)
 - **Architecture**: Enhanced ParticleSystem with object pooling and new particle types
 - **Pattern**: Object pooling (ObjectPool<Graphics>, ObjectPool<Text>) to reduce GC pressure
