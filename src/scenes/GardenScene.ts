@@ -372,10 +372,7 @@ export class GardenScene implements Scene {
       onMainMenu: () => {
         // TLDR: Save garden state, then navigate to MenuScene main menu
         this.saveGardenState();
-        const menuScene = this._ctx.sceneManager.getScene(SCENES.MENU);
-        if (menuScene && menuScene instanceof MenuScene) {
-          menuScene.setReturnToMain();
-        }
+        MenuScene.skipTitle = true;
         this._ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
       },
     };

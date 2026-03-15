@@ -1,14 +1,14 @@
 import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
-import { SCENES, COLORS } from '../config';
+import { eventBus } from '../core/EventBus';
+import { SCENES, COLORS, GAME } from '../config';
 import { EncyclopediaSystem, EncyclopediaEntry } from '../systems/EncyclopediaSystem';
 import { ParticleSystem } from '../systems';
 import { announce } from '../utils/accessibility';
-import type { PlantConfig } from '../entities/Plant';
 import { MenuScene } from './MenuScene';
 
 type RarityFilter = 'all' | 'common' | 'uncommon' | 'rare' | 'heirloom';
-type SortMode = 'name' | 'rarity' | 'growth';
+type DiscoveryFilter = 'all' | 'discovered' | 'undiscovered';
 
 const RARITY_COLORS: Record<string, number> = {
   common: 0x4caf50,
@@ -17,21 +17,18 @@ const RARITY_COLORS: Record<string, number> = {
   heirloom: 0xffd700,
 };
 
-const RARITY_ORDER: Record<string, number> = {
-  common: 0,
-  uncommon: 1,
-  rare: 2,
-  heirloom: 3,
+const RARITY_TEXT_COLORS: Record<string, string> = {
+  common: '#4caf50',
+  uncommon: '#2196f3',
+  rare: '#9c27b0',
+  heirloom: '#ffd700',
 };
 
-const CARD_WIDTH = 150;
+const CARD_WIDTH = 160;
 const CARD_HEIGHT = 130;
 const GRID_COLS = 4;
 const GRID_GAP = 14;
 const SCROLL_SPEED = 40;
-const HEADER_HEIGHT = 60;
-const FILTER_HEIGHT = 50;
-const CONTENT_TOP = HEADER_HEIGHT + FILTER_HEIGHT;
 
 /**
  * TLDR: Standalone encyclopedia scene — browse all plants from the main menu
@@ -43,6 +40,7 @@ export class EncyclopediaScene implements Scene {
   private bgLayer = new Container();
   private particleLayer = new Container();
   private contentLayer = new Container();
+  private filterLayer = new Container();
   private cardsContainer = new Container();
   private cardsMask!: Graphics;
   private detailOverlay = new Container();
@@ -51,33 +49,31 @@ export class EncyclopediaScene implements Scene {
   private encyclopediaSystem: EncyclopediaSystem;
 
   private ctx: SceneContext | null = null;
-  private screenWidth = 800;
-  private screenHeight = 600;
+  private screenWidth: number = GAME.WIDTH;
+  private screenHeight: number = GAME.HEIGHT;
   private elapsed = 0;
   private fireflyCooldown = 0;
 
-  // Filter state
   private rarityFilter: RarityFilter = 'all';
-  private sortMode: SortMode = 'rarity';
-  private filterButtons: { bg: Graphics; text: Text; value: string }[] = [];
+  private discoveryFilter: DiscoveryFilter = 'all';
+  private filterButtons: { bg: Graphics; text: Text; group: string; value: string }[] = [];
 
-  // Card grid
-  private filteredEntries: EncyclopediaEntry[] = [];
   private cardGraphics: { container: Container; entry: EncyclopediaEntry; bg: Graphics }[] = [];
   private selectedCardIndex = 0;
-  private focusRing: Graphics | null = null;
 
-  // Scroll
   private scrollOffset = 0;
   private maxScroll = 0;
+  private isDragging = false;
+  private dragLastY = 0;
 
-  // Detail view
   private detailVisible = false;
 
-  // Event listeners
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private boundOnWheel!: (e: WheelEvent) => void;
-  private boundOnResize!: () => void;
+
+  private statsText!: Text;
+  private progressBar!: Graphics;
+  private progressFill!: Graphics;
 
   constructor(encyclopediaSystem: EncyclopediaSystem) {
     this.encyclopediaSystem = encyclopediaSystem;
@@ -89,16 +85,9 @@ export class EncyclopediaScene implements Scene {
     const { app } = ctx;
     const stage = app.stage.children[0] as Container;
     stage.addChild(this.container);
-
     this.screenWidth = app.screen.width;
     this.screenHeight = app.screen.height;
-    this.elapsed = 0;
-    this.fireflyCooldown = 0;
-    this.scrollOffset = 0;
-    this.selectedCardIndex = 0;
-    this.detailVisible = false;
 
-    // TLDR: Layer hierarchy — bg, particles, content, detail overlay
     this.container.addChild(this.bgLayer);
     this.container.addChild(this.particleLayer);
     this.particleLayer.addChild(this.particleSystem.getContainer());
@@ -108,34 +97,27 @@ export class EncyclopediaScene implements Scene {
 
     this.buildBackground();
     this.buildHeader();
-    this.buildFilterBar();
+    this.buildFilters();
     this.buildCardGrid();
     this.buildBackButton();
 
-    // TLDR: Keyboard and scroll listeners
     this.boundOnKeyDown = (e: KeyboardEvent) => this.handleKeyDown(e);
     window.addEventListener('keydown', this.boundOnKeyDown);
 
     this.boundOnWheel = (e: WheelEvent) => {
-      if (!this.detailVisible) {
-        this.scroll(e.deltaY > 0 ? SCROLL_SPEED : -SCROLL_SPEED);
-        e.preventDefault();
-      }
+      if (this.detailVisible) return;
+      this.scroll(e.deltaY > 0 ? SCROLL_SPEED : -SCROLL_SPEED);
     };
-    window.addEventListener('wheel', this.boundOnWheel, { passive: false });
+    window.addEventListener('wheel', this.boundOnWheel, { passive: true });
 
-    this.boundOnResize = () => {
-      if (this.ctx) {
-        this.screenWidth = this.ctx.app.screen.width;
-        this.screenHeight = this.ctx.app.screen.height;
-      }
-    };
-    window.addEventListener('resize', this.boundOnResize);
+    this.elapsed = 0;
+    this.fireflyCooldown = 0;
 
-    announce('Encyclopedia opened. Browse discovered plants. Use arrow keys to navigate, Enter to view details, Escape to go back.');
+    announce('Encyclopedia opened. Browse discovered plants.');
+    eventBus.emit('scene:ready', { scene: 'encyclopedia' });
   }
 
-  // ── Background (matches MenuScene aesthetic) ───────────────────────
+  // ── Background (consistent with MenuScene) ─────────────────────────
 
   private buildBackground(): void {
     const w = this.screenWidth;
@@ -146,12 +128,11 @@ export class EncyclopediaScene implements Scene {
     bg.fill({ color: COLORS.DARK_GREEN });
     this.bgLayer.addChild(bg);
 
-    // TLDR: Rolling hills silhouette
     const hills = new Graphics();
-    hills.moveTo(0, h * 0.75);
-    hills.quadraticCurveTo(w * 0.2, h * 0.6, w * 0.35, h * 0.7);
-    hills.quadraticCurveTo(w * 0.55, h * 0.8, w * 0.7, h * 0.65);
-    hills.quadraticCurveTo(w * 0.9, h * 0.55, w, h * 0.68);
+    hills.moveTo(0, h * 0.7);
+    hills.quadraticCurveTo(w * 0.15, h * 0.55, w * 0.3, h * 0.65);
+    hills.quadraticCurveTo(w * 0.5, h * 0.75, w * 0.65, h * 0.6);
+    hills.quadraticCurveTo(w * 0.85, h * 0.5, w, h * 0.62);
     hills.lineTo(w, h);
     hills.lineTo(0, h);
     hills.closePath();
@@ -159,679 +140,340 @@ export class EncyclopediaScene implements Scene {
     this.bgLayer.addChild(hills);
 
     const fgHills = new Graphics();
-    fgHills.moveTo(0, h * 0.85);
-    fgHills.quadraticCurveTo(w * 0.3, h * 0.75, w * 0.5, h * 0.82);
-    fgHills.quadraticCurveTo(w * 0.75, h * 0.88, w, h * 0.8);
+    fgHills.moveTo(0, h * 0.82);
+    fgHills.quadraticCurveTo(w * 0.25, h * 0.72, w * 0.45, h * 0.78);
+    fgHills.quadraticCurveTo(w * 0.7, h * 0.85, w, h * 0.76);
     fgHills.lineTo(w, h);
     fgHills.lineTo(0, h);
     fgHills.closePath();
     fgHills.fill({ color: 0x163d13, alpha: 0.5 });
     this.bgLayer.addChild(fgHills);
 
-    // TLDR: Decorative flower dots
-    for (let i = 0; i < 14; i++) {
+    for (let i = 0; i < 18; i++) {
       const flower = new Graphics();
       const fx = Math.random() * w;
-      const fy = h * 0.75 + Math.random() * h * 0.2;
-      const flowerColors = [0xffb7c5, 0xffd700, 0xff6b6b, 0x87ceeb, 0xdda0dd];
-      const color = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+      const fy = h * 0.7 + Math.random() * h * 0.25;
+      const colors = [0xffb7c5, 0xffd700, 0xff6b6b, 0x87ceeb, 0xdda0dd];
+      const color = colors[Math.floor(Math.random() * colors.length)];
       flower.circle(fx, fy, 2 + Math.random() * 2);
-      flower.fill({ color, alpha: 0.3 + Math.random() * 0.3 });
+      flower.fill({ color, alpha: 0.4 + Math.random() * 0.3 });
       this.bgLayer.addChild(flower);
     }
   }
 
-  // ── Header ─────────────────────────────────────────────────────────
+  // ── Header with title + discovery tracker ───────────────────────────
 
   private buildHeader(): void {
-    const cx = this.screenWidth / 2;
-
     const headerBg = new Graphics();
-    headerBg.rect(0, 0, this.screenWidth, HEADER_HEIGHT);
-    headerBg.fill({ color: 0x1a1a1a, alpha: 0.85 });
+    headerBg.rect(0, 0, this.screenWidth, 70);
+    headerBg.fill({ color: 0x111111, alpha: 0.88 });
     this.contentLayer.addChild(headerBg);
 
     const title = new Text({
-      text: '📖 Seed Encyclopedia',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 26,
-        fill: '#c8e6c9',
-        fontWeight: 'bold',
-      },
+      text: '📖  Seed Encyclopedia',
+      style: { fontFamily: 'Arial', fontSize: 30, fill: '#c8e6c9', fontWeight: 'bold' },
     });
-    title.anchor.set(0.5, 0.5);
-    title.x = cx;
-    title.y = HEADER_HEIGHT / 2;
+    title.anchor.set(0, 0.5);
+    title.x = 20;
+    title.y = 24;
     this.contentLayer.addChild(title);
 
-    // TLDR: Discovery stats
+    const barWidth = 160;
+    const barHeight = 10;
+    const barX = this.screenWidth - barWidth - 20;
+    const barY = 14;
     const stats = this.encyclopediaSystem.getStats();
-    const statsText = new Text({
-      text: `Discovered: ${stats.discovered} / ${stats.total} (${stats.percentComplete}%)`,
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 13,
-        fill: '#aaaaaa',
-      },
+
+    this.statsText = new Text({
+      text: `${stats.discovered}/${stats.total} discovered (${stats.percentComplete}%)`,
+      style: { fontFamily: 'Arial', fontSize: 13, fill: '#aaaaaa' },
     });
-    statsText.anchor.set(1, 0.5);
-    statsText.x = this.screenWidth - 16;
-    statsText.y = HEADER_HEIGHT / 2;
-    this.contentLayer.addChild(statsText);
+    this.statsText.anchor.set(1, 0);
+    this.statsText.x = this.screenWidth - 20;
+    this.statsText.y = barY + barHeight + 6;
+    this.contentLayer.addChild(this.statsText);
+
+    this.progressBar = new Graphics();
+    this.progressBar.roundRect(barX, barY, barWidth, barHeight, 5);
+    this.progressBar.fill({ color: 0x1a3a18 });
+    this.progressBar.stroke({ color: 0x3e7a38, width: 1 });
+    this.contentLayer.addChild(this.progressBar);
+
+    this.progressFill = new Graphics();
+    const fillW = Math.max(0, barWidth * (stats.percentComplete / 100));
+    if (fillW > 0) {
+      this.progressFill.roundRect(barX, barY, fillW, barHeight, 5);
+      this.progressFill.fill({ color: COLORS.LIGHT_GREEN });
+    }
+    this.contentLayer.addChild(this.progressFill);
+
+    const cx = this.screenWidth / 2;
+    const rarities = ['common', 'uncommon', 'rare', 'heirloom'] as const;
+    let rx = cx - 160;
+    const ry = 48;
+    for (const rarity of rarities) {
+      const rd = stats.byRarity[rarity];
+      const dot = new Graphics();
+      dot.circle(rx, ry, 5);
+      dot.fill({ color: RARITY_COLORS[rarity] });
+      this.contentLayer.addChild(dot);
+      const label = new Text({
+        text: `${rd.discovered}/${rd.total}`,
+        style: { fontFamily: 'Arial', fontSize: 11, fill: RARITY_TEXT_COLORS[rarity] },
+      });
+      label.x = rx + 10;
+      label.y = ry - 7;
+      this.contentLayer.addChild(label);
+      rx += 80;
+    }
   }
 
-  // ── Filter bar ─────────────────────────────────────────────────────
+  // ── Filter bar ──────────────────────────────────────────────────────
 
-  private buildFilterBar(): void {
+  private buildFilters(): void {
+    this.filterLayer.y = 74;
+    this.contentLayer.addChild(this.filterLayer);
+
     const filterBg = new Graphics();
-    filterBg.rect(0, HEADER_HEIGHT, this.screenWidth, FILTER_HEIGHT);
-    filterBg.fill({ color: 0x1a1a1a, alpha: 0.7 });
-    this.contentLayer.addChild(filterBg);
+    filterBg.rect(0, 0, this.screenWidth, 40);
+    filterBg.fill({ color: 0x1a1a1a, alpha: 0.8 });
+    this.filterLayer.addChild(filterBg);
 
-    const filters: { label: string; value: RarityFilter }[] = [
+    this.filterButtons = [];
+    let x = 12;
+    const y = 6;
+
+    const rarities: { label: string; value: RarityFilter }[] = [
       { label: 'All', value: 'all' },
-      { label: 'Common', value: 'common' },
-      { label: 'Uncommon', value: 'uncommon' },
-      { label: 'Rare', value: 'rare' },
-      { label: 'Heirloom', value: 'heirloom' },
+      { label: '🟢 Common', value: 'common' },
+      { label: '🔵 Uncommon', value: 'uncommon' },
+      { label: '🟣 Rare', value: 'rare' },
+      { label: '🟡 Heirloom', value: 'heirloom' },
     ];
+    for (const r of rarities) { x = this.addFilterButton(x, y, r.label, 'rarity', r.value); }
 
-    const btnWidth = 90;
-    const btnHeight = 30;
-    const startX = 16;
-    const y = HEADER_HEIGHT + (FILTER_HEIGHT - btnHeight) / 2;
+    x += 12;
+    const sep = new Graphics();
+    sep.rect(x, y + 2, 1, 24);
+    sep.fill({ color: 0x3e7a38, alpha: 0.5 });
+    this.filterLayer.addChild(sep);
+    x += 8;
 
-    filters.forEach((f, i) => {
-      const x = startX + i * (btnWidth + 8);
-      const bg = new Graphics();
-      const isActive = this.rarityFilter === f.value;
-      bg.roundRect(x, y, btnWidth, btnHeight, 6);
-      if (isActive) {
-        bg.fill({ color: 0x3e7a38 });
-        bg.stroke({ color: 0x88d498, width: 2 });
-      } else {
-        bg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-        bg.stroke({ color: 0x4a4a4a, width: 1 });
-      }
-      bg.eventMode = 'static';
-      bg.cursor = 'pointer';
-      bg.accessible = true;
-      bg.accessibleTitle = `Filter: ${f.label}`;
+    const discoveries: { label: string; value: DiscoveryFilter }[] = [
+      { label: '✅', value: 'discovered' },
+      { label: '❓', value: 'undiscovered' },
+    ];
+    for (const d of discoveries) { x = this.addFilterButton(x, y, d.label, 'discovery', d.value); }
 
-      const text = new Text({
-        text: f.label,
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 13,
-          fill: isActive ? '#ffffff' : '#aaaaaa',
-          fontWeight: isActive ? 'bold' : 'normal',
-        },
-      });
-      text.anchor.set(0.5, 0.5);
-      text.x = x + btnWidth / 2;
-      text.y = y + btnHeight / 2;
-
-      bg.on('pointerdown', () => {
-        this.rarityFilter = f.value;
-        this.rebuildFilterBar();
-        this.rebuildCards();
-        announce(`Filter: ${f.label}`);
-      });
-
-      this.contentLayer.addChild(bg);
-      this.contentLayer.addChild(text);
-      this.filterButtons.push({ bg, text, value: f.value });
-    });
+    this.updateFilterHighlights();
   }
 
-  private rebuildFilterBar(): void {
-    // TLDR: Update visual state of filter buttons
-    this.filterButtons.forEach(({ bg, text, value }) => {
-      const isActive = this.rarityFilter === value;
-      const bounds = bg.getBounds();
-      bg.clear();
-      bg.roundRect(bounds.x, bounds.y, bounds.width, bounds.height, 6);
-      if (isActive) {
-        bg.fill({ color: 0x3e7a38 });
-        bg.stroke({ color: 0x88d498, width: 2 });
-      } else {
-        bg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-        bg.stroke({ color: 0x4a4a4a, width: 1 });
-      }
-      text.style.fill = isActive ? '#ffffff' : '#aaaaaa';
-      text.style.fontWeight = isActive ? 'bold' : 'normal';
+  private addFilterButton(x: number, y: number, label: string, group: string, value: string): number {
+    const text = new Text({
+      text: label,
+      style: { fontFamily: 'Arial', fontSize: 12, fill: '#cccccc', fontWeight: 'bold' },
     });
+    const textWidth = Math.max(text.width + 16, 40);
+    const bg = new Graphics();
+    bg.roundRect(x, y, textWidth, 28, 6);
+    bg.fill({ color: 0x2a2a2a });
+    bg.stroke({ color: 0x3e7a38, width: 1 });
+    bg.eventMode = 'static';
+    bg.cursor = 'pointer';
+    this.filterLayer.addChild(bg);
+    text.anchor.set(0.5, 0.5);
+    text.x = x + textWidth / 2;
+    text.y = y + 14;
+    this.filterLayer.addChild(text);
+    bg.on('pointerdown', () => this.toggleFilter(group, value));
+    this.filterButtons.push({ bg, text, group, value });
+    return x + textWidth + 6;
   }
 
-  // ── Card grid ──────────────────────────────────────────────────────
+  private toggleFilter(group: string, value: string): void {
+    if (group === 'rarity') {
+      this.rarityFilter = this.rarityFilter === value as RarityFilter ? 'all' : value as RarityFilter;
+    } else if (group === 'discovery') {
+      this.discoveryFilter = this.discoveryFilter === value as DiscoveryFilter ? 'all' : value as DiscoveryFilter;
+    }
+    this.updateFilterHighlights();
+    this.rebuildCards();
+    announce(`Filter updated. Showing ${this.getFilteredEntries().length} plants.`);
+  }
+
+  private updateFilterHighlights(): void {
+    for (const btn of this.filterButtons) {
+      const active =
+        (btn.group === 'rarity' && btn.value === this.rarityFilter) ||
+        (btn.group === 'discovery' && btn.value === this.discoveryFilter);
+      const textW = Math.max(btn.text.width + 16, 40);
+      const bx = btn.text.x - textW / 2;
+      const by = btn.text.y - 14;
+      btn.bg.clear();
+      btn.bg.roundRect(bx, by, textW, 28, 6);
+      if (active) {
+        btn.bg.fill({ color: 0x3e7a38, alpha: 0.9 });
+        btn.bg.stroke({ color: 0x88d498, width: 2 });
+        btn.text.style.fill = '#ffffff';
+      } else {
+        btn.bg.fill({ color: 0x2a2a2a });
+        btn.bg.stroke({ color: 0x3e7a38, width: 1 });
+        btn.text.style.fill = '#cccccc';
+      }
+    }
+  }
+
+  // ── Card grid ───────────────────────────────────────────────────────
+
+  private getFilteredEntries(): EncyclopediaEntry[] {
+    let entries = this.encyclopediaSystem.getEntries();
+    if (this.rarityFilter !== 'all') {
+      entries = entries.filter((e) => e.config.rarity === this.rarityFilter);
+    }
+    if (this.discoveryFilter === 'discovered') {
+      entries = entries.filter((e) => e.discovered);
+    } else if (this.discoveryFilter === 'undiscovered') {
+      entries = entries.filter((e) => !e.discovered);
+    }
+    const rarityOrder: Record<string, number> = { common: 0, uncommon: 1, rare: 2, heirloom: 3 };
+    return entries.sort((a, b) => {
+      if (a.discovered !== b.discovered) return a.discovered ? -1 : 1;
+      const aR = rarityOrder[a.config.rarity] ?? 0;
+      const bR = rarityOrder[b.config.rarity] ?? 0;
+      if (aR !== bR) return aR - bR;
+      return a.config.displayName.localeCompare(b.config.displayName);
+    });
+  }
 
   private buildCardGrid(): void {
-    const viewportHeight = this.screenHeight - CONTENT_TOP - 50;
-
-    // TLDR: Clip mask for scrollable card area
+    const gridTop = 118;
+    const viewportH = this.screenHeight - gridTop - 50;
     this.cardsMask = new Graphics();
-    this.cardsMask.rect(0, CONTENT_TOP, this.screenWidth, viewportHeight);
+    this.cardsMask.rect(0, gridTop, this.screenWidth, viewportH);
     this.cardsMask.fill({ color: 0xffffff });
     this.contentLayer.addChild(this.cardsMask);
-
-    this.cardsContainer = new Container();
-    this.cardsContainer.y = CONTENT_TOP;
+    this.cardsContainer.y = gridTop;
     this.cardsContainer.mask = this.cardsMask;
     this.contentLayer.addChild(this.cardsContainer);
 
-    // TLDR: Focus ring for keyboard navigation
-    this.focusRing = new Graphics();
-    this.cardsContainer.addChild(this.focusRing);
-
+    const hitArea = new Graphics();
+    hitArea.rect(0, gridTop, this.screenWidth, viewportH);
+    hitArea.fill({ color: 0x000000, alpha: 0.001 });
+    hitArea.eventMode = 'static';
+    this.contentLayer.addChildAt(hitArea, this.contentLayer.getChildIndex(this.cardsContainer));
+    hitArea.on('pointerdown', (e: FederatedPointerEvent) => { this.isDragging = true; this.dragLastY = e.globalY; });
+    hitArea.on('pointermove', (e: FederatedPointerEvent) => {
+      if (!this.isDragging) return;
+      const dy = this.dragLastY - e.globalY;
+      this.dragLastY = e.globalY;
+      this.scroll(dy);
+    });
+    hitArea.on('pointerup', () => { this.isDragging = false; });
+    hitArea.on('pointerupoutside', () => { this.isDragging = false; });
     this.rebuildCards();
   }
 
   private rebuildCards(): void {
-    // TLDR: Clear existing cards
     this.cardsContainer.removeChildren();
     this.cardGraphics = [];
     this.scrollOffset = 0;
-
-    // Re-add focus ring
-    this.focusRing = new Graphics();
-    this.cardsContainer.addChild(this.focusRing);
-
-    // TLDR: Filter entries by rarity
-    const allEntries = this.encyclopediaSystem.getEntries();
-    this.filteredEntries = allEntries.filter(entry => {
-      if (this.rarityFilter !== 'all' && entry.config.rarity !== this.rarityFilter) return false;
-      return true;
-    });
-
-    // TLDR: Sort — discovered first, then by rarity, then name
-    this.filteredEntries.sort((a, b) => {
-      if (a.discovered !== b.discovered) return a.discovered ? -1 : 1;
-      const aRarity = RARITY_ORDER[a.config.rarity] ?? 0;
-      const bRarity = RARITY_ORDER[b.config.rarity] ?? 0;
-      if (aRarity !== bRarity) return aRarity - bRarity;
-      return a.config.displayName.localeCompare(b.config.displayName);
-    });
-
-    // TLDR: Layout cards in grid
+    this.selectedCardIndex = 0;
+    const entries = this.getFilteredEntries();
     const gridWidth = GRID_COLS * (CARD_WIDTH + GRID_GAP) - GRID_GAP;
-    const startX = (this.screenWidth - gridWidth) / 2;
-
-    this.filteredEntries.forEach((entry, index) => {
-      const row = Math.floor(index / GRID_COLS);
-      const col = index % GRID_COLS;
-      const x = startX + col * (CARD_WIDTH + GRID_GAP);
+    const offsetX = (this.screenWidth - gridWidth) / 2;
+    entries.forEach((entry, i) => {
+      const row = Math.floor(i / GRID_COLS);
+      const col = i % GRID_COLS;
+      const x = offsetX + col * (CARD_WIDTH + GRID_GAP);
       const y = GRID_GAP + row * (CARD_HEIGHT + GRID_GAP);
-
       const card = this.createCard(entry, x, y);
       this.cardsContainer.addChild(card.container);
       this.cardGraphics.push(card);
     });
-
-    // TLDR: Calculate scroll bounds
-    const totalRows = Math.ceil(this.filteredEntries.length / GRID_COLS);
-    const contentHeight = totalRows * (CARD_HEIGHT + GRID_GAP) + GRID_GAP;
-    const viewportHeight = this.screenHeight - CONTENT_TOP - 50;
-    this.maxScroll = Math.max(0, contentHeight - viewportHeight);
-
-    // Reset selection
-    this.selectedCardIndex = 0;
-    this.updateFocusRing();
+    const totalRows = Math.ceil(entries.length / GRID_COLS);
+    const contentH = totalRows * (CARD_HEIGHT + GRID_GAP) + GRID_GAP;
+    const viewportH = this.screenHeight - 118 - 50;
+    this.maxScroll = Math.max(0, contentH - viewportH);
+    this.applyScroll();
+    this.highlightCard(0);
   }
 
   private createCard(entry: EncyclopediaEntry, x: number, y: number): { container: Container; entry: EncyclopediaEntry; bg: Graphics } {
     const card = new Container();
     card.x = x;
     card.y = y;
-
-    const rarityColor = entry.discovered
-      ? (RARITY_COLORS[entry.config.rarity] ?? 0x4caf50)
-      : 0x333333;
-
-    // TLDR: Card background with rarity-colored border
+    const rarityColor = entry.discovered ? (RARITY_COLORS[entry.config.rarity] ?? 0x4caf50) : 0x333333;
     const bg = new Graphics();
     bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
-    bg.fill({ color: 0x2a2520, alpha: 0.92 });
+    bg.fill({ color: 0x222222, alpha: 0.92 });
     bg.stroke({ color: rarityColor, width: 2 });
     bg.eventMode = 'static';
     bg.cursor = entry.discovered ? 'pointer' : 'default';
-    bg.accessible = true;
-    bg.accessibleTitle = entry.discovered
-      ? `${entry.config.displayName} - ${entry.config.rarity}`
-      : `Undiscovered ${entry.config.rarity} plant`;
     card.addChild(bg);
 
     if (entry.discovered) {
-      // TLDR: Thumbnail circle in rarity color
       const thumb = new Graphics();
-      thumb.circle(CARD_WIDTH / 2, 35, 22);
+      thumb.circle(CARD_WIDTH / 2, 35, 24);
       thumb.fill({ color: rarityColor, alpha: 0.35 });
       thumb.stroke({ color: rarityColor, width: 2 });
       card.addChild(thumb);
-
       const nameText = new Text({
         text: entry.config.displayName,
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 14,
-          fill: '#ffffff',
-          fontWeight: 'bold',
-          align: 'center',
-          wordWrap: true,
-          wordWrapWidth: CARD_WIDTH - 16,
-        },
+        style: { fontFamily: 'Arial', fontSize: 14, fill: '#ffffff', fontWeight: 'bold', align: 'center', wordWrap: true, wordWrapWidth: CARD_WIDTH - 16 },
       });
-      nameText.anchor.set(0.5, 0);
-      nameText.x = CARD_WIDTH / 2;
-      nameText.y = 65;
+      nameText.anchor.set(0.5, 0); nameText.x = CARD_WIDTH / 2; nameText.y = 66;
       card.addChild(nameText);
-
-      // TLDR: Rarity stars
-      const stars = '★'.repeat(RARITY_ORDER[entry.config.rarity] + 1);
-      const starsText = new Text({
-        text: stars,
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 12,
-          fill: entry.config.rarity === 'heirloom' ? '#ffd700' : '#aaaaaa',
-        },
+      const rarityText = new Text({
+        text: entry.config.rarity.toUpperCase(),
+        style: { fontFamily: 'Arial', fontSize: 10, fill: RARITY_TEXT_COLORS[entry.config.rarity] ?? '#4caf50', fontWeight: 'bold' },
       });
-      starsText.anchor.set(0.5, 0);
-      starsText.x = CARD_WIDTH / 2;
-      starsText.y = 88;
-      card.addChild(starsText);
-
-      // TLDR: Growth time
+      rarityText.anchor.set(0.5, 0); rarityText.x = CARD_WIDTH / 2; rarityText.y = 90;
+      card.addChild(rarityText);
       const infoText = new Text({
-        text: `${entry.config.growthTime}d growth`,
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 11,
-          fill: '#888888',
-        },
+        text: `🌱 ${entry.config.growthTime}d  💧 ${Math.round(entry.config.waterNeedPerDay * 100)}%`,
+        style: { fontFamily: 'Arial', fontSize: 10, fill: '#888888' },
       });
-      infoText.anchor.set(0.5, 0);
-      infoText.x = CARD_WIDTH / 2;
-      infoText.y = 108;
+      infoText.anchor.set(0.5, 0); infoText.x = CARD_WIDTH / 2; infoText.y = 108;
       card.addChild(infoText);
-
-      // TLDR: Hover glow effect
+      bg.on('pointerdown', () => { this.showDetail(entry); });
       bg.on('pointerover', () => {
-        bg.clear();
-        bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
-        bg.fill({ color: 0x3a3530, alpha: 0.95 });
-        bg.stroke({ color: rarityColor, width: 3 });
+        const idx = this.cardGraphics.findIndex((c) => c.entry === entry);
+        if (idx >= 0) { this.selectedCardIndex = idx; this.highlightCard(idx); }
       });
-      bg.on('pointerout', () => {
-        bg.clear();
-        bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
-        bg.fill({ color: 0x2a2520, alpha: 0.92 });
-        bg.stroke({ color: rarityColor, width: 2 });
-      });
-      bg.on('pointerdown', () => {
-        this.openDetail(entry);
-      });
-
     } else {
-      // TLDR: Undiscovered — silhouette with question mark
       const silhouette = new Graphics();
-      silhouette.circle(CARD_WIDTH / 2, 35, 22);
+      silhouette.circle(CARD_WIDTH / 2, 35, 24);
       silhouette.fill({ color: 0x333333, alpha: 0.5 });
       card.addChild(silhouette);
-
-      const questionMark = new Text({
-        text: '?',
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 28,
-          fill: '#555555',
-          fontWeight: 'bold',
-        },
-      });
-      questionMark.anchor.set(0.5, 0.5);
-      questionMark.x = CARD_WIDTH / 2;
-      questionMark.y = 35;
-      card.addChild(questionMark);
-
-      const unknownText = new Text({
-        text: '???',
-        style: {
-          fontFamily: 'Arial',
-          fontSize: 14,
-          fill: '#555555',
-          fontWeight: 'bold',
-        },
-      });
-      unknownText.anchor.set(0.5, 0);
-      unknownText.x = CARD_WIDTH / 2;
-      unknownText.y = 65;
-      card.addChild(unknownText);
-
-      // TLDR: Rarity hint stars
-      const stars = '★'.repeat(RARITY_ORDER[entry.config.rarity] + 1);
-      const starsText = new Text({
-        text: stars,
-        style: { fontFamily: 'Arial', fontSize: 12, fill: '#444444' },
-      });
-      starsText.anchor.set(0.5, 0);
-      starsText.x = CARD_WIDTH / 2;
-      starsText.y = 88;
-      card.addChild(starsText);
+      const qMark = new Text({ text: '?', style: { fontFamily: 'Arial', fontSize: 28, fill: '#555555', fontWeight: 'bold' } });
+      qMark.anchor.set(0.5, 0.5); qMark.x = CARD_WIDTH / 2; qMark.y = 35;
+      card.addChild(qMark);
+      const unknown = new Text({ text: '???', style: { fontFamily: 'Arial', fontSize: 14, fill: '#555555', fontWeight: 'bold' } });
+      unknown.anchor.set(0.5, 0); unknown.x = CARD_WIDTH / 2; unknown.y = 66;
+      card.addChild(unknown);
+      const rarityHint = new Text({ text: entry.config.rarity.toUpperCase(), style: { fontFamily: 'Arial', fontSize: 10, fill: '#444444' } });
+      rarityHint.anchor.set(0.5, 0); rarityHint.x = CARD_WIDTH / 2; rarityHint.y = 90;
+      card.addChild(rarityHint);
     }
-
     return { container: card, entry, bg };
   }
 
-  // ── Detail popup ───────────────────────────────────────────────────
-
-  private openDetail(entry: EncyclopediaEntry): void {
-    if (!entry.discovered) return;
-    this.detailVisible = true;
-    this.detailOverlay.removeChildren();
-    this.detailOverlay.visible = true;
-
-    const w = this.screenWidth;
-    const h = this.screenHeight;
-
-    // TLDR: Semi-transparent backdrop
-    const backdrop = new Graphics();
-    backdrop.rect(0, 0, w, h);
-    backdrop.fill({ color: 0x000000, alpha: 0.65 });
-    backdrop.eventMode = 'static';
-    backdrop.on('pointerdown', () => this.closeDetail());
-    this.detailOverlay.addChild(backdrop);
-
-    // TLDR: Detail card
-    const panelW = 360;
-    const panelH = 340;
-    const px = (w - panelW) / 2;
-    const py = (h - panelH) / 2;
-
-    const panel = new Graphics();
-    panel.roundRect(px, py, panelW, panelH, 12);
-    panel.fill({ color: 0x2a2520, alpha: 0.97 });
-    const rarityColor = RARITY_COLORS[entry.config.rarity] ?? 0x4caf50;
-    panel.stroke({ color: rarityColor, width: 3 });
-    panel.eventMode = 'static'; // TLDR: Prevent backdrop click-through
-    this.detailOverlay.addChild(panel);
-
-    // TLDR: Plant thumbnail
-    const thumb = new Graphics();
-    thumb.circle(w / 2, py + 55, 35);
-    thumb.fill({ color: rarityColor, alpha: 0.3 });
-    thumb.stroke({ color: rarityColor, width: 2 });
-    this.detailOverlay.addChild(thumb);
-
-    // TLDR: Plant name
-    const nameText = new Text({
-      text: entry.config.displayName,
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 24,
-        fill: '#ffffff',
-        fontWeight: 'bold',
-      },
-    });
-    nameText.anchor.set(0.5, 0);
-    nameText.x = w / 2;
-    nameText.y = py + 100;
-    this.detailOverlay.addChild(nameText);
-
-    // TLDR: Rarity badge
-    const rarityText = new Text({
-      text: entry.config.rarity.toUpperCase(),
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: this.getRarityTextColor(entry.config.rarity),
-        fontWeight: 'bold',
-      },
-    });
-    rarityText.anchor.set(0.5, 0);
-    rarityText.x = w / 2;
-    rarityText.y = py + 130;
-    this.detailOverlay.addChild(rarityText);
-
-    // TLDR: Stats
-    const statsLines = [
-      `Growth Time: ${entry.config.growthTime} days`,
-      `Water Need: ${Math.round(entry.config.waterNeedPerDay * 100)}%/day`,
-      `Seed Yield: ${entry.config.yieldSeeds}`,
-      `Seasons: ${entry.config.availableSeasons.join(', ')}`,
-    ];
-    const statsText = new Text({
-      text: statsLines.join('\n'),
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#cccccc',
-        lineHeight: 24,
-      },
-    });
-    statsText.anchor.set(0.5, 0);
-    statsText.x = w / 2;
-    statsText.y = py + 160;
-    this.detailOverlay.addChild(statsText);
-
-    // TLDR: Close button
-    const closeBtn = new Graphics();
-    closeBtn.roundRect(w / 2 - 50, py + panelH - 50, 100, 36, 8);
-    closeBtn.fill({ color: 0x3e7a38 });
-    closeBtn.stroke({ color: 0x88d498, width: 2 });
-    closeBtn.eventMode = 'static';
-    closeBtn.cursor = 'pointer';
-    closeBtn.accessible = true;
-    closeBtn.accessibleTitle = 'Close detail view';
-    closeBtn.on('pointerdown', () => this.closeDetail());
-    closeBtn.on('pointerover', () => {
-      closeBtn.clear();
-      closeBtn.roundRect(w / 2 - 50, py + panelH - 50, 100, 36, 8);
-      closeBtn.fill({ color: 0x4caf50 });
-      closeBtn.stroke({ color: 0x88d498, width: 2 });
-    });
-    closeBtn.on('pointerout', () => {
-      closeBtn.clear();
-      closeBtn.roundRect(w / 2 - 50, py + panelH - 50, 100, 36, 8);
-      closeBtn.fill({ color: 0x3e7a38 });
-      closeBtn.stroke({ color: 0x88d498, width: 2 });
-    });
-    this.detailOverlay.addChild(closeBtn);
-
-    const closeText = new Text({
-      text: 'Close',
-      style: { fontFamily: 'Arial', fontSize: 15, fill: '#ffffff', fontWeight: 'bold' },
-    });
-    closeText.anchor.set(0.5, 0.5);
-    closeText.x = w / 2;
-    closeText.y = py + panelH - 32;
-    this.detailOverlay.addChild(closeText);
-
-    announce(`Viewing ${entry.config.displayName}. ${entry.config.rarity} plant. Growth time: ${entry.config.growthTime} days. Press Escape to close.`);
-  }
-
-  private closeDetail(): void {
-    this.detailVisible = false;
-    this.detailOverlay.removeChildren();
-    this.detailOverlay.visible = false;
-    announce('Detail view closed.');
-  }
-
-  private getRarityTextColor(rarity: string): string {
-    const map: Record<string, string> = {
-      common: '#4caf50',
-      uncommon: '#2196f3',
-      rare: '#9c27b0',
-      heirloom: '#ffd700',
-    };
-    return map[rarity] ?? '#4caf50';
-  }
-
-  // ── Back button ────────────────────────────────────────────────────
-
-  private buildBackButton(): void {
-    const btnWidth = 130;
-    const btnHeight = 36;
-    const btnX = 14;
-    const btnY = this.screenHeight - btnHeight - 10;
-
-    const backBg = new Graphics();
-    backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-    backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-    backBg.stroke({ color: 0x4a4a4a, width: 2 });
-    backBg.eventMode = 'static';
-    backBg.cursor = 'pointer';
-    backBg.accessible = true;
-    backBg.accessibleTitle = 'Back to main menu';
-
-    const backText = new Text({
-      text: '← Back',
-      style: {
-        fontFamily: 'Arial',
-        fontSize: 16,
-        fill: '#c8e6c9',
-        fontWeight: 'bold',
-      },
-    });
-    backText.anchor.set(0.5, 0.5);
-    backText.x = btnX + btnWidth / 2;
-    backText.y = btnY + btnHeight / 2;
-
-    backBg.on('pointerover', () => {
-      backBg.clear();
-      backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-      backBg.fill({ color: 0x4caf50 });
-      backBg.stroke({ color: 0x66bb6a, width: 2 });
-    });
-    backBg.on('pointerout', () => {
-      backBg.clear();
-      backBg.roundRect(btnX, btnY, btnWidth, btnHeight, 8);
-      backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-      backBg.stroke({ color: 0x4a4a4a, width: 2 });
-    });
-    backBg.on('pointerdown', () => this.goBack());
-
-    this.contentLayer.addChild(backBg);
-    this.contentLayer.addChild(backText);
-
-    // TLDR: Keyboard hint
-    const hint = new Text({
-      text: 'Esc to go back · Arrow keys to navigate · Enter for details',
-      style: { fontFamily: 'Arial', fontSize: 11, fill: '#666666' },
-    });
-    hint.anchor.set(0.5, 0.5);
-    hint.x = this.screenWidth / 2;
-    hint.y = this.screenHeight - 14;
-    this.contentLayer.addChild(hint);
-  }
-
-  // ── Navigation ─────────────────────────────────────────────────────
-
-  private goBack(): void {
-    if (!this.ctx) return;
-    announce('Returning to menu.');
-    // TLDR: Tell MenuScene to skip title and show main menu directly
-    const menuScene = this.ctx.sceneManager.getScene(SCENES.MENU);
-    if (menuScene && menuScene instanceof MenuScene) {
-      menuScene.setReturnToMain();
-    }
-    this.ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
-  }
-
-  // ── Keyboard handling ──────────────────────────────────────────────
-
-  private handleKeyDown(e: KeyboardEvent): void {
-    // TLDR: Detail view captures Esc/Enter/Space
-    if (this.detailVisible) {
-      if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space' || e.code === 'Backspace') {
-        e.preventDefault();
-        this.closeDetail();
+  private highlightCard(index: number): void {
+    for (let i = 0; i < this.cardGraphics.length; i++) {
+      const { bg, entry } = this.cardGraphics[i];
+      const selected = i === index;
+      const rarityColor = entry.discovered ? (RARITY_COLORS[entry.config.rarity] ?? 0x4caf50) : 0x333333;
+      bg.clear();
+      bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
+      if (selected) {
+        bg.fill({ color: 0x2a3a2a, alpha: 0.95 });
+        bg.stroke({ color: entry.discovered ? 0x88d498 : 0x555555, width: 3 });
+      } else {
+        bg.fill({ color: 0x222222, alpha: 0.92 });
+        bg.stroke({ color: rarityColor, width: 2 });
       }
-      return;
-    }
-
-    switch (e.code) {
-      case 'Escape':
-      case 'Backspace':
-        e.preventDefault();
-        this.goBack();
-        break;
-      case 'ArrowUp':
-        e.preventDefault();
-        this.navigateCards(-GRID_COLS);
-        break;
-      case 'ArrowDown':
-        e.preventDefault();
-        this.navigateCards(GRID_COLS);
-        break;
-      case 'ArrowLeft':
-        e.preventDefault();
-        this.navigateCards(-1);
-        break;
-      case 'ArrowRight':
-        e.preventDefault();
-        this.navigateCards(1);
-        break;
-      case 'Enter':
-      case 'Space':
-        e.preventDefault();
-        this.activateSelectedCard();
-        break;
-      case 'Tab':
-        e.preventDefault();
-        this.navigateCards(e.shiftKey ? -1 : 1);
-        break;
     }
   }
-
-  private navigateCards(delta: number): void {
-    if (this.cardGraphics.length === 0) return;
-    const next = Math.max(0, Math.min(this.cardGraphics.length - 1, this.selectedCardIndex + delta));
-    if (next === this.selectedCardIndex) return;
-    this.selectedCardIndex = next;
-    this.updateFocusRing();
-    this.scrollToFocusedCard();
-
-    const entry = this.cardGraphics[next]?.entry;
-    if (entry) {
-      announce(entry.discovered ? entry.config.displayName : `Undiscovered ${entry.config.rarity} plant`);
-    }
-  }
-
-  private activateSelectedCard(): void {
-    const card = this.cardGraphics[this.selectedCardIndex];
-    if (card && card.entry.discovered) {
-      this.openDetail(card.entry);
-    }
-  }
-
-  private updateFocusRing(): void {
-    if (!this.focusRing) return;
-    this.focusRing.clear();
-    const card = this.cardGraphics[this.selectedCardIndex];
-    if (!card) return;
-
-    const c = card.container;
-    this.focusRing.roundRect(c.x - 3, c.y - 3, CARD_WIDTH + 6, CARD_HEIGHT + 6, 10);
-    this.focusRing.stroke({ color: 0xffffff, width: 2, alpha: 0.9 });
-  }
-
-  private scrollToFocusedCard(): void {
-    const card = this.cardGraphics[this.selectedCardIndex];
-    if (!card) return;
-
-    const cardTop = card.container.y;
-    const cardBottom = cardTop + CARD_HEIGHT;
-    const viewportHeight = this.screenHeight - CONTENT_TOP - 50;
-
-    if (cardTop < this.scrollOffset) {
-      this.scrollOffset = Math.max(0, cardTop - GRID_GAP);
-    } else if (cardBottom > this.scrollOffset + viewportHeight) {
-      this.scrollOffset = Math.min(this.maxScroll, cardBottom - viewportHeight + GRID_GAP);
-    }
-    this.applyScroll();
-  }
-
-  // ── Scroll ─────────────────────────────────────────────────────────
 
   private scroll(delta: number): void {
     this.scrollOffset = Math.max(0, Math.min(this.maxScroll, this.scrollOffset + delta));
@@ -839,10 +481,215 @@ export class EncyclopediaScene implements Scene {
   }
 
   private applyScroll(): void {
-    this.cardsContainer.y = CONTENT_TOP - this.scrollOffset;
+    this.cardsContainer.y = 118 - this.scrollOffset;
   }
 
-  // ── Firefly particles (consistent with MenuScene) ──────────────────
+  // ── Detail popup ────────────────────────────────────────────────────
+
+  private showDetail(entry: EncyclopediaEntry): void {
+    this.detailOverlay.removeChildren();
+    this.detailVisible = true;
+    this.detailOverlay.visible = true;
+
+    const backdrop = new Graphics();
+    backdrop.rect(0, 0, this.screenWidth, this.screenHeight);
+    backdrop.fill({ color: 0x000000, alpha: 0.7 });
+    backdrop.eventMode = 'static';
+    backdrop.on('pointerdown', () => this.closeDetail());
+    this.detailOverlay.addChild(backdrop);
+
+    const cx = this.screenWidth / 2;
+    const panelW = 420;
+    const panelH = 380;
+    const panelX = cx - panelW / 2;
+    const panelY = (this.screenHeight - panelH) / 2;
+    const panel = new Graphics();
+    panel.roundRect(panelX, panelY, panelW, panelH, 16);
+    panel.fill({ color: 0x1a1a1a, alpha: 0.96 });
+    panel.stroke({ color: RARITY_COLORS[entry.config.rarity] ?? 0x4caf50, width: 3 });
+    panel.eventMode = 'static';
+    this.detailOverlay.addChild(panel);
+
+    const config = entry.config;
+    let ty = panelY + 20;
+
+    const icon = new Graphics();
+    icon.circle(cx, ty + 30, 36);
+    icon.fill({ color: RARITY_COLORS[config.rarity] ?? 0x4caf50, alpha: 0.3 });
+    icon.stroke({ color: RARITY_COLORS[config.rarity] ?? 0x4caf50, width: 2 });
+    this.detailOverlay.addChild(icon);
+    ty += 76;
+
+    const nameText = new Text({ text: config.displayName, style: { fontFamily: 'Arial', fontSize: 26, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+    nameText.anchor.set(0.5, 0); nameText.x = cx; nameText.y = ty;
+    this.detailOverlay.addChild(nameText);
+    ty += 34;
+
+    const rarityBadge = new Text({ text: `✦ ${config.rarity.toUpperCase()}`, style: { fontFamily: 'Arial', fontSize: 14, fill: RARITY_TEXT_COLORS[config.rarity] ?? '#4caf50', fontWeight: 'bold' } });
+    rarityBadge.anchor.set(0.5, 0); rarityBadge.x = cx; rarityBadge.y = ty;
+    this.detailOverlay.addChild(rarityBadge);
+    ty += 26;
+
+    const descText = new Text({
+      text: config.description,
+      style: { fontFamily: 'Arial', fontSize: 14, fill: '#c8e6c9', wordWrap: true, wordWrapWidth: panelW - 40, align: 'center' },
+    });
+    descText.anchor.set(0.5, 0); descText.x = cx; descText.y = ty;
+    this.detailOverlay.addChild(descText);
+    ty += descText.height + 16;
+
+    const divider = new Graphics();
+    divider.rect(panelX + 30, ty, panelW - 60, 1);
+    divider.fill({ color: 0x3e7a38, alpha: 0.5 });
+    this.detailOverlay.addChild(divider);
+    ty += 12;
+
+    this.addDetailStat(panelX + 40, ty, '🌱 Growth Time', `${config.growthTime} days`);
+    this.addDetailStat(cx + 10, ty, '💧 Water Need', `${Math.round(config.waterNeedPerDay * 100)}%/day`);
+    ty += 24;
+    this.addDetailStat(panelX + 40, ty, '🌾 Seed Yield', `${config.yieldSeeds} seeds`);
+    this.addDetailStat(cx + 10, ty, '🗓️ Seasons', config.availableSeasons.join(', '));
+    ty += 28;
+
+    if (config.synergyTraits && config.synergyTraits.length > 0) {
+      const synergyLabel = new Text({ text: '🔗 Synergy Traits', style: { fontFamily: 'Arial', fontSize: 14, fill: '#88d498', fontWeight: 'bold' } });
+      synergyLabel.x = panelX + 40; synergyLabel.y = ty;
+      this.detailOverlay.addChild(synergyLabel);
+      ty += 20;
+      const traitText = new Text({
+        text: config.synergyTraits.map((t) => this.formatTraitName(t)).join('  •  '),
+        style: { fontFamily: 'Arial', fontSize: 13, fill: '#aaaaaa', wordWrap: true, wordWrapWidth: panelW - 80 },
+      });
+      traitText.x = panelX + 40; traitText.y = ty;
+      this.detailOverlay.addChild(traitText);
+    }
+
+    const closeBg = new Graphics();
+    closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8);
+    closeBg.fill({ color: 0x3e7a38 });
+    closeBg.stroke({ color: 0x88d498, width: 2 });
+    closeBg.eventMode = 'static';
+    closeBg.cursor = 'pointer';
+    closeBg.on('pointerdown', () => this.closeDetail());
+    closeBg.on('pointerover', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: 0x4caf50 }); closeBg.stroke({ color: 0x88d498, width: 2 }); });
+    closeBg.on('pointerout', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: 0x3e7a38 }); closeBg.stroke({ color: 0x88d498, width: 2 }); });
+    this.detailOverlay.addChild(closeBg);
+    const closeText = new Text({ text: 'Close', style: { fontFamily: 'Arial', fontSize: 16, fill: '#ffffff', fontWeight: 'bold' } });
+    closeText.anchor.set(0.5, 0.5); closeText.x = cx; closeText.y = panelY + panelH - 32;
+    this.detailOverlay.addChild(closeText);
+
+    announce(`Viewing ${config.displayName}. ${config.rarity} plant. ${config.description}`);
+  }
+
+  private addDetailStat(x: number, y: number, label: string, value: string): void {
+    const lbl = new Text({ text: label, style: { fontFamily: 'Arial', fontSize: 12, fill: '#888888' } });
+    lbl.x = x; lbl.y = y;
+    this.detailOverlay.addChild(lbl);
+    const val = new Text({ text: value, style: { fontFamily: 'Arial', fontSize: 12, fill: '#ffffff', fontWeight: 'bold' } });
+    val.x = x; val.y = y + 14;
+    this.detailOverlay.addChild(val);
+  }
+
+  private formatTraitName(trait: string): string {
+    return trait.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  private closeDetail(): void {
+    this.detailVisible = false;
+    this.detailOverlay.visible = false;
+    this.detailOverlay.removeChildren();
+    announce('Detail closed.');
+  }
+
+  // ── Back button ─────────────────────────────────────────────────────
+
+  private buildBackButton(): void {
+    const backBg = new Graphics();
+    backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8);
+    backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
+    backBg.stroke({ color: 0x3e7a38, width: 2 });
+    backBg.eventMode = 'static';
+    backBg.cursor = 'pointer';
+    this.contentLayer.addChild(backBg);
+    const backText = new Text({ text: '🔙 Back', style: { fontFamily: 'Arial', fontSize: 16, fill: '#ffffff', fontWeight: 'bold' } });
+    backText.anchor.set(0.5, 0.5); backText.x = 60; backText.y = this.screenHeight - 27;
+    this.contentLayer.addChild(backText);
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: 0x4caf50 }); backBg.stroke({ color: 0x88d498, width: 2 }); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: 0x2a2a2a, alpha: 0.9 }); backBg.stroke({ color: 0x3e7a38, width: 2 }); });
+    backBg.on('pointerdown', () => this.goBack());
+
+    const hint = new Text({ text: '↑↓ Scroll  •  Enter View  •  Esc Back', style: { fontFamily: 'Arial', fontSize: 12, fill: '#4a7a4a', align: 'center' } });
+    hint.anchor.set(0.5, 0.5); hint.x = this.screenWidth / 2; hint.y = this.screenHeight - 27;
+    this.contentLayer.addChild(hint);
+  }
+
+  private goBack(): void {
+    if (!this.ctx) return;
+    announce('Returning to menu.');
+    MenuScene.skipTitle = true;
+    this.ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
+  }
+
+  // ── Keyboard handling ───────────────────────────────────────────────
+
+  private handleKeyDown(e: KeyboardEvent): void {
+    if (this.detailVisible) {
+      if (e.code === 'Escape' || e.code === 'Enter' || e.code === 'Space' || e.code === 'Backspace') {
+        e.preventDefault();
+        this.closeDetail();
+      }
+      return;
+    }
+    switch (e.code) {
+      case 'Escape': case 'Backspace': e.preventDefault(); this.goBack(); break;
+      case 'ArrowUp': e.preventDefault(); this.navigateCards(-GRID_COLS); break;
+      case 'ArrowDown': e.preventDefault(); this.navigateCards(GRID_COLS); break;
+      case 'ArrowLeft': e.preventDefault(); this.navigateCards(-1); break;
+      case 'ArrowRight': e.preventDefault(); this.navigateCards(1); break;
+      case 'Enter': case 'Space': e.preventDefault(); this.activateSelectedCard(); break;
+      case 'Tab': e.preventDefault(); this.navigateCards(e.shiftKey ? -1 : 1); break;
+    }
+  }
+
+  private navigateCards(delta: number): void {
+    if (this.cardGraphics.length === 0) return;
+    const next = Math.max(0, Math.min(this.cardGraphics.length - 1, this.selectedCardIndex + delta));
+    if (next !== this.selectedCardIndex) {
+      this.selectedCardIndex = next;
+      this.highlightCard(next);
+      this.scrollToCard(next);
+      const entry = this.cardGraphics[next].entry;
+      announce(entry.discovered ? entry.config.displayName : 'Undiscovered plant');
+    }
+  }
+
+  private scrollToCard(index: number): void {
+    if (this.cardGraphics.length === 0) return;
+    const card = this.cardGraphics[index].container;
+    const cardTop = card.y;
+    const cardBottom = card.y + CARD_HEIGHT;
+    const viewportH = this.screenHeight - 118 - 50;
+    if (cardTop < this.scrollOffset) {
+      this.scrollOffset = Math.max(0, cardTop - GRID_GAP);
+    } else if (cardBottom > this.scrollOffset + viewportH) {
+      this.scrollOffset = Math.min(this.maxScroll, cardBottom - viewportH + GRID_GAP);
+    }
+    this.applyScroll();
+  }
+
+  private activateSelectedCard(): void {
+    const card = this.cardGraphics[this.selectedCardIndex];
+    if (!card || !card.entry.discovered) return;
+    this.showDetail(card.entry);
+  }
+
+  // ── Update loop ─────────────────────────────────────────────────────
+
+  update(dt: number, _ctx: SceneContext): void {
+    this.elapsed += dt;
+    this.particleSystem.update(dt);
+    this.updateFireflies(dt);
+  }
 
   private updateFireflies(dt: number): void {
     this.fireflyCooldown -= dt;
@@ -851,44 +698,31 @@ export class EncyclopediaScene implements Scene {
       this.particleSystem.burst({
         x: Math.random() * this.screenWidth,
         y: this.screenHeight * 0.5 + Math.random() * this.screenHeight * 0.4,
-        count: 1,
-        speed: 8 + Math.random() * 12,
-        lifetime: 2.5 + Math.random() * 2,
+        count: 1, speed: 8 + Math.random() * 12, lifetime: 2.5 + Math.random() * 2,
         colors: [0xfff9c4, 0xffe082, 0xc8e6c9, 0xb9f6ca],
-        size: 2 + Math.random() * 2,
-        gravity: -15 - Math.random() * 10,
-        fadeOut: true,
-        shrink: false,
+        size: 2 + Math.random() * 2, gravity: -15 - Math.random() * 10,
+        fadeOut: true, shrink: false,
       });
     }
   }
 
-  // ── Scene lifecycle ────────────────────────────────────────────────
-
-  update(dt: number, _ctx: SceneContext): void {
-    this.elapsed += dt;
-    this.particleSystem.update(dt);
-    this.updateFireflies(dt);
-  }
+  // ── Cleanup ─────────────────────────────────────────────────────────
 
   destroy(): void {
     window.removeEventListener('keydown', this.boundOnKeyDown);
     window.removeEventListener('wheel', this.boundOnWheel);
-    window.removeEventListener('resize', this.boundOnResize);
     this.particleSystem.destroy();
-
-    this.detailOverlay.removeChildren();
     this.container.destroy({ children: true });
     this.container = new Container();
     this.bgLayer = new Container();
     this.particleLayer = new Container();
     this.contentLayer = new Container();
+    this.filterLayer = new Container();
     this.cardsContainer = new Container();
     this.detailOverlay = new Container();
     this.cardGraphics = [];
     this.filterButtons = [];
-    this.filteredEntries = [];
-    this.focusRing = null;
+    this.detailVisible = false;
     this.ctx = null;
   }
 }

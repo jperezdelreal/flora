@@ -336,10 +336,7 @@ export class AchievementsScene implements Scene {
     this.navigatingBack = true;
     announce('Returning to menu.');
     // TLDR: Tell MenuScene to skip title and show main menu directly
-    const menuScene = this.ctx.sceneManager.getScene(SCENES.MENU);
-    if (menuScene && menuScene instanceof MenuScene) {
-      menuScene.setReturnToMain();
-    }
+    MenuScene.skipTitle = true;
     this.ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
   }
 
