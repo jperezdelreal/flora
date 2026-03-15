@@ -30,7 +30,7 @@ import { TouchController } from '../core/TouchController';
 import { GAME, TOUCH, SCENES } from '../config';
 import { MenuScene } from './MenuScene';
 import { StructureType, STRUCTURE_CONFIGS, GREENHOUSE_BONUS_DAYS, COMPOST_SOIL_BOOST, RAIN_BARREL_WATER_COUNT } from '../config/structures';
-import { Season, SEASON_CONFIG, getRandomSeason } from '../config/seasons';
+import { Season, SEASON_CONFIG, SEASON_ORDER, MULTI_SEASON_DAYS, MULTI_SEASON_SCORE_MULTIPLIER, getRandomSeason } from '../config/seasons';
 import { getSeasonalPalette, lerpColor } from '../config/seasonalPalettes';
 import { eventBus, type EventMap } from '../core/EventBus';
 import { audioManager } from '../systems';
@@ -114,6 +114,11 @@ export class GardenScene implements Scene {
   
   // Active season
   private currentSeason: Season = Season.SPRING;
+
+  // TLDR: Multi-season run state (#201)
+  private isMultiSeasonRun = false;
+  private multiSeasonIndex = 0;
+  private multiSeasonScoreAccumulator = 0;
   
   // Stored scene context (needed for season transitions)
   private _ctx!: SceneContext;
@@ -175,8 +180,11 @@ export class GardenScene implements Scene {
     ctx.sceneManager.stage.addChild(this.shakeContainer);
     this.shakeContainer.addChild(this.container);
 
-    // Pick a random season for this run
-    this.currentSeason = getRandomSeason();
+    // TLDR: Use season selected by player in SeedSelectionScene (#201)
+    this.currentSeason = this.seedSelectionSystem.getSelectedSeason();
+    this.isMultiSeasonRun = this.seedSelectionSystem.isMultiSeasonMode();
+    this.multiSeasonIndex = 0;
+    this.multiSeasonScoreAccumulator = 0;
     const seasonCfg = SEASON_CONFIG[this.currentSeason];
 
     // Apply season background color
@@ -210,6 +218,12 @@ export class GardenScene implements Scene {
 
     // Initialize scoring system (with SaveManager persistence)
     this.scoringSystem = new ScoringSystem(this.saveManager);
+
+    // TLDR: Apply multi-season 2× score multiplier (#201)
+    if (this.isMultiSeasonRun) {
+      this.scoringSystem.setScoreMultiplier(MULTI_SEASON_SCORE_MULTIPLIER);
+      this.maxSeasonDays = MULTI_SEASON_DAYS;
+    }
 
     // TLDR: Initialize unlock system (with SaveManager persistence)
     this.unlockSystem = new UnlockSystem(this.saveManager);
@@ -777,7 +791,8 @@ export class GardenScene implements Scene {
     this.hazardSystem.reset(undefined, this.currentSeason);
 
     // TLDR: Recalculate season length (Greenhouse extends by 2 days)
-    this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+    const baseDays = this.isMultiSeasonRun ? MULTI_SEASON_DAYS : 12;
+    this.maxSeasonDays = baseDays + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
     
     this.gridSystem.update();
     
@@ -841,6 +856,11 @@ export class GardenScene implements Scene {
   }
   
   private showScoreSummary(): void {
+    // TLDR: Apply multi-season score multiplier before saving
+    if (this.isMultiSeasonRun) {
+      this.multiSeasonScoreAccumulator += this.scoringSystem.getScoreBreakdown().total;
+    }
+
     // TLDR: Trigger save on run end — score is persisted via SaveManager
     const isNewRecord = this.scoringSystem.saveScore();
     const breakdown = this.scoringSystem.getScoreBreakdown();
@@ -849,6 +869,60 @@ export class GardenScene implements Scene {
     const highScores = this.scoringSystem.getHighScores();
     
     this.scoreSummary.show(breakdown, milestone, personalBest, highScores, isNewRecord);
+
+    // TLDR: Emit multi-season completion event
+    if (this.isMultiSeasonRun && this.multiSeasonIndex >= SEASON_ORDER.length - 1) {
+      eventBus.emit('multiseason:completed', {
+        finalScore: this.multiSeasonScoreAccumulator,
+        seasonsPlayed: SEASON_ORDER.length,
+      });
+    }
+  }
+
+  /**
+   * TLDR: Advance to next season in multi-season run (#201)
+   * Preserves plants/structures, resets day counter, transitions to next season.
+   */
+  private advanceMultiSeason(): void {
+    const previousSeason = this.currentSeason;
+    this.multiSeasonIndex++;
+    this.currentSeason = SEASON_ORDER[this.multiSeasonIndex];
+
+    // TLDR: Accumulate score from completed mini-season
+    this.multiSeasonScoreAccumulator += this.scoringSystem.getScoreBreakdown().total;
+
+    // TLDR: Emit transition event
+    eventBus.emit('multiseason:transition', {
+      fromSeason: previousSeason,
+      toSeason: this.currentSeason,
+      seasonIndex: this.multiSeasonIndex,
+      totalSeasons: SEASON_ORDER.length,
+    });
+
+    // TLDR: Reset day counter for mini-season
+    this.player.resetDay();
+
+    // TLDR: Apply new season visuals (smooth 2s transition)
+    this.applySeason(true, previousSeason);
+
+    // TLDR: Reset hazard/weather systems for new season
+    this.hazardSystem.reset(undefined, this.currentSeason);
+    this.weatherSystem.reset(undefined, this.currentSeason);
+
+    // TLDR: Set mini-season length (3 days per mini-season in multi-season mode)
+    this.maxSeasonDays = MULTI_SEASON_DAYS + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+
+    // TLDR: Update plant renderer for new season
+    this.plantRenderer.setSeason(this.currentSeason);
+    this.plantRenderer.rebuildAllVisuals();
+
+    // TLDR: Update achievement system
+    this.achievementSystem.setSeason(this.currentSeason);
+
+    // TLDR: Show transition message
+    this.showActionMessage(`🌍 Season ${this.multiSeasonIndex + 1}/${SEASON_ORDER.length}: ${SEASON_CONFIG[this.currentSeason].emoji} ${SEASON_CONFIG[this.currentSeason].displayName}`);
+
+    this.gridSystem.update();
   }
 
   private restartRun(): void {
@@ -1286,9 +1360,14 @@ export class GardenScene implements Scene {
     this.hud.setHint(this.getContextualHint(phase, actions));
     this.hud.updatePhaseTransition(delta);
 
-    // Check for season end (maxSeasonDays reached)
+    // TLDR: Check for season end (maxSeasonDays reached)
     if (day >= this.maxSeasonDays && !this.daySummary.isVisible() && !this.scoreSummary.isVisible()) {
-      this.showScoreSummary();
+      if (this.isMultiSeasonRun && this.multiSeasonIndex < SEASON_ORDER.length - 1) {
+        // TLDR: Multi-season — transition to next season instead of ending
+        this.advanceMultiSeason();
+      } else {
+        this.showScoreSummary();
+      }
     }
   }
 
@@ -1428,7 +1507,8 @@ export class GardenScene implements Scene {
     }
 
     // TLDR: Recalculate season length if Greenhouse is placed
-    this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+    const baseDays = this.isMultiSeasonRun ? MULTI_SEASON_DAYS : 12;
+    this.maxSeasonDays = baseDays + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
   }
 
   /**
@@ -1463,7 +1543,8 @@ export class GardenScene implements Scene {
       this.structurePlacementMode = null;
 
       // TLDR: Recalculate season length when Greenhouse placed
-      this.maxSeasonDays = 12 + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
+      const baseDays = this.isMultiSeasonRun ? MULTI_SEASON_DAYS : 12;
+      this.maxSeasonDays = baseDays + (this.gridSystem.hasStructureType(StructureType.GREENHOUSE) ? GREENHOUSE_BONUS_DAYS : 0);
 
       this.saveGardenState();
       this.gridSystem.update();

@@ -162,6 +162,15 @@ export const UNLOCK_MILESTONES: Record<MilestoneType, MilestoneConfig[]> = {
       rewardValue: '12x12',
       icon: '🏆',
     },
+    {
+      id: 'runs_30',
+      displayName: 'Year-Round Gardener',
+      description: 'Complete 30 runs to unlock Multi-Season Mode',
+      threshold: 30,
+      rewardType: 'ability',
+      rewardValue: 'multi_season_mode',
+      icon: '🌍',
+    },
   ],
 };
 

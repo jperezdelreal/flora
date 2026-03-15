@@ -220,3 +220,28 @@ Replaced the fake "smoke tests" in `tests/e2e/flora-gameplay.spec.ts` that click
 5. **Graceful skip**: `beforeEach` checks if `window.__FLORA__` exists and calls `test.skip()` if hooks aren't merged yet.
 
 **Build Status**: Zero TypeScript errors. Clean Vite production build.
+
+### Season Selection & Multi-Season Runs (Issue #201)
+Implemented season selection UI and multi-season run mode. Key architectural decisions:
+
+1. **Season Selection UI**: Added 4 interactive season cards in SeedSelectionScene, each showing emoji, name, difficulty badge (Easy/Medium/Hard/Expert), hazard warnings, and palette preview strip. Cards are clickable with highlight ring on selection.
+
+2. **Season Data Passing**: SeedSelectionSystem stores `selectedSeason` and `multiSeasonMode` as shared state between SeedSelectionScene and GardenScene. No changes to SceneManager's transitionTo() API needed.
+
+3. **Season-Specific Seed Pools**: SeedSelectionScene now passes `season` to `generatePool()`, filtering plants by `availableSeasons`. Seed pool regenerates when player switches seasons.
+
+4. **Multi-Season Mode**: Unlocked at 30 completed runs (via `MULTI_SEASON_UNLOCK_THRESHOLD`). Plays Spring→Summer→Fall→Winter in sequence, 3 days each (`MULTI_SEASON_DAYS`). GardenScene.advanceMultiSeason() transitions between mini-seasons without full scene reload — preserves plants/structures, resets day counter, swaps season visuals.
+
+5. **Scoring Multiplier**: ScoringSystem gained `setScoreMultiplier()` method. Multi-season runs apply 2× multiplier (`MULTI_SEASON_SCORE_MULTIPLIER`). Applied at total calculation in `getScoreBreakdown()`.
+
+6. **SeasonConfig Enrichment**: Added `description`, `difficulty`, and `hazardWarnings` fields to SeasonConfig interface for card UI.
+
+7. **Season Preference Persistence**: Selected season stored to localStorage via `SEASON_PREFERENCE_KEY`. Loaded on SeedSelectionScene init to remember player's choice.
+
+8. **Daily Challenge Override**: When daily challenge is active, season selector cards are disabled (eventMode='none', alpha=0.5). Daily runs use random season independent of selection.
+
+9. **EventBus Events**: Added `season:selected`, `multiseason:transition`, `multiseason:completed` events.
+
+10. **Player.resetDay()**: Added method to reset day counter for multi-season transitions without full player reset.
+
+**Build Status**: Zero TypeScript errors. Clean Vite production build.
