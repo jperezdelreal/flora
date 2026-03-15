@@ -149,3 +149,12 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Tile screen position**: Calculates center of tile in world coordinates accounting for grid container position and scale transform
 - **Structural typing**: Test hooks cast `sceneManager.activeScene` to GardenTestable via `unknown` to avoid importing GardenScene directly — keeps test infrastructure decoupled from game code
 - **Key files**: `src/utils/testHooks.ts`, `src/scenes/GardenScene.ts` (test getters), `src/main.ts` (wiring)
+
+### Per-Plant Procedural Visuals (Issue #285, PR #293)
+- **PlantFamily type**: Added `PlantFamily` union type ('flower' | 'herb' | 'vegetable' | 'root_veg' | 'leafy' | 'vine' | 'tree' | 'berry' | 'melon' | 'exotic') to `PlantVisualDef` interface
+- **22 unique mature shapes**: `drawMatureShape()` now dispatches on `visualDef.plantId` with a unique procedural drawing per species (tomato=fruit+calyx, sunflower=disk+petals, orchid=sepals+lip, venus_flytrap=jaws+teeth, etc.)
+- **10 family growing shapes**: `drawGrowingShape()` dispatches on `visualDef.plantFamily` for intermediate growth forms — each family has distinct intermediate visual
+- **Mature pulse animation**: Healthy mature plants get subtle scale breathing (3-6% oscillation) in `update()` to signal harvest readiness. Stronger pulse for `glowOnMature` species
+- **Fallback preserved**: `drawMatureShapeFallback()` retains original matureShape-based drawing for any future plants not yet in the switch
+- **Convention**: Per-plant drawing uses `const r = shape.mainRadius` for all sizing. All colors from mainColor/accentColor/detailColor parameters — never hardcoded except 0xffffff highlights and 0x000000 shadows
+- **Key files**: `src/config/plantVisuals.ts` (PlantFamily + plantFamily field), `src/systems/PlantRenderer.ts` (drawMatureShape, drawGrowingShape, update pulse)
