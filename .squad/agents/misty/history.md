@@ -150,4 +150,19 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 - **Conventions applied**: TLDR comments, git trailer in commit message
 - **Workflow note**: Branch naming confusion resolved by rebasing correct branch (squad/250-sprint3-ui-fixes) onto main after fetch
 
+### P0 Menu Keyboard Navigation Fix (Issue #273, PR #277)
+- **Architecture**: Menu keyboard focus synchronization with visual state
+- **Pattern**: Centralized focus reset method ensures keyboard `selectedIndex` always matches visual highlight
+- **Key file updated**:
+  - `src/scenes/MenuScene.ts` — Added `resetMenuFocus()` method to find first enabled item and sync keyboard/visual state
+- **Root cause**: Menu initialization and state transitions hardcoded index 0 without checking if item was enabled, creating potential mismatch between keyboard focus variable and visual highlight
+- **Fix approach**:
+  - Created `resetMenuFocus()` helper that finds first enabled menu item via `findIndex()`
+  - Replaced hardcoded `selectedIndex = 0` + `highlightMenuItem(0)` calls with `resetMenuFocus()` in two locations:
+    - `buildMainMenu()` (line 281): Initial menu setup
+    - `showState('main')` (line 497): When transitioning back to main menu from other states
+- **Behavior change**: Keyboard focus now always starts on first enabled button (typically "New Run" at index 0), guaranteeing Enter key activates the visually highlighted button
+- **Testing**: TypeScript compilation passed with `npx tsc --noEmit`
+- **Conventions applied**: TLDR comment explaining purpose of new method, git trailer in commit
+
 

@@ -1,6 +1,6 @@
 import { Graphics, Text, Container } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
-import { GAME, SCENES, COLORS } from '../config';
+import { GAME, SCENES, COLORS, UI_COLORS } from '../config';
 
 /**
  * Boot scene — shows studio splash + loading bar, then transitions to GardenScene.
@@ -9,6 +9,7 @@ export class BootScene implements Scene {
   readonly name = 'boot';
   private container = new Container();
   private progressBar: Graphics | null = null;
+  private hintText: Text | null = null;
   private progress = 0;
   private elapsedMs = 0;
   private ready = false;
@@ -72,20 +73,22 @@ export class BootScene implements Scene {
     this.progressBar.y = cy + 40;
     this.container.addChild(this.progressBar);
 
-    // Loading text
-    const loadingText = new Text({
-      text: 'Loading...',
+    // TLDR: "Press any key" hint with pulse animation for better visibility
+    this.hintText = new Text({
+      text: 'Press any key to continue',
       style: {
         fontFamily: 'Arial',
-        fontSize: 14,
-        fill: '#66bb6a',
+        fontSize: 22,
+        fill: UI_COLORS.TEXT_PRIMARY,
         align: 'center',
+        fontWeight: 'bold',
       },
     });
-    loadingText.anchor.set(0.5);
-    loadingText.x = cx;
-    loadingText.y = cy + 70;
-    this.container.addChild(loadingText);
+    this.hintText.anchor.set(0.5);
+    this.hintText.x = cx;
+    this.hintText.y = cy + 80;
+    this.hintText.alpha = 0;
+    this.container.addChild(this.hintText);
 
     // Studio credit
     const credit = new Text({
@@ -126,6 +129,13 @@ export class BootScene implements Scene {
       }
     }
 
+    // TLDR: Pulse animation for hint text once loading is complete
+    if (this.progress >= 1 && this.hintText) {
+      const pulseTime = (this.elapsedMs - GAME.BOOT_DURATION_MS) / 1000;
+      const pulse = Math.sin(pulseTime * 2.5) * 0.3 + 0.7;
+      this.hintText.alpha = Math.min(pulseTime / 0.5, 1) * pulse;
+    }
+
     if (this.progress >= 1 && !this.ready) {
       this.ready = true;
       this.transitioned = true;
@@ -139,5 +149,6 @@ export class BootScene implements Scene {
     this.container.destroy({ children: true });
     this.container = new Container();
     this.progressBar = null;
+    this.hintText = null;
   }
 }
