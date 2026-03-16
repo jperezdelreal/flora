@@ -82,19 +82,20 @@ export class ToolBar {
   }
 
   private initializeToolBar(): void {
-    const bw = 80, bh = 80, pad = 10;
+    // TLDR: §4.5 item 16 — 64×64 buttons, 12px corners, parchment bg, max 400px
+    const bw = 64, bh = 64, pad = 8;
     const keys: Record<string, string> = { [ToolType.SEED]: '1', [ToolType.WATER]: '2', [ToolType.HARVEST]: '3', [ToolType.REMOVE_PEST]: '4', [ToolType.REMOVE_WEED]: '5', [ToolType.COMPOST]: '6', [ToolType.PEST_SPRAY]: '7', [ToolType.SOIL_TESTER]: '8', [ToolType.TRELLIS]: '9' };
     CORE_TOOLS.forEach((t: ToolConfig, i: number) => this.createToolButton(t, i * (bw + pad), keys, this.coreContainer));
     this.container.addChild(this.coreContainer);
-    const ebw = 36, ebx = CORE_TOOLS.length * (bw + pad);
-    this.expandButton.roundRect(0, 0, ebw, bh, 8);
+    const ebw = 32, ebx = CORE_TOOLS.length * (bw + pad);
+    this.expandButton.roundRect(0, 0, ebw, bh, 12);
     this.expandButton.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 });
     this.expandButton.stroke({ color: UI_COLORS.TOOLBAR_SEPARATOR, width: 1.5 });
     this.expandButton.eventMode = 'static'; this.expandButton.cursor = 'pointer'; this.expandButton.x = ebx;
     this.expandText.anchor.set(0.5); this.expandText.x = ebx + ebw / 2; this.expandText.y = bh / 2;
     this.expandButton.on('pointerdown', () => this.toggleAdvanced());
-    this.expandButton.on('pointerover', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 8); this.expandButton.fill({ color: UI_COLORS.BUTTON_HOVER_BG, alpha: 0.9 }); this.expandButton.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 1.5 }); });
-    this.expandButton.on('pointerout', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 8); this.expandButton.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); this.expandButton.stroke({ color: UI_COLORS.TOOLBAR_SEPARATOR, width: 1.5 }); });
+    this.expandButton.on('pointerover', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 12); this.expandButton.fill({ color: UI_COLORS.BUTTON_HOVER_BG, alpha: 0.9 }); this.expandButton.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 1.5 }); });
+    this.expandButton.on('pointerout', () => { this.expandButton.clear(); this.expandButton.roundRect(0, 0, ebw, bh, 12); this.expandButton.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); this.expandButton.stroke({ color: UI_COLORS.TOOLBAR_SEPARATOR, width: 1.5 }); });
     this.container.addChild(this.expandButton); this.container.addChild(this.expandText);
     this.advancedContainer.x = ebx + ebw + pad;
     ADVANCED_TOOLS.forEach((t: ToolConfig, i: number) => this.createToolButton(t, i * (bw + pad), keys, this.advancedContainer));
@@ -104,22 +105,23 @@ export class ToolBar {
   }
 
   private createToolButton(tool: ToolConfig, x: number, sk: Record<string, string>, parent: Container): void {
-    const bw = 80, bh = 80, bc = new Container();
-    const btn = new Graphics(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); btn.eventMode = 'static'; btn.cursor = 'pointer';
+    // TLDR: §4.5 item 16 — 64×64 buttons, 12px corners, parchment bg, emoji 36px, text smaller
+    const bw = 64, bh = 64, bc = new Container();
+    const btn = new Graphics(); btn.roundRect(0, 0, bw, bh, 12); btn.fill({ color: UI_COLORS.PANEL_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); btn.eventMode = 'static'; btn.cursor = 'pointer';
     btn.on('pointerdown', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_CLICK_SCALE); setTimeout(() => bc.scale.set(1), ANIMATION.BUTTON_BOUNCE_DURATION * 1000); this.selectTool(tool.type); } });
-    btn.on('pointerover', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_HOVER_SCALE); btn.clear(); btn.roundRect(0, 0, bw, bh, 8); btn.fill({ color: UI_COLORS.BUTTON_HOVER_BG }); btn.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 }); this.showTierTooltip(tool.type, bc); } const h = this.toolHintTexts.get(tool.type); if (h && !this.unlockedTools.has(tool.type)) h.visible = true; });
+    btn.on('pointerover', () => { if (this.unlockedTools.has(tool.type)) { bc.scale.set(ANIMATION.BUTTON_HOVER_SCALE); btn.clear(); btn.roundRect(0, 0, bw, bh, 12); btn.fill({ color: UI_COLORS.BUTTON_HOVER_BG }); btn.stroke({ color: UI_COLORS.BUTTON_HOVER_BORDER, width: 2 }); this.showTierTooltip(tool.type, bc); } const h = this.toolHintTexts.get(tool.type); if (h && !this.unlockedTools.has(tool.type)) h.visible = true; });
     btn.on('pointerout', () => { bc.scale.set(1); if (this.selectedTool !== tool.type) this.updateButtonAppearance(tool.type); const h = this.toolHintTexts.get(tool.type); if (h) h.visible = false; this.tierTooltip.visible = false; });
     bc.addChild(btn); this.toolButtons.set(tool.type, btn);
-    const ic = new Text({ text: tool.icon, style: { fontSize: 36, align: 'center' } }); ic.anchor.set(0.5); ic.x = bw / 2; ic.y = bh / 2 - 16; bc.addChild(ic); this.toolIcons.set(tool.type, ic);
-    const lk = new Text({ text: '\ud83d\udd12', style: { fontSize: 28, align: 'center' } }); lk.anchor.set(0.5); lk.x = bw / 2; lk.y = bh / 2 - 14; lk.visible = false; bc.addChild(lk); this.toolLockIcons.set(tool.type, lk);
-    const tt = new Text({ text: '', style: { fontSize: 10, fill: UI_COLORS.TEXT_TIER_STAR, align: 'right' } }); tt.anchor.set(1, 0); tt.x = bw - 4; tt.y = 2; tt.visible = false; bc.addChild(tt); this.toolTierTexts.set(tool.type, tt);
-    const nt = new Text({ text: tool.displayName, style: { fontSize: 10, fill: UI_COLORS.TEXT_PRIMARY, align: 'center' } }); nt.anchor.set(0.5); nt.x = bw / 2; nt.y = bh - 12; bc.addChild(nt); this.toolTexts.set(tool.type, nt);
+    const ic = new Text({ text: tool.icon, style: { fontSize: 36, align: 'center' } }); ic.anchor.set(0.5); ic.x = bw / 2; ic.y = bh / 2 - 12; bc.addChild(ic); this.toolIcons.set(tool.type, ic);
+    const lk = new Text({ text: '\ud83d\udd12', style: { fontSize: 24, align: 'center' } }); lk.anchor.set(0.5); lk.x = bw / 2; lk.y = bh / 2 - 10; lk.visible = false; bc.addChild(lk); this.toolLockIcons.set(tool.type, lk);
+    const tt = new Text({ text: '', style: { fontSize: 9, fill: UI_COLORS.TEXT_TIER_STAR, align: 'right' } }); tt.anchor.set(1, 0); tt.x = bw - 3; tt.y = 2; tt.visible = false; bc.addChild(tt); this.toolTierTexts.set(tool.type, tt);
+    const nt = new Text({ text: tool.displayName, style: { fontSize: 9, fill: UI_COLORS.TEXT_PRIMARY, align: 'center' } }); nt.anchor.set(0.5); nt.x = bw / 2; nt.y = bh - 10; bc.addChild(nt); this.toolTexts.set(tool.type, nt);
     const pc = PROGRESSIVE_TOOL_BY_TYPE[tool.type]; const hs = pc?.unlockHint ?? '';
-    const ht = new Text({ text: hs, style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, align: 'center', wordWrap: true, wordWrapWidth: 100 } }); ht.anchor.set(0.5, 1); ht.x = bw / 2; ht.y = -4; ht.visible = false; bc.addChild(ht); this.toolHintTexts.set(tool.type, ht);
+    const ht = new Text({ text: hs, style: { fontSize: 9, fill: UI_COLORS.TEXT_HINT, align: 'center', wordWrap: true, wordWrapWidth: 90 } }); ht.anchor.set(0.5, 1); ht.x = bw / 2; ht.y = -4; ht.visible = false; bc.addChild(ht); this.toolHintTexts.set(tool.type, ht);
     const key = sk[tool.type] ?? '';
     if (key) {
-      const sbg = new Graphics(); sbg.roundRect(0, 0, 16, 16, 3); sbg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); sbg.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 1 }); sbg.x = 2; sbg.y = 2; bc.addChild(sbg);
-      const st = new Text({ text: key, style: { fontSize: 10, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' } }); st.anchor.set(0.5); st.x = 10; st.y = 10; bc.addChild(st); this.toolShortcutTexts.set(tool.type, st);
+      const sbg = new Graphics(); sbg.roundRect(0, 0, 14, 14, 3); sbg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.85 }); sbg.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 1 }); sbg.x = 2; sbg.y = 2; bc.addChild(sbg);
+      const st = new Text({ text: key, style: { fontSize: 9, fill: UI_COLORS.TEXT_HINT, fontWeight: 'bold', align: 'center' } }); st.anchor.set(0.5); st.x = 9; st.y = 9; bc.addChild(st); this.toolShortcutTexts.set(tool.type, st);
     }
     bc.x = x; this.toolButtonContainers.set(tool.type, bc); parent.addChild(bc);
   }
@@ -129,9 +131,9 @@ export class ToolBar {
   private updateButtonAppearance(tool: ToolType): void {
     const btn = this.toolButtons.get(tool), ic = this.toolIcons.get(tool), lk = this.toolLockIcons.get(tool), nm = this.toolTexts.get(tool), tr = this.toolTierTexts.get(tool);
     if (!btn || !ic || !lk || !nm) return;
-    const locked = !this.unlockedTools.has(tool); btn.clear(); btn.roundRect(0, 0, 80, 80, 8);
+    const locked = !this.unlockedTools.has(tool); btn.clear(); btn.roundRect(0, 0, 64, 64, 12);
     if (locked) { btn.fill({ color: UI_COLORS.BUTTON_LOCKED_BG, alpha: 0.5 }); btn.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 }); ic.visible = false; lk.visible = true; nm.style.fill = UI_COLORS.TEXT_DISABLED; if (tr) tr.visible = false; }
-    else { btn.fill({ color: UI_COLORS.BUTTON_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); ic.visible = true; lk.visible = false; nm.style.fill = UI_COLORS.TEXT_PRIMARY; if (tr && this.toolSystem) { if (this.toolSystem.hasMultipleTiers(tool)) { tr.text = TIER_STARS[this.toolSystem.getToolTier(tool)]; tr.visible = true; } else { tr.visible = false; } } }
+    else { btn.fill({ color: UI_COLORS.PANEL_BG }); btn.stroke({ color: UI_COLORS.BUTTON_BORDER, width: 2 }); ic.visible = true; lk.visible = false; nm.style.fill = UI_COLORS.TEXT_PRIMARY; if (tr && this.toolSystem) { if (this.toolSystem.hasMultipleTiers(tool)) { tr.text = TIER_STARS[this.toolSystem.getToolTier(tool)]; tr.visible = true; } else { tr.visible = false; } } }
   }
 
   private selectTool(tool: ToolType): void {
@@ -139,7 +141,7 @@ export class ToolBar {
     if (this.selectedTool) this.updateButtonAppearance(this.selectedTool);
     if (this.selectedTool === tool) { this.selectedTool = null; } else {
       this.selectedTool = tool; const btn = this.toolButtons.get(tool);
-      if (btn) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_SELECTED_BG }); btn.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 }); }
+      if (btn) { btn.clear(); btn.roundRect(0, 0, 64, 64, 12); btn.fill({ color: UI_COLORS.BUTTON_SELECTED_BG }); btn.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 }); }
     }
     if (this.toolSystem) this.toolSystem.setSelectedTool(this.selectedTool);
     if (this.onToolSelect) this.onToolSelect(this.selectedTool);
@@ -155,7 +157,7 @@ export class ToolBar {
 
   private playUnlockAnimation(tool: ToolType): void {
     const btn = this.toolButtons.get(tool); if (!btn) return; let c = 0;
-    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 300);
+    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 64, 64, 12); btn.fill({ color: UI_COLORS.BUTTON_UNLOCK_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UNLOCK_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 300);
   }
 
   setSelectedTool(tool: ToolType | null): void { if (tool && tool !== this.selectedTool) this.selectTool(tool); else if (!tool && this.selectedTool) this.selectTool(this.selectedTool); }
@@ -173,7 +175,7 @@ export class ToolBar {
     const btn = this.toolButtons.get(tool), bc = this.toolButtonContainers.get(tool); if (!btn) return; let c = 0;
     // TLDR: Scale bounce celebration on upgrade (#317)
     if (bc) { bc.scale.set(1.2); setTimeout(() => { if (bc) bc.scale.set(1); }, 300); }
-    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 80, 80, 8); btn.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 250);
+    const timer = setInterval(() => { c++; if (c % 2 === 0) { btn.clear(); btn.roundRect(0, 0, 64, 64, 12); btn.fill({ color: UI_COLORS.BUTTON_UPGRADE_HIGHLIGHT }); btn.stroke({ color: UI_COLORS.BUTTON_UPGRADE_BORDER, width: 3 }); } else { this.updateButtonAppearance(tool); } if (c >= 6) { clearInterval(timer); this.updateButtonAppearance(tool); } }, 250);
   }
 
   // TLDR: Show tier tooltip on hover with current benefits + next tier info (#317)

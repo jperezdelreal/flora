@@ -29,60 +29,65 @@ export interface SeasonalColorPalette {
   };
 }
 
+// TLDR: Sabrina "Cozy Redesign" §1.3 — exact seasonal palettes
 export const SEASONAL_PALETTES: Record<Season, SeasonalColorPalette> = {
+  // "Morning Dew" — soft sky-to-green gradient, pink petal accents
   [Season.SPRING]: {
-    background: 0xe8f5e9, // Light mint green
-    soil: 0x8d6e63,       // Warm brown
-    sky: 0x87ceeb,        // Sky blue
-    accent: 0xffb7c5,     // Cherry blossom pink
+    background: 0xE8F5E0,   // §1.3 Spring gradient end (meadow green)
+    soil: 0xB8976A,          // §1.3 Spring soil
+    sky: 0xC5E8F0,           // §1.3 Spring gradient start (pale robin-egg)
+    accent: 0xFFC8D0,        // §1.3 Spring particle color
     plantSaturation: 1.0,
-    plantColorShift: 0xf8e0f0,   // Pastel pink warmth
+    plantColorShift: 0xf8e0f0,
     plantColorShiftIntensity: 0.08,
     ambientParticles: {
       type: 'petals',
-      colors: [0xffb7c5, 0xffc9d9, 0xffd4e5], // Light pink shades
+      colors: [0xFFC8D0, 0xffc9d9, 0xffd4e5],
       count: 15,
     },
   },
+  // "Golden Hour" — warm sky-to-cream gradient, golden accents
   [Season.SUMMER]: {
-    background: 0xfff8e1, // Cream yellow
-    soil: 0x795548,       // Medium brown
-    sky: 0x64b5f6,        // Light blue
-    accent: 0xffd54f,     // Golden yellow
+    background: 0xFFF3D6,   // §1.3 Summer gradient end (warm cream)
+    soil: 0xC9A06C,          // §1.3 Summer soil
+    sky: 0x7EC8E3,           // §1.3 Summer gradient start (cerulean)
+    accent: 0xFFF5B8,        // §1.3 Summer particle color
     plantSaturation: 1.2,
-    plantColorShift: 0xfff0c0,   // Golden warmth
+    plantColorShift: 0xfff0c0,
     plantColorShiftIntensity: 0.1,
     ambientParticles: {
       type: 'fireflies',
-      colors: [0xffeb3b, 0xffd54f, 0xffc107], // Yellow/golden tones
+      colors: [0xFFF5B8, 0xffd54f, 0xffc107],
       count: 12,
     },
   },
+  // "Warm Embers" — amber-to-parchment gradient, burnt orange accents
   [Season.FALL]: {
-    background: 0xfbe9e7, // Warm peach
-    soil: 0x5d4037,       // Dark brown
-    sky: 0xffab91,        // Peachy orange
-    accent: 0xff7043,     // Orange-red
+    background: 0xF0DFC8,   // §1.3 Fall gradient end (parchment)
+    soil: 0x8B6844,          // §1.3 Fall soil
+    sky: 0xE8C8A0,           // §1.3 Fall gradient start (warm amber)
+    accent: 0xD4855F,        // §1.3 Fall particle color
     plantSaturation: 0.9,
-    plantColorShift: 0xffd0a0,   // Warm orange tones
+    plantColorShift: 0xffd0a0,
     plantColorShiftIntensity: 0.12,
     ambientParticles: {
       type: 'leaves',
-      colors: [0xff7043, 0xff8a65, 0xd84315, 0xbf360c], // Orange/brown leaves
+      colors: [0xD4855F, 0xff8a65, 0xd84315, 0xbf360c],
       count: 18,
     },
   },
+  // "Quiet Hearth" — steel blue-to-warm gray gradient, soft snow accents
   [Season.WINTER]: {
-    background: 0xe3f2fd, // Light blue
-    soil: 0x90a4ae,       // Frozen gray
-    sky: 0xb0bec5,        // Cool gray-blue
-    accent: 0x80deea,     // Ice blue
+    background: 0xE8E4E0,   // §1.3 Winter gradient end (warm gray)
+    soil: 0x9E9080,          // §1.3 Winter soil
+    sky: 0xC8D8E8,           // §1.3 Winter gradient start (steel blue)
+    accent: 0xF0ECE8,        // §1.3 Winter particle color
     plantSaturation: 0.7,
-    plantColorShift: 0xc8e0f8,   // Cool blue tones
+    plantColorShift: 0xc8e0f8,
     plantColorShiftIntensity: 0.15,
     ambientParticles: {
       type: 'snow',
-      colors: [0xffffff, 0xf5f5f5, 0xe0e0e0], // White/light gray snow
+      colors: [0xF0ECE8, 0xf5f5f5, 0xe0e0e0],
       count: 20,
     },
   },

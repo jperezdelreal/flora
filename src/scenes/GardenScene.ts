@@ -39,6 +39,7 @@ import { eventBus, type EventMap } from '../core/EventBus';
 import { audioManager } from '../systems';
 import type { SeasonKey } from '../config/audio';
 import { ANIMATION, SYNERGY_GLOW_COLORS } from '../config/animations';
+import { PLANT_BY_ID } from '../config/plants';
 import {
   getPlantVisual,
 } from '../config/plantVisuals';
@@ -299,8 +300,8 @@ export class GardenScene implements Scene {
     // Initialize tool bar
     this.toolBar = new ToolBar(this.toolSystem, this.unlockSystem);
     this.toolBar.position(
-      ctx.app.screen.width / 2 - 135,
-      ctx.app.screen.height - 100,
+      Math.max(20, ctx.app.screen.width / 2 - 200),
+      ctx.app.screen.height - 84,
     );
     this.toolBar.setOnToolSelect((tool) => {
       if (tool) {
@@ -810,11 +811,12 @@ export class GardenScene implements Scene {
     this.hud.resize(w);
     this.hud.setPosition(Math.max(10, (w - this.hud.getPanelWidth()) / 2), 10);
 
-    // TLDR: Re-position toolbar centered at bottom
-    this.toolBar.position(w / 2 - 135, h - 100);
+    // TLDR: Re-position toolbar centered at bottom (max 400px width per §4.5)
+    const toolbarWidth = Math.min(400, w - 40);
+    this.toolBar.position(w / 2 - toolbarWidth / 2, h - 84);
     
     // TLDR: Position rest button to the right of toolbar
-    this.restButton.position(w / 2 + 220, h - 100);
+    this.restButton.position(w / 2 + toolbarWidth / 2 + 10, h - 84);
 
     // TLDR: Orientation hint for portrait on small screens
     if (shouldShowOrientationHint(w, h)) {
@@ -2156,13 +2158,15 @@ export class GardenScene implements Scene {
   }
 
   /**
-   * TLDR: Particle burst on harvest — colored by plant base color, with seed drops and floating text
+   * TLDR: Particle burst on harvest — Sabrina §5.4 spec: accent + gold + leaf particles,
+   * score float in honey gold, seed bounce, rare/heirloom golden ring flash
    */
   private triggerHarvestBurst(plantConfigId: string, seeds: number): void {
     const visual = getPlantVisual(plantConfigId);
     const baseColor = visual?.baseColor ?? 0x81c784;
     const accentColor = visual?.accentColor ?? 0xa5d6a7;
-    const colors = [baseColor, accentColor];
+    const plantConfig = PLANT_BY_ID[plantConfigId];
+    const isRareOrHeirloom = plantConfig?.rarity === 'rare' || plantConfig?.rarity === 'heirloom';
 
     // TLDR: Find position from any plant visual that no longer has a backing plant
     let burstX = this._ctx.app.screen.width / 2;
@@ -2176,22 +2180,66 @@ export class GardenScene implements Scene {
       this.plantRenderer.removePlantVisual(orphan.plantId);
     }
 
-    // Main color burst
+    const totalCount = isRareOrHeirloom
+      ? ANIMATION.HARVEST_RARE_PARTICLE_COUNT
+      : ANIMATION.HARVEST_PARTICLE_COUNT;
+
+    // TLDR: §5.4 — 8 accent-colored particles (more for rare/heirloom)
+    const accentCount = isRareOrHeirloom ? 14 : 8;
     this.particleSystem.burst({
       x: burstX,
       y: burstY,
-      count: ANIMATION.HARVEST_PARTICLE_COUNT,
+      count: accentCount,
       speed: ANIMATION.HARVEST_PARTICLE_SPEED,
       lifetime: ANIMATION.HARVEST_PARTICLE_LIFETIME,
-      colors,
+      colors: [baseColor, accentColor],
       size: ANIMATION.HARVEST_PARTICLE_SIZE,
     });
 
-    // Seed drop particles with oval shape and gravity
+    // TLDR: §5.4 — 4 gold (0xF2CC8F) particles
+    this.particleSystem.burst({
+      x: burstX,
+      y: burstY,
+      count: isRareOrHeirloom ? 6 : ANIMATION.HARVEST_GOLD_COUNT,
+      speed: ANIMATION.HARVEST_PARTICLE_SPEED * 0.8,
+      lifetime: ANIMATION.HARVEST_PARTICLE_LIFETIME * 1.2,
+      colors: [ANIMATION.HARVEST_GOLD_COLOR],
+      size: ANIMATION.HARVEST_PARTICLE_SIZE,
+    });
+
+    // TLDR: §5.4 — 2-4 leaf-shaped particles (ellipses with low gravity)
+    const leafCount = isRareOrHeirloom ? 4 : ANIMATION.HARVEST_LEAF_COUNT;
+    this.particleSystem.burst({
+      x: burstX,
+      y: burstY,
+      count: leafCount,
+      speed: ANIMATION.HARVEST_PARTICLE_SPEED * 0.6,
+      lifetime: 1.0,
+      colors: [baseColor, 0x66bb6a],
+      size: ANIMATION.HARVEST_LEAF_SIZE,
+      gravity: 40,
+      fadeOut: true,
+      shrink: false,
+    });
+
+    // TLDR: §5.4 rare/heirloom — golden ring flash
+    if (isRareOrHeirloom) {
+      this.particleSystem.ripple({
+        x: burstX,
+        y: burstY,
+        rings: 2,
+        maxRadius: ANIMATION.HARVEST_RARE_RING_RADIUS,
+        duration: 0.6,
+        color: ANIMATION.HARVEST_RARE_RING_COLOR,
+      });
+    }
+
+    // TLDR: §5.4 — 1-3 seed sprites bounce on tile then float toward seed inventory
+    const seedCount = Math.min(seeds, ANIMATION.HARVEST_SEED_PARTICLE_COUNT);
     this.particleSystem.burst({
       x: burstX,
       y: burstY - 8,
-      count: ANIMATION.HARVEST_SEED_PARTICLE_COUNT,
+      count: seedCount,
       speed: 60,
       lifetime: 0.9,
       colors: [0x8d6e63, 0x795548],
@@ -2201,15 +2249,15 @@ export class GardenScene implements Scene {
       shrink: false,
     });
 
-    // Floating "+X Seeds" text above harvest
+    // TLDR: §5.4 — Score float: 18px bold, honey gold, rises 30px, fades 1.2s
     this.particleSystem.floatingText({
       x: burstX,
       y: burstY - 20,
       text: `+${seeds} Seeds`,
-      color: '#5E4B3B',
-      fontSize: 14,
-      duration: 1.2,
-      riseSpeed: 30,
+      color: ANIMATION.HARVEST_SCORE_COLOR,
+      fontSize: ANIMATION.HARVEST_SCORE_FONT_SIZE,
+      duration: ANIMATION.HARVEST_SCORE_DURATION,
+      riseSpeed: ANIMATION.HARVEST_SCORE_RISE / ANIMATION.HARVEST_SCORE_DURATION,
     });
   }
 
