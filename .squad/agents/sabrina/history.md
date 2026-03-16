@@ -137,3 +137,24 @@ FLORA project. Vite + TypeScript + PixiJS v8. User: joperezd.
 ✅ Season transitions smooth (2s lerp — verified, already in place)
 ✅ Menu has parallax depth effect
 ✅ All button colors from config constants
+
+### 2025-07-25: Cozy Visual Redesign Specification
+
+**What I wrote:**
+- Comprehensive visual redesign spec at `.squad/decisions/inbox/sabrina-cozy-redesign-spec.md`
+- Covers 6 areas: color palette, tiles/garden, plants, UI/HUD, animation/feedback, implementation priority
+- Defined exact hex values, pixel sizes, and timing values for every proposed change
+- 24 prioritized changes across P0 (7 items), P1 (9 items), P2 (8 items)
+
+**Key design decisions:**
+- **Light-on-dark inversion**: Switching from dark panels + light text to parchment panels + warm brown text — the single biggest cozy shift
+- **Warm palette**: Replacing material-design greens/reds with earthy sage, honey gold, terracotta — garden colors, not app colors
+- **Rounded everything**: 6px tile corners, pill buttons, 8px panel corners — no sharp edges
+- **Grass paths**: Filling tile gaps with green instead of leaving as void — turns grid into garden beds
+- **Slower plant sway**: 0.7 Hz (from 1.2 Hz) with per-plant random offset — natural breeze, not synchronized dance
+- **Idle charm events**: Birds, ladybugs, mushrooms — reward patience, make garden feel inhabited
+- **Winter warmth**: Snow particles should be warm white, not cold blue — "cozy cold" not "hostile cold"
+
+**Reference games studied:** Stardew Valley (warmth + readability), Spiritfarer (soft gradients + emotional color), A Short Hike (roundedness + breathing), Unpacking (tactile satisfaction)
+
+**P0 insight:** The 7 highest-priority changes (light BG, rounded tiles, grass paths, slower sway, light UI, pill buttons, warm soil) require minimal code but transform the entire feel. Estimated 2-3 focused sessions.
