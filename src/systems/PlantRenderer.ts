@@ -128,7 +128,6 @@ export class PlantRenderer implements System {
     const visual = new Container();
     visual.x = tilePos.x + tileSize / 2;
     visual.y = tilePos.y + tileSize / 2;
-    visual.scale.set(0.01);
 
     const gfx = new Graphics();
     const configId = plant.getConfig().id;
@@ -137,11 +136,15 @@ export class PlantRenderer implements System {
     this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth(), sq);
     visual.addChild(gfx);
 
+    // TLDR: Start at visible scale immediately — no invisible 0.01 start
+    const keyframe = getStageKeyframe(configId, GrowthStage.SEED);
+    visual.scale.set(keyframe.scale);
+
     // Emoji label for immediate plant identification at seed/sprout stage
     const emoji = PLANT_EMOJI[configId] ?? '🌱';
     const label = new Text({
       text: emoji,
-      style: { fontSize: 14, align: 'center' },
+      style: { fontSize: 28, align: 'center' },
     });
     label.anchor.set(0.5);
     label.y = -tileSize * 0.38;
@@ -151,7 +154,7 @@ export class PlantRenderer implements System {
     this.plantVisualLayer.addChild(visual);
     this.plantVisuals.set(plantId, visual);
 
-    const keyframe = getStageKeyframe(configId, GrowthStage.SEED);
+    // TLDR: keyframe already declared above — reuse for tween target
 
     this.swayPhases.set(plantId, Math.random() * Math.PI * 2);
     this.plantBaseX.set(plantId, visual.x);

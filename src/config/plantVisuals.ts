@@ -37,11 +37,11 @@ export interface PlantVisualDef {
 }
 
 const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
-  [GrowthStage.SEED]: { scale: 0.45, alpha: 1.0, saturation: 0.5, yOffset: 0 },
-  [GrowthStage.SPROUT]: { scale: 0.65, alpha: 1.0, saturation: 0.7, yOffset: -2 },
-  [GrowthStage.GROWING]: { scale: 0.85, alpha: 1.0, saturation: 0.85, yOffset: -5 },
+  [GrowthStage.SEED]: { scale: 0.6, alpha: 1.0, saturation: 0.5, yOffset: 0 },
+  [GrowthStage.SPROUT]: { scale: 0.75, alpha: 1.0, saturation: 0.7, yOffset: -2 },
+  [GrowthStage.GROWING]: { scale: 0.9, alpha: 1.0, saturation: 0.85, yOffset: -5 },
   [GrowthStage.MATURE]: { scale: 1.0, alpha: 1.0, saturation: 1.0, yOffset: -8 },
-  [GrowthStage.WILTING]: { scale: 0.88, alpha: 0.7, saturation: 0.3, yOffset: -4 },
+  [GrowthStage.WILTING]: { scale: 0.85, alpha: 0.7, saturation: 0.3, yOffset: -4 },
 };
 
 export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
