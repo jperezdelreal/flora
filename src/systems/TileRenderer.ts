@@ -263,10 +263,14 @@ export class TileRenderer implements System {
     gfx.x = pos.x;
     gfx.y = pos.y;
 
-    // Base soil with moisture-responsive darkness and quality
+    // Base soil with moisture-responsive darkness and quality + per-tile shade variation
     const soilColor = this.computeSoilColor(tile.moisture, tile.soilQuality);
+    const variedColor = this.applyTileVariation(soilColor, tile.row, tile.col);
     gfx.rect(padding, padding, size - padding * 2, size - padding * 2);
-    gfx.fill({ color: soilColor });
+    gfx.fill({ color: variedColor });
+
+    // Subtle soil texture decorations (pebbles, grass specks)
+    this.drawSoilDetails(gfx, size, padding, tile.row, tile.col, tile.state);
 
     // Border with seasonal tint
     const borderColor = this.getSeasonalBorderColor();
@@ -339,6 +343,73 @@ export class TileRenderer implements System {
   private getSeasonalBorderColor(): number {
     const tint = SEASONAL_TILE_TINTS[this.currentSeason];
     return lerpColor(0x1a3a1a, tint, 0.2);
+  }
+
+  // ─── Per-tile visual variation ──────────────────────────────────────────
+
+  /** Deterministic hash from row/col for consistent per-tile randomness */
+  private tileHash(row: number, col: number, seed: number = 0): number {
+    let h = (row * 7919 + col * 104729 + seed * 31337) | 0;
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = ((h >> 16) ^ h) * 0x45d9f3b;
+    h = (h >> 16) ^ h;
+    return (h & 0x7fffffff) / 0x7fffffff; // 0..1
+  }
+
+  /** Shift soil color brightness by ±5% based on tile position */
+  private applyTileVariation(baseColor: number, row: number, col: number): number {
+    const variation = (this.tileHash(row, col) - 0.5) * 0.10; // ±5%
+    const r = Math.min(255, Math.max(0, ((baseColor >> 16) & 0xff) * (1 + variation)));
+    const g = Math.min(255, Math.max(0, ((baseColor >> 8) & 0xff) * (1 + variation)));
+    const b = Math.min(255, Math.max(0, (baseColor & 0xff) * (1 + variation)));
+    return (Math.floor(r) << 16) | (Math.floor(g) << 8) | Math.floor(b);
+  }
+
+  /** Draw subtle pebbles, grass specks, and soil texture per tile */
+  private drawSoilDetails(
+    gfx: Graphics,
+    size: number,
+    padding: number,
+    row: number,
+    col: number,
+    state: TileState,
+  ): void {
+    if (state === TileState.STRUCTURE) return;
+
+    const innerSize = size - padding * 2;
+
+    // Pebbles: 0-3 small dots per tile
+    const pebbleCount = Math.floor(this.tileHash(row, col, 1) * 3.5);
+    for (let i = 0; i < pebbleCount; i++) {
+      const px = padding + this.tileHash(row, col, 10 + i) * innerSize;
+      const py = padding + this.tileHash(row, col, 30 + i) * innerSize;
+      const pr = 1 + this.tileHash(row, col, 50 + i) * 1.5;
+      const shade = this.tileHash(row, col, 70 + i) > 0.5 ? 0x9e8c7a : 0x7a6b5a;
+      gfx.circle(px, py, pr);
+      gfx.fill({ color: shade, alpha: 0.3 });
+    }
+
+    // Grass specks: 0-2 tiny lines on some tiles
+    const grassCount = Math.floor(this.tileHash(row, col, 2) * 2.5);
+    for (let i = 0; i < grassCount; i++) {
+      const gx = padding + this.tileHash(row, col, 100 + i) * innerSize;
+      const gy = padding + this.tileHash(row, col, 120 + i) * innerSize;
+      const lean = (this.tileHash(row, col, 140 + i) - 0.5) * 4;
+      gfx.moveTo(gx, gy);
+      gfx.lineTo(gx + lean, gy - 4 - this.tileHash(row, col, 160 + i) * 3);
+      gfx.stroke({ color: 0x6d8a4e, width: 0.8, alpha: 0.25 });
+    }
+
+    // Soil crack / scratch mark on ~20% of tiles
+    if (this.tileHash(row, col, 3) < 0.2) {
+      const sx = padding + innerSize * 0.3 + this.tileHash(row, col, 200) * innerSize * 0.4;
+      const sy = padding + innerSize * 0.3 + this.tileHash(row, col, 210) * innerSize * 0.4;
+      const ex = sx + (this.tileHash(row, col, 220) - 0.5) * innerSize * 0.3;
+      const ey = sy + (this.tileHash(row, col, 230) - 0.5) * innerSize * 0.25;
+      gfx.moveTo(sx, sy);
+      gfx.lineTo(ex, ey);
+      gfx.stroke({ color: 0x5a4a3a, width: 0.6, alpha: 0.15 });
+    }
   }
 
   // ─── State overlays ─────────────────────────────────────────────────────

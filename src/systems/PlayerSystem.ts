@@ -170,13 +170,51 @@ export class PlayerSystem implements System {
   private renderPlayer(): void {
     this.playerGraphics.clear();
 
-    // Draw player as a circle
-    this.playerGraphics.circle(0, 0, 16);
-    this.playerGraphics.fill({ color: 0x4db8ff });
+    // Body (green overalls)
+    this.playerGraphics.roundRect(-10, -6, 20, 22, 4);
+    this.playerGraphics.fill({ color: 0x4caf50 });
+    this.playerGraphics.roundRect(-10, -6, 20, 22, 4);
+    this.playerGraphics.stroke({ color: 0x388e3c, width: 1.5 });
 
-    // Draw outline
-    this.playerGraphics.circle(0, 0, 16);
-    this.playerGraphics.stroke({ color: 0x0077cc, width: 2 });
+    // Overall straps
+    this.playerGraphics.moveTo(-6, -6);
+    this.playerGraphics.lineTo(-4, -14);
+    this.playerGraphics.stroke({ color: 0x388e3c, width: 2 });
+    this.playerGraphics.moveTo(6, -6);
+    this.playerGraphics.lineTo(4, -14);
+    this.playerGraphics.stroke({ color: 0x388e3c, width: 2 });
+
+    // Head (skin-toned circle)
+    this.playerGraphics.circle(0, -16, 10);
+    this.playerGraphics.fill({ color: 0xffcc99 });
+    this.playerGraphics.circle(0, -16, 10);
+    this.playerGraphics.stroke({ color: 0xd4a373, width: 1 });
+
+    // Straw hat (wide brim + dome)
+    this.playerGraphics.ellipse(0, -26, 14, 4);
+    this.playerGraphics.fill({ color: 0xc9a96e });
+    this.playerGraphics.ellipse(0, -29, 9, 5);
+    this.playerGraphics.fill({ color: 0xd4b896 });
+    this.playerGraphics.ellipse(0, -26, 14, 4);
+    this.playerGraphics.stroke({ color: 0x8b6914, width: 1 });
+
+    // Hat band
+    this.playerGraphics.rect(-9, -27, 18, 2);
+    this.playerGraphics.fill({ color: 0xc0392b });
+
+    // Eyes
+    this.playerGraphics.circle(-4, -17, 2);
+    this.playerGraphics.fill({ color: 0xffffff });
+    this.playerGraphics.circle(-4, -17, 1);
+    this.playerGraphics.fill({ color: 0x2c3e50 });
+    this.playerGraphics.circle(4, -17, 2);
+    this.playerGraphics.fill({ color: 0xffffff });
+    this.playerGraphics.circle(4, -17, 1);
+    this.playerGraphics.fill({ color: 0x2c3e50 });
+
+    // Smile
+    this.playerGraphics.arc(0, -14, 4, 0.1, Math.PI - 0.1);
+    this.playerGraphics.stroke({ color: 0x8b5e3c, width: 1.2 });
 
     // Update position
     this.playerGraphics.x = this.player.x;

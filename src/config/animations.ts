@@ -99,7 +99,7 @@ export const ANIMATION = {
   PLANT_SIZE_SEED: 4,
   PLANT_SIZE_SPROUT: 7,
   PLANT_SIZE_GROWING: 11,
-  PLANT_SIZE_MATURE: 24,
+  PLANT_SIZE_MATURE: 28,
   PLANT_SIZE_WILTING: 12,
 
   // Maturity celebration — pop, glow, sparkle when plant reaches harvest-ready

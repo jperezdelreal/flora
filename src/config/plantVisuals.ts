@@ -37,11 +37,11 @@ export interface PlantVisualDef {
 }
 
 const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
-  [GrowthStage.SEED]: { scale: 0.5, alpha: 0.9, saturation: 0.4, yOffset: 0 },
-  [GrowthStage.SPROUT]: { scale: 0.65, alpha: 0.95, saturation: 0.6, yOffset: -2 },
-  [GrowthStage.GROWING]: { scale: 0.85, alpha: 1.0, saturation: 0.85, yOffset: -5 },
+  [GrowthStage.SEED]: { scale: 0.65, alpha: 1.0, saturation: 0.5, yOffset: 0 },
+  [GrowthStage.SPROUT]: { scale: 0.8, alpha: 1.0, saturation: 0.7, yOffset: -2 },
+  [GrowthStage.GROWING]: { scale: 0.92, alpha: 1.0, saturation: 0.85, yOffset: -5 },
   [GrowthStage.MATURE]: { scale: 1.0, alpha: 1.0, saturation: 1.0, yOffset: -8 },
-  [GrowthStage.WILTING]: { scale: 0.9, alpha: 0.7, saturation: 0.3, yOffset: -4 },
+  [GrowthStage.WILTING]: { scale: 0.88, alpha: 0.7, saturation: 0.3, yOffset: -4 },
 };
 
 export const PLANT_VISUALS: Record<string, PlantVisualDef> = {
@@ -484,8 +484,8 @@ export function getShapeData(
       rotation: 0,
     },
     bush: {
-      mainRadius: size * 0.7,
-      secondaryRadius: size * 0.9,
+      mainRadius: size * 0.85,
+      secondaryRadius: size * 1.0,
       aspectRatio: 1.0,
       rotation: 0,
     },
@@ -497,8 +497,8 @@ export function getShapeData(
       rotation: 0,
     },
     root: {
-      mainRadius: size * 0.6,
-      secondaryRadius: size * 0.3,
+      mainRadius: size * 0.8,
+      secondaryRadius: size * 0.4,
       aspectRatio: 1.2,
       rotation: 0,
     },
