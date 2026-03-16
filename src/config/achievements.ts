@@ -192,3 +192,12 @@ export const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   exploration: '🔍 Exploration',
   mastery: '⭐ Mastery',
 };
+
+/** TLDR: Category accent colors for progress bars / badges (#334) */
+export const ACHIEVEMENT_CATEGORY_COLORS: Record<AchievementCategory, number> = {
+  harvest: 0x4caf50,
+  survival: 0x2196f3,
+  synergy: 0xff9800,
+  exploration: 0x9c27b0,
+  mastery: 0xffd700,
+};

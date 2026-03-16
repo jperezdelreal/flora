@@ -1,7 +1,8 @@
 import { Container, Graphics, Text, FederatedPointerEvent } from 'pixi.js';
 import type { Scene, SceneContext } from '../core';
 import { eventBus } from '../core/EventBus';
-import { SCENES, COLORS, GAME } from '../config';
+import { SCENES, COLORS, GAME, UI_COLORS, RARITY_UI_COLORS, RARITY_UI_TEXT_COLORS } from '../config';
+import { FIREFLY_PARTICLE_COLORS } from '../config/animations';
 import { EncyclopediaSystem, EncyclopediaEntry } from '../systems/EncyclopediaSystem';
 import { ParticleSystem } from '../systems';
 import { announce } from '../utils/accessibility';
@@ -9,20 +10,6 @@ import { MenuScene } from './MenuScene';
 
 type RarityFilter = 'all' | 'common' | 'uncommon' | 'rare' | 'heirloom';
 type DiscoveryFilter = 'all' | 'discovered' | 'undiscovered';
-
-const RARITY_COLORS: Record<string, number> = {
-  common: 0x4caf50,
-  uncommon: 0x2196f3,
-  rare: 0x9c27b0,
-  heirloom: 0xffd700,
-};
-
-const RARITY_TEXT_COLORS: Record<string, string> = {
-  common: '#4caf50',
-  uncommon: '#2196f3',
-  rare: '#9c27b0',
-  heirloom: '#ffd700',
-};
 
 const CARD_WIDTH = 160;
 const CARD_HEIGHT = 130;
@@ -67,6 +54,7 @@ export class EncyclopediaScene implements Scene {
   private dragLastY = 0;
 
   private detailVisible = false;
+  private navigatingBack = false;
 
   private boundOnKeyDown!: (e: KeyboardEvent) => void;
   private boundOnWheel!: (e: WheelEvent) => void;
@@ -112,6 +100,7 @@ export class EncyclopediaScene implements Scene {
 
     this.elapsed = 0;
     this.fireflyCooldown = 0;
+    this.navigatingBack = false;
 
     announce('Encyclopedia opened. Browse discovered plants.');
     eventBus.emit('scene:ready', { scene: 'encyclopedia' });
@@ -136,7 +125,7 @@ export class EncyclopediaScene implements Scene {
     hills.lineTo(w, h);
     hills.lineTo(0, h);
     hills.closePath();
-    hills.fill({ color: 0x1e4d1a, alpha: 0.6 });
+    hills.fill({ color: UI_COLORS.HILLS_DARK_MID, alpha: 0.6 });
     this.bgLayer.addChild(hills);
 
     const fgHills = new Graphics();
@@ -146,14 +135,14 @@ export class EncyclopediaScene implements Scene {
     fgHills.lineTo(w, h);
     fgHills.lineTo(0, h);
     fgHills.closePath();
-    fgHills.fill({ color: 0x163d13, alpha: 0.5 });
+    fgHills.fill({ color: UI_COLORS.HILLS_DARK_FG, alpha: 0.5 });
     this.bgLayer.addChild(fgHills);
 
     for (let i = 0; i < 18; i++) {
       const flower = new Graphics();
       const fx = Math.random() * w;
       const fy = h * 0.7 + Math.random() * h * 0.25;
-      const colors = [0xffb7c5, 0xffd700, 0xff6b6b, 0x87ceeb, 0xdda0dd];
+      const colors = [UI_COLORS.FLOWER_PINK, UI_COLORS.FLOWER_GOLD, UI_COLORS.FLOWER_RED, UI_COLORS.FLOWER_SKY_BLUE, UI_COLORS.FLOWER_PLUM];
       const color = colors[Math.floor(Math.random() * colors.length)];
       flower.circle(fx, fy, 2 + Math.random() * 2);
       flower.fill({ color, alpha: 0.4 + Math.random() * 0.3 });
@@ -166,12 +155,12 @@ export class EncyclopediaScene implements Scene {
   private buildHeader(): void {
     const headerBg = new Graphics();
     headerBg.rect(0, 0, this.screenWidth, 70);
-    headerBg.fill({ color: 0x111111, alpha: 0.88 });
+    headerBg.fill({ color: UI_COLORS.SCENE_HEADER_BG, alpha: 0.88 });
     this.contentLayer.addChild(headerBg);
 
     const title = new Text({
       text: '📖  Seed Encyclopedia',
-      style: { fontFamily: 'Arial', fontSize: 30, fill: '#c8e6c9', fontWeight: 'bold' },
+      style: { fontFamily: 'Arial', fontSize: 30, fill: UI_COLORS.TEXT_PRIMARY, fontWeight: 'bold' },
     });
     title.anchor.set(0, 0.5);
     title.x = 20;
@@ -186,7 +175,7 @@ export class EncyclopediaScene implements Scene {
 
     this.statsText = new Text({
       text: `${stats.discovered}/${stats.total} discovered (${stats.percentComplete}%)`,
-      style: { fontFamily: 'Arial', fontSize: 13, fill: '#aaaaaa' },
+      style: { fontFamily: 'Arial', fontSize: 13, fill: UI_COLORS.TEXT_MID_GRAY },
     });
     this.statsText.anchor.set(1, 0);
     this.statsText.x = this.screenWidth - 20;
@@ -195,8 +184,8 @@ export class EncyclopediaScene implements Scene {
 
     this.progressBar = new Graphics();
     this.progressBar.roundRect(barX, barY, barWidth, barHeight, 5);
-    this.progressBar.fill({ color: 0x1a3a18 });
-    this.progressBar.stroke({ color: 0x3e7a38, width: 1 });
+    this.progressBar.fill({ color: COLORS.DARK_GREEN });
+    this.progressBar.stroke({ color: COLORS.MID_GREEN, width: 1 });
     this.contentLayer.addChild(this.progressBar);
 
     this.progressFill = new Graphics();
@@ -215,11 +204,11 @@ export class EncyclopediaScene implements Scene {
       const rd = stats.byRarity[rarity];
       const dot = new Graphics();
       dot.circle(rx, ry, 5);
-      dot.fill({ color: RARITY_COLORS[rarity] });
+      dot.fill({ color: RARITY_UI_COLORS[rarity] });
       this.contentLayer.addChild(dot);
       const label = new Text({
         text: `${rd.discovered}/${rd.total}`,
-        style: { fontFamily: 'Arial', fontSize: 11, fill: RARITY_TEXT_COLORS[rarity] },
+        style: { fontFamily: 'Arial', fontSize: 11, fill: RARITY_UI_TEXT_COLORS[rarity] },
       });
       label.x = rx + 10;
       label.y = ry - 7;
@@ -236,7 +225,7 @@ export class EncyclopediaScene implements Scene {
 
     const filterBg = new Graphics();
     filterBg.rect(0, 0, this.screenWidth, 40);
-    filterBg.fill({ color: 0x1a1a1a, alpha: 0.8 });
+    filterBg.fill({ color: UI_COLORS.SCENE_FILTER_BG, alpha: 0.8 });
     this.filterLayer.addChild(filterBg);
 
     this.filterButtons = [];
@@ -255,7 +244,7 @@ export class EncyclopediaScene implements Scene {
     x += 12;
     const sep = new Graphics();
     sep.rect(x, y + 2, 1, 24);
-    sep.fill({ color: 0x3e7a38, alpha: 0.5 });
+    sep.fill({ color: COLORS.MID_GREEN, alpha: 0.5 });
     this.filterLayer.addChild(sep);
     x += 8;
 
@@ -271,13 +260,13 @@ export class EncyclopediaScene implements Scene {
   private addFilterButton(x: number, y: number, label: string, group: string, value: string): number {
     const text = new Text({
       text: label,
-      style: { fontFamily: 'Arial', fontSize: 12, fill: '#cccccc', fontWeight: 'bold' },
+      style: { fontFamily: 'Arial', fontSize: 12, fill: UI_COLORS.TEXT_LIGHT_GRAY, fontWeight: 'bold' },
     });
     const textWidth = Math.max(text.width + 16, 40);
     const bg = new Graphics();
     bg.roundRect(x, y, textWidth, 28, 6);
-    bg.fill({ color: 0x2a2a2a });
-    bg.stroke({ color: 0x3e7a38, width: 1 });
+    bg.fill({ color: UI_COLORS.BACK_BUTTON_BG });
+    bg.stroke({ color: COLORS.MID_GREEN, width: 1 });
     bg.eventMode = 'static';
     bg.cursor = 'pointer';
     this.filterLayer.addChild(bg);
@@ -312,13 +301,13 @@ export class EncyclopediaScene implements Scene {
       btn.bg.clear();
       btn.bg.roundRect(bx, by, textW, 28, 6);
       if (active) {
-        btn.bg.fill({ color: 0x3e7a38, alpha: 0.9 });
-        btn.bg.stroke({ color: 0x88d498, width: 2 });
-        btn.text.style.fill = '#ffffff';
+        btn.bg.fill({ color: COLORS.MID_GREEN, alpha: 0.9 });
+        btn.bg.stroke({ color: COLORS.LIGHT_GREEN, width: 2 });
+        btn.text.style.fill = UI_COLORS.TEXT_WHITE;
       } else {
-        btn.bg.fill({ color: 0x2a2a2a });
-        btn.bg.stroke({ color: 0x3e7a38, width: 1 });
-        btn.text.style.fill = '#cccccc';
+        btn.bg.fill({ color: UI_COLORS.BACK_BUTTON_BG });
+        btn.bg.stroke({ color: COLORS.MID_GREEN, width: 1 });
+        btn.text.style.fill = UI_COLORS.TEXT_LIGHT_GRAY;
       }
     }
   }
@@ -350,7 +339,7 @@ export class EncyclopediaScene implements Scene {
     const viewportH = this.screenHeight - gridTop - 50;
     this.cardsMask = new Graphics();
     this.cardsMask.rect(0, gridTop, this.screenWidth, viewportH);
-    this.cardsMask.fill({ color: 0xffffff });
+    this.cardsMask.fill({ color: COLORS.WHITE });
     this.contentLayer.addChild(this.cardsMask);
     this.cardsContainer.y = gridTop;
     this.cardsContainer.mask = this.cardsMask;
@@ -358,7 +347,7 @@ export class EncyclopediaScene implements Scene {
 
     const hitArea = new Graphics();
     hitArea.rect(0, gridTop, this.screenWidth, viewportH);
-    hitArea.fill({ color: 0x000000, alpha: 0.001 });
+    hitArea.fill({ color: COLORS.BLACK, alpha: 0.001 });
     hitArea.eventMode = 'static';
     this.contentLayer.addChildAt(hitArea, this.contentLayer.getChildIndex(this.cardsContainer));
     hitArea.on('pointerdown', (e: FederatedPointerEvent) => { this.isDragging = true; this.dragLastY = e.globalY; });
@@ -402,10 +391,10 @@ export class EncyclopediaScene implements Scene {
     const card = new Container();
     card.x = x;
     card.y = y;
-    const rarityColor = entry.discovered ? (RARITY_COLORS[entry.config.rarity] ?? 0x4caf50) : 0x333333;
+    const rarityColor = entry.discovered ? (RARITY_UI_COLORS[entry.config.rarity] ?? RARITY_UI_COLORS.common) : UI_COLORS.UNDISCOVERED_GRAY;
     const bg = new Graphics();
     bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
-    bg.fill({ color: 0x222222, alpha: 0.92 });
+    bg.fill({ color: UI_COLORS.SCENE_CARD_BG, alpha: 0.92 });
     bg.stroke({ color: rarityColor, width: 2 });
     bg.eventMode = 'static';
     bg.cursor = entry.discovered ? 'pointer' : 'default';
@@ -419,19 +408,19 @@ export class EncyclopediaScene implements Scene {
       card.addChild(thumb);
       const nameText = new Text({
         text: entry.config.displayName,
-        style: { fontFamily: 'Arial', fontSize: 14, fill: '#ffffff', fontWeight: 'bold', align: 'center', wordWrap: true, wordWrapWidth: CARD_WIDTH - 16 },
+        style: { fontFamily: 'Arial', fontSize: 14, fill: UI_COLORS.TEXT_WHITE, fontWeight: 'bold', align: 'center', wordWrap: true, wordWrapWidth: CARD_WIDTH - 16 },
       });
       nameText.anchor.set(0.5, 0); nameText.x = CARD_WIDTH / 2; nameText.y = 66;
       card.addChild(nameText);
       const rarityText = new Text({
         text: entry.config.rarity.toUpperCase(),
-        style: { fontFamily: 'Arial', fontSize: 10, fill: RARITY_TEXT_COLORS[entry.config.rarity] ?? '#4caf50', fontWeight: 'bold' },
+        style: { fontFamily: 'Arial', fontSize: 10, fill: RARITY_UI_TEXT_COLORS[entry.config.rarity] ?? RARITY_UI_TEXT_COLORS.common, fontWeight: 'bold' },
       });
       rarityText.anchor.set(0.5, 0); rarityText.x = CARD_WIDTH / 2; rarityText.y = 90;
       card.addChild(rarityText);
       const infoText = new Text({
         text: `🌱 ${entry.config.growthTime}d  💧 ${Math.round(entry.config.waterNeedPerDay * 100)}%`,
-        style: { fontFamily: 'Arial', fontSize: 10, fill: '#888888' },
+        style: { fontFamily: 'Arial', fontSize: 10, fill: UI_COLORS.TEXT_DARK_GRAY },
       });
       infoText.anchor.set(0.5, 0); infoText.x = CARD_WIDTH / 2; infoText.y = 108;
       card.addChild(infoText);
@@ -443,15 +432,15 @@ export class EncyclopediaScene implements Scene {
     } else {
       const silhouette = new Graphics();
       silhouette.circle(CARD_WIDTH / 2, 35, 24);
-      silhouette.fill({ color: 0x333333, alpha: 0.5 });
+      silhouette.fill({ color: UI_COLORS.UNDISCOVERED_GRAY, alpha: 0.5 });
       card.addChild(silhouette);
-      const qMark = new Text({ text: '?', style: { fontFamily: 'Arial', fontSize: 28, fill: '#555555', fontWeight: 'bold' } });
+      const qMark = new Text({ text: '?', style: { fontFamily: 'Arial', fontSize: 28, fill: UI_COLORS.TEXT_FADED, fontWeight: 'bold' } });
       qMark.anchor.set(0.5, 0.5); qMark.x = CARD_WIDTH / 2; qMark.y = 35;
       card.addChild(qMark);
-      const unknown = new Text({ text: '???', style: { fontFamily: 'Arial', fontSize: 14, fill: '#555555', fontWeight: 'bold' } });
+      const unknown = new Text({ text: '???', style: { fontFamily: 'Arial', fontSize: 14, fill: UI_COLORS.TEXT_FADED, fontWeight: 'bold' } });
       unknown.anchor.set(0.5, 0); unknown.x = CARD_WIDTH / 2; unknown.y = 66;
       card.addChild(unknown);
-      const rarityHint = new Text({ text: entry.config.rarity.toUpperCase(), style: { fontFamily: 'Arial', fontSize: 10, fill: '#444444' } });
+      const rarityHint = new Text({ text: entry.config.rarity.toUpperCase(), style: { fontFamily: 'Arial', fontSize: 10, fill: UI_COLORS.TEXT_DARKEST } });
       rarityHint.anchor.set(0.5, 0); rarityHint.x = CARD_WIDTH / 2; rarityHint.y = 90;
       card.addChild(rarityHint);
     }
@@ -462,14 +451,14 @@ export class EncyclopediaScene implements Scene {
     for (let i = 0; i < this.cardGraphics.length; i++) {
       const { bg, entry } = this.cardGraphics[i];
       const selected = i === index;
-      const rarityColor = entry.discovered ? (RARITY_COLORS[entry.config.rarity] ?? 0x4caf50) : 0x333333;
+      const rarityColor = entry.discovered ? (RARITY_UI_COLORS[entry.config.rarity] ?? RARITY_UI_COLORS.common) : UI_COLORS.UNDISCOVERED_GRAY;
       bg.clear();
       bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
       if (selected) {
-        bg.fill({ color: 0x2a3a2a, alpha: 0.95 });
-        bg.stroke({ color: entry.discovered ? 0x88d498 : 0x555555, width: 3 });
+        bg.fill({ color: UI_COLORS.SCENE_CARD_SELECTED_BG, alpha: 0.95 });
+        bg.stroke({ color: entry.discovered ? COLORS.LIGHT_GREEN : UI_COLORS.TEXT_FADED, width: 3 });
       } else {
-        bg.fill({ color: 0x222222, alpha: 0.92 });
+        bg.fill({ color: UI_COLORS.SCENE_CARD_BG, alpha: 0.92 });
         bg.stroke({ color: rarityColor, width: 2 });
       }
     }
@@ -493,7 +482,7 @@ export class EncyclopediaScene implements Scene {
 
     const backdrop = new Graphics();
     backdrop.rect(0, 0, this.screenWidth, this.screenHeight);
-    backdrop.fill({ color: 0x000000, alpha: 0.7 });
+    backdrop.fill({ color: COLORS.BLACK, alpha: 0.7 });
     backdrop.eventMode = 'static';
     backdrop.on('pointerdown', () => this.closeDetail());
     this.detailOverlay.addChild(backdrop);
@@ -503,10 +492,12 @@ export class EncyclopediaScene implements Scene {
     const panelH = 380;
     const panelX = cx - panelW / 2;
     const panelY = (this.screenHeight - panelH) / 2;
+    const rarityColor = RARITY_UI_COLORS[entry.config.rarity] ?? RARITY_UI_COLORS.common;
+    const rarityTextColor = RARITY_UI_TEXT_COLORS[entry.config.rarity] ?? RARITY_UI_TEXT_COLORS.common;
     const panel = new Graphics();
     panel.roundRect(panelX, panelY, panelW, panelH, 16);
-    panel.fill({ color: 0x1a1a1a, alpha: 0.96 });
-    panel.stroke({ color: RARITY_COLORS[entry.config.rarity] ?? 0x4caf50, width: 3 });
+    panel.fill({ color: UI_COLORS.SCENE_HEADER_BG, alpha: 0.96 });
+    panel.stroke({ color: rarityColor, width: 3 });
     panel.eventMode = 'static';
     this.detailOverlay.addChild(panel);
 
@@ -515,24 +506,24 @@ export class EncyclopediaScene implements Scene {
 
     const icon = new Graphics();
     icon.circle(cx, ty + 30, 36);
-    icon.fill({ color: RARITY_COLORS[config.rarity] ?? 0x4caf50, alpha: 0.3 });
-    icon.stroke({ color: RARITY_COLORS[config.rarity] ?? 0x4caf50, width: 2 });
+    icon.fill({ color: rarityColor, alpha: 0.3 });
+    icon.stroke({ color: rarityColor, width: 2 });
     this.detailOverlay.addChild(icon);
     ty += 76;
 
-    const nameText = new Text({ text: config.displayName, style: { fontFamily: 'Arial', fontSize: 26, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+    const nameText = new Text({ text: config.displayName, style: { fontFamily: 'Arial', fontSize: 26, fill: UI_COLORS.TEXT_WHITE, fontWeight: 'bold', align: 'center' } });
     nameText.anchor.set(0.5, 0); nameText.x = cx; nameText.y = ty;
     this.detailOverlay.addChild(nameText);
     ty += 34;
 
-    const rarityBadge = new Text({ text: `✦ ${config.rarity.toUpperCase()}`, style: { fontFamily: 'Arial', fontSize: 14, fill: RARITY_TEXT_COLORS[config.rarity] ?? '#4caf50', fontWeight: 'bold' } });
+    const rarityBadge = new Text({ text: `✦ ${config.rarity.toUpperCase()}`, style: { fontFamily: 'Arial', fontSize: 14, fill: rarityTextColor, fontWeight: 'bold' } });
     rarityBadge.anchor.set(0.5, 0); rarityBadge.x = cx; rarityBadge.y = ty;
     this.detailOverlay.addChild(rarityBadge);
     ty += 26;
 
     const descText = new Text({
       text: config.description,
-      style: { fontFamily: 'Arial', fontSize: 14, fill: '#c8e6c9', wordWrap: true, wordWrapWidth: panelW - 40, align: 'center' },
+      style: { fontFamily: 'Arial', fontSize: 14, fill: UI_COLORS.TEXT_PRIMARY, wordWrap: true, wordWrapWidth: panelW - 40, align: 'center' },
     });
     descText.anchor.set(0.5, 0); descText.x = cx; descText.y = ty;
     this.detailOverlay.addChild(descText);
@@ -540,7 +531,7 @@ export class EncyclopediaScene implements Scene {
 
     const divider = new Graphics();
     divider.rect(panelX + 30, ty, panelW - 60, 1);
-    divider.fill({ color: 0x3e7a38, alpha: 0.5 });
+    divider.fill({ color: COLORS.MID_GREEN, alpha: 0.5 });
     this.detailOverlay.addChild(divider);
     ty += 12;
 
@@ -552,13 +543,13 @@ export class EncyclopediaScene implements Scene {
     ty += 28;
 
     if (config.synergyTraits && config.synergyTraits.length > 0) {
-      const synergyLabel = new Text({ text: '🔗 Synergy Traits', style: { fontFamily: 'Arial', fontSize: 14, fill: '#88d498', fontWeight: 'bold' } });
+      const synergyLabel = new Text({ text: '🔗 Synergy Traits', style: { fontFamily: 'Arial', fontSize: 14, fill: COLORS.LIGHT_GREEN, fontWeight: 'bold' } });
       synergyLabel.x = panelX + 40; synergyLabel.y = ty;
       this.detailOverlay.addChild(synergyLabel);
       ty += 20;
       const traitText = new Text({
         text: config.synergyTraits.map((t) => this.formatTraitName(t)).join('  •  '),
-        style: { fontFamily: 'Arial', fontSize: 13, fill: '#aaaaaa', wordWrap: true, wordWrapWidth: panelW - 80 },
+        style: { fontFamily: 'Arial', fontSize: 13, fill: UI_COLORS.TEXT_MID_GRAY, wordWrap: true, wordWrapWidth: panelW - 80 },
       });
       traitText.x = panelX + 40; traitText.y = ty;
       this.detailOverlay.addChild(traitText);
@@ -566,15 +557,15 @@ export class EncyclopediaScene implements Scene {
 
     const closeBg = new Graphics();
     closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8);
-    closeBg.fill({ color: 0x3e7a38 });
-    closeBg.stroke({ color: 0x88d498, width: 2 });
+    closeBg.fill({ color: COLORS.MID_GREEN });
+    closeBg.stroke({ color: COLORS.LIGHT_GREEN, width: 2 });
     closeBg.eventMode = 'static';
     closeBg.cursor = 'pointer';
     closeBg.on('pointerdown', () => this.closeDetail());
-    closeBg.on('pointerover', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: 0x4caf50 }); closeBg.stroke({ color: 0x88d498, width: 2 }); });
-    closeBg.on('pointerout', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: 0x3e7a38 }); closeBg.stroke({ color: 0x88d498, width: 2 }); });
+    closeBg.on('pointerover', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); closeBg.stroke({ color: COLORS.LIGHT_GREEN, width: 2 }); });
+    closeBg.on('pointerout', () => { closeBg.clear(); closeBg.roundRect(cx - 60, panelY + panelH - 50, 120, 36, 8); closeBg.fill({ color: COLORS.MID_GREEN }); closeBg.stroke({ color: COLORS.LIGHT_GREEN, width: 2 }); });
     this.detailOverlay.addChild(closeBg);
-    const closeText = new Text({ text: 'Close', style: { fontFamily: 'Arial', fontSize: 16, fill: '#ffffff', fontWeight: 'bold' } });
+    const closeText = new Text({ text: 'Close', style: { fontFamily: 'Arial', fontSize: 16, fill: UI_COLORS.TEXT_WHITE, fontWeight: 'bold' } });
     closeText.anchor.set(0.5, 0.5); closeText.x = cx; closeText.y = panelY + panelH - 32;
     this.detailOverlay.addChild(closeText);
 
@@ -582,10 +573,10 @@ export class EncyclopediaScene implements Scene {
   }
 
   private addDetailStat(x: number, y: number, label: string, value: string): void {
-    const lbl = new Text({ text: label, style: { fontFamily: 'Arial', fontSize: 12, fill: '#888888' } });
+    const lbl = new Text({ text: label, style: { fontFamily: 'Arial', fontSize: 12, fill: UI_COLORS.TEXT_DARK_GRAY } });
     lbl.x = x; lbl.y = y;
     this.detailOverlay.addChild(lbl);
-    const val = new Text({ text: value, style: { fontFamily: 'Arial', fontSize: 12, fill: '#ffffff', fontWeight: 'bold' } });
+    const val = new Text({ text: value, style: { fontFamily: 'Arial', fontSize: 12, fill: UI_COLORS.TEXT_WHITE, fontWeight: 'bold' } });
     val.x = x; val.y = y + 14;
     this.detailOverlay.addChild(val);
   }
@@ -606,25 +597,26 @@ export class EncyclopediaScene implements Scene {
   private buildBackButton(): void {
     const backBg = new Graphics();
     backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8);
-    backBg.fill({ color: 0x2a2a2a, alpha: 0.9 });
-    backBg.stroke({ color: 0x3e7a38, width: 2 });
+    backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG, alpha: 0.9 });
+    backBg.stroke({ color: COLORS.MID_GREEN, width: 2 });
     backBg.eventMode = 'static';
     backBg.cursor = 'pointer';
     this.contentLayer.addChild(backBg);
-    const backText = new Text({ text: '🔙 Back', style: { fontFamily: 'Arial', fontSize: 16, fill: '#ffffff', fontWeight: 'bold' } });
+    const backText = new Text({ text: '🔙 Back', style: { fontFamily: 'Arial', fontSize: 16, fill: UI_COLORS.TEXT_WHITE, fontWeight: 'bold' } });
     backText.anchor.set(0.5, 0.5); backText.x = 60; backText.y = this.screenHeight - 27;
     this.contentLayer.addChild(backText);
-    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: 0x4caf50 }); backBg.stroke({ color: 0x88d498, width: 2 }); });
-    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: 0x2a2a2a, alpha: 0.9 }); backBg.stroke({ color: 0x3e7a38, width: 2 }); });
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: COLORS.LIGHT_GREEN, width: 2 }); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(10, this.screenHeight - 44, 100, 34, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG, alpha: 0.9 }); backBg.stroke({ color: COLORS.MID_GREEN, width: 2 }); });
     backBg.on('pointerdown', () => this.goBack());
 
-    const hint = new Text({ text: '↑↓ Scroll  •  Enter View  •  Esc Back', style: { fontFamily: 'Arial', fontSize: 12, fill: '#4a7a4a', align: 'center' } });
+    const hint = new Text({ text: '↑↓ Scroll  •  Enter View  •  Esc Back', style: { fontFamily: 'Arial', fontSize: 12, fill: UI_COLORS.TEXT_DIM_GRAY, align: 'center' } });
     hint.anchor.set(0.5, 0.5); hint.x = this.screenWidth / 2; hint.y = this.screenHeight - 27;
     this.contentLayer.addChild(hint);
   }
 
   private goBack(): void {
-    if (!this.ctx) return;
+    if (!this.ctx || this.navigatingBack) return;
+    this.navigatingBack = true;
     announce('Returning to menu.');
     MenuScene.skipTitle = true;
     this.ctx.sceneManager.transitionTo(SCENES.MENU, { type: 'fade' }).catch(console.error);
@@ -699,7 +691,7 @@ export class EncyclopediaScene implements Scene {
         x: Math.random() * this.screenWidth,
         y: this.screenHeight * 0.5 + Math.random() * this.screenHeight * 0.4,
         count: 1, speed: 8 + Math.random() * 12, lifetime: 2.5 + Math.random() * 2,
-        colors: [0xfff9c4, 0xffe082, 0xc8e6c9, 0xb9f6ca],
+        colors: FIREFLY_PARTICLE_COLORS,
         size: 2 + Math.random() * 2, gravity: -15 - Math.random() * 10,
         fadeOut: true, shrink: false,
       });
@@ -723,6 +715,7 @@ export class EncyclopediaScene implements Scene {
     this.cardGraphics = [];
     this.filterButtons = [];
     this.detailVisible = false;
+    this.navigatingBack = false;
     this.ctx = null;
   }
 }

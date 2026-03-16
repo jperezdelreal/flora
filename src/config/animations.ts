@@ -178,3 +178,6 @@ export const SYNERGY_GLOW_COLORS: Record<string, number> = {
   allelopathy: 0xff8a65,
   pest_attraction: 0xef5350,
 };
+
+// TLDR: Firefly ambient particle colors for menu/scene backgrounds (#334)
+export const FIREFLY_PARTICLE_COLORS: number[] = [0xfff9c4, 0xffe082, 0xc8e6c9, 0xb9f6ca];

@@ -118,6 +118,40 @@ export const UI_COLORS = {
   BACK_BUTTON_BORDER: 0x4a4a4a,
   BACK_BUTTON_HOVER_BG: 0x4caf50,
   BACK_BUTTON_HOVER_BORDER: 0x66bb6a,
+  // TLDR: Scene panel/card colors (#334)
+  SCENE_HEADER_BG: 0x1a1a1a,
+  SCENE_CARD_BG: 0x222222,
+  SCENE_CARD_SELECTED_BG: 0x2a3a2a,
+  SCENE_FILTER_BG: 0x1a1a1a,
+  UNDISCOVERED_GRAY: 0x333333,
+  PROGRESS_BAR_BG: 0x333333,
+  HILLS_DARK_MID: 0x1e4d1a,
+  HILLS_DARK_FG: 0x163d13,
+  // TLDR: Text colors for scene content (#334)
+  TEXT_WHITE: '#ffffff',
+  TEXT_LIGHT_GRAY: '#cccccc',
+  TEXT_MID_GRAY: '#aaaaaa',
+  TEXT_DARK_GRAY: '#888888',
+  TEXT_DIM_GRAY: '#666666',
+  TEXT_FADED: '#555555',
+  TEXT_DARKEST: '#444444',
+  TEXT_GOLD: '#daa520',
+} as const;
+
+/** TLDR: Rarity colors for UI badges/borders (#334) */
+export const RARITY_UI_COLORS: Record<string, number> = {
+  common: 0x4caf50,
+  uncommon: 0x2196f3,
+  rare: 0x9c27b0,
+  heirloom: 0xffd700,
+} as const;
+
+/** TLDR: Rarity colors as CSS strings for text (#334) */
+export const RARITY_UI_TEXT_COLORS: Record<string, string> = {
+  common: '#4caf50',
+  uncommon: '#2196f3',
+  rare: '#9c27b0',
+  heirloom: '#ffd700',
 } as const;
 
 /** TLDR: Touch gesture tuning values */
