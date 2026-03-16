@@ -96,11 +96,11 @@ export const ANIMATION = {
   WATER_DROPLET_COUNT: 5,
 
   // Plant visual sizes per growth stage (radius)
-  PLANT_SIZE_SEED: 4,
-  PLANT_SIZE_SPROUT: 7,
-  PLANT_SIZE_GROWING: 11,
-  PLANT_SIZE_MATURE: 28,
-  PLANT_SIZE_WILTING: 12,
+  PLANT_SIZE_SEED: 8,
+  PLANT_SIZE_SPROUT: 14,
+  PLANT_SIZE_GROWING: 18,
+  PLANT_SIZE_MATURE: 40,
+  PLANT_SIZE_WILTING: 18,
 
   // Maturity celebration — pop, glow, sparkle when plant reaches harvest-ready
   MATURE_BOUNCE_PEAK_SCALE: 1.3,

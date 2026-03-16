@@ -289,6 +289,7 @@ export class GardenScene implements Scene {
     this.playerSystem.setOnDayAdvance(() => {
       this.onDayAdvance();
     });
+    // Player renders behind plant layer so plants are always visible
     this.gridSystem.getContainer().addChild(this.playerSystem.getContainer());
 
     // Initialize tool bar

@@ -57,6 +57,18 @@ export class PlayerSystem implements System {
 
     // Update render
     this.renderPlayer();
+
+    // Semi-transparent when standing on a planted tile
+    this.updateTransparency();
+  }
+
+  private updateTransparency(): void {
+    const pos = this.player.getGridPosition();
+    const hasPlant = Array.from(this.plants.values()).some(p => {
+      const plantTile = this.grid.getTileAtPosition(p.x, p.y, 0, 0);
+      return plantTile && plantTile.row === pos.row && plantTile.col === pos.col;
+    });
+    this.container.alpha = hasPlant ? 0.5 : 1.0;
   }
 
   private handleMovementInput(): void {
