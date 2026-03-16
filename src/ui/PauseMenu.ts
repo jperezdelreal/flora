@@ -62,7 +62,7 @@ export class PauseMenu {
     // TLDR: Full-screen semi-transparent overlay blocks all clicks
     this.overlay = new Graphics();
     this.overlay.rect(0, 0, screenWidth, screenHeight);
-    this.overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.85 });
+    this.overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.92 });
     this.overlay.eventMode = 'static';
     this.container.addChild(this.overlay);
 

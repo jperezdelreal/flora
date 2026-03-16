@@ -47,25 +47,29 @@ export class SeedInventory {
   private cardGraphics: Map<string, { bg: Graphics; card: Container }> = new Map();
   // TLDR: Track screen height for full-height overlay
   private screenHeight: number;
+  // TLDR: Top offset to avoid overlapping HUD
+  private topOffset: number;
   private overlay: Graphics;
   // TLDR: Active seed skin cosmetic
   private activeSkin: SeedSkinConfig | null = null;
 
-  constructor(screenHeight: number = 600) {
+  constructor(screenHeight: number = 600, topOffset: number = 0) {
     this.screenHeight = screenHeight;
+    this.topOffset = topOffset;
     this.container = new Container();
     this.container.visible = false;
 
     // TLDR: Semi-transparent overlay blocks clicks through to garden
+    const panelH = screenHeight - topOffset;
     this.overlay = new Graphics();
-    this.overlay.rect(0, 0, PANEL_WIDTH, this.screenHeight);
+    this.overlay.rect(0, 0, PANEL_WIDTH, panelH);
     this.overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.5 });
     this.overlay.eventMode = 'static';
     this.container.addChild(this.overlay);
 
     // Panel background
     const panel = new Graphics();
-    panel.roundRect(10, 10, 320, this.screenHeight - 20, 12);
+    panel.roundRect(10, 10, 320, panelH - 20, 12);
     panel.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.95 });
     panel.stroke({ color: UI_COLORS.PANEL_BORDER, width: 3 });
     this.container.addChild(panel);
@@ -122,8 +126,9 @@ export class SeedInventory {
   // TLDR: Resize overlay to match actual screen height
   resize(screenHeight: number): void {
     this.screenHeight = screenHeight;
+    const panelH = screenHeight - this.topOffset;
     this.overlay.clear();
-    this.overlay.rect(0, 0, PANEL_WIDTH, this.screenHeight);
+    this.overlay.rect(0, 0, PANEL_WIDTH, panelH);
     this.overlay.fill({ color: UI_COLORS.OVERLAY_DARK, alpha: 0.5 });
   }
 
@@ -157,8 +162,8 @@ export class SeedInventory {
     const bg = new Graphics();
     bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
     if (isSelected) {
-      bg.fill({ color: UI_COLORS.BUTTON_SELECTED_BG, alpha: 0.95 });
-      bg.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 });
+      bg.fill({ color: UI_COLORS.SEED_SELECTED_BG, alpha: 0.95 });
+      bg.stroke({ color: UI_COLORS.SEED_SELECTED_BORDER, width: 3 });
     } else {
       bg.fill({ color: UI_COLORS.PANEL_BG, alpha: 0.95 });
       bg.stroke({ color: rarityColor, width: 2 });
@@ -271,7 +276,8 @@ export class SeedInventory {
   // TLDR: Select a seed and update visual state for all cards
   private selectSeed(seedId: string): void {
     this.selectedSeedId = seedId;
-    eventBus.emit('seed:selected', { seedId });
+    const seed = this.availableSeeds.find(s => s.id === seedId);
+    eventBus.emit('seed:selected', { seedId, seedName: seed?.displayName ?? seedId });
     this.updateSelectionVisuals();
   }
 
@@ -280,8 +286,8 @@ export class SeedInventory {
       bg.clear();
       bg.roundRect(0, 0, CARD_WIDTH, CARD_HEIGHT, 8);
       if (id === this.selectedSeedId) {
-        bg.fill({ color: UI_COLORS.BUTTON_SELECTED_BG, alpha: 0.95 });
-        bg.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 3 });
+        bg.fill({ color: UI_COLORS.SEED_SELECTED_BG, alpha: 0.95 });
+        bg.stroke({ color: UI_COLORS.SEED_SELECTED_BORDER, width: 3 });
       } else {
         const seed = this.availableSeeds.find(s => s.id === id);
         const rarityColor = seed ? (RARITY_COLORS[seed.rarity] ?? UI_COLORS.PANEL_BORDER) : UI_COLORS.PANEL_BORDER;

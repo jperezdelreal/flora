@@ -3,6 +3,7 @@ import { ToolType } from '../entities/Player';
 import { ALL_TOOLS, CORE_TOOLS, ADVANCED_TOOLS, PROGRESSIVE_TOOL_BY_TYPE, TIER_STARS, ToolTier, type ToolConfig, type ToolTierConfig } from '../config/tools';
 import { ANIMATION } from '../config/animations';
 import { UI_COLORS } from '../config';
+import { eventBus } from '../core/EventBus';
 import type { ToolSystem } from '../systems/ToolSystem';
 import type { UnlockSystem } from '../systems/UnlockSystem';
 
@@ -70,6 +71,14 @@ export class ToolBar {
 
     this.initializeToolBar();
     this.container.addChild(this.tierTooltip);
+
+    // TLDR: Update Seed button label when a seed is selected in inventory
+    eventBus.on('seed:selected', (data) => {
+      const seedText = this.toolTexts.get(ToolType.SEED);
+      if (seedText) {
+        seedText.text = data.seedName;
+      }
+    });
   }
 
   private initializeToolBar(): void {

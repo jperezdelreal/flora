@@ -300,8 +300,11 @@ export class GardenScene implements Scene {
     this.toolBar.setOnToolSelect((tool) => {
       if (tool) {
         this.player.selectTool(tool);
+        // TLDR: Enable seed-tool hover preview on grid tiles (BUG-H)
+        this.gridSystem.setHoverSeedMode(tool === ToolType.SEED);
       } else {
         this.player.deselectTool();
+        this.gridSystem.setHoverSeedMode(false);
       }
     });
     this.container.addChild(this.toolBar.getContainer());
@@ -422,9 +425,10 @@ export class GardenScene implements Scene {
     this.container.addChild(this.hud.getContainer());
     this.updateHudDiscoveryCount();
     
-    // Initialize Seed Inventory (side panel)
-    this.seedInventory = new SeedInventory(ctx.app.screen.height);
-    this.seedInventory.setPosition(10, 0);
+    // Initialize Seed Inventory (side panel, offset below HUD)
+    const seedInvTopOffset = 70;
+    this.seedInventory = new SeedInventory(ctx.app.screen.height, seedInvTopOffset);
+    this.seedInventory.setPosition(10, seedInvTopOffset);
     this.container.addChild(this.seedInventory.getContainer());
 
     // TLDR: Wire actual run seed pool from SeedSelectionSystem (#242)
@@ -687,9 +691,35 @@ export class GardenScene implements Scene {
       } else {
         this.structureTooltip.hide();
       }
+
+      // TLDR: PlantInfoPanel shown on hover instead of persisting (BUG-F)
+      if (!this.isPaused) {
+        const tile = this.grid.getTile(row, col);
+        if (tile && tile.state === TileState.OCCUPIED) {
+          const plant = this.plantSystem.getPlantAt(col, row);
+          if (plant) {
+            const tilePos = this.grid.getTilePosition(row, col);
+            const gridPos = this.gridSystem.getContainer().position;
+            this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
+            const synergies = plant.getActiveSynergies();
+            const negSynergies = plant.getNegativeSynergies();
+            if (synergies.size > 0 || negSynergies.size > 0) {
+              this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
+            } else { this.synergyTooltip.hide(); }
+          } else {
+            this.plantInfoPanel.hide();
+            this.synergyTooltip.hide();
+          }
+        } else {
+          this.plantInfoPanel.hide();
+          this.synergyTooltip.hide();
+        }
+      }
     });
     this.gridSystem.onTileHoverOut(() => {
       this.structureTooltip.hide();
+      this.plantInfoPanel.hide();
+      this.synergyTooltip.hide();
     });
 
     // Apply seasonal palette (soil color, ambient particles)
@@ -821,6 +851,9 @@ export class GardenScene implements Scene {
         this.isPaused = !this.isPaused;
         if (this.isPaused) {
           this.pauseMenu.show();
+          // TLDR: Hide tooltips behind pause overlay (BUG-F)
+          this.plantInfoPanel.hide();
+          this.synergyTooltip.hide();
         } else {
           this.pauseMenu.hide();
         }
@@ -836,6 +869,8 @@ export class GardenScene implements Scene {
 
         this.player.selectTool(toolType);
         this.toolBar.setSelectedTool(toolType);
+        // TLDR: Update seed hover mode for keyboard tool selection (BUG-H)
+        this.gridSystem.setHoverSeedMode(toolType === ToolType.SEED);
 
         const displayName = toolConfig.displayName;
         this.hud.setHint(`🔧 ${displayName} tool selected`);
@@ -1676,27 +1711,7 @@ export class GardenScene implements Scene {
       setTimeout(() => this.scoringSystem.clearLastActionPoints(), 1000);
     }
 
-    // Update selected tile info and plant info panel
-    const selectedTile = this.gridSystem.getSelectedTile();
-    if (selectedTile && !this.player.isMoving() && selectedTile.state === TileState.OCCUPIED) {
-      const plant = this.plantSystem.getPlantAt(selectedTile.col, selectedTile.row);
-      if (plant) {
-        const tilePos = this.grid.getTilePosition(selectedTile.row, selectedTile.col);
-        const gridPos = this.gridSystem.getContainer().position;
-        this.plantInfoPanel.showPlant(plant, gridPos.x + tilePos.x, gridPos.y + tilePos.y);
-        const synergies = plant.getActiveSynergies();
-        const negSynergies = plant.getNegativeSynergies();
-        if (synergies.size > 0 || negSynergies.size > 0) {
-          this.synergyTooltip.showSynergyInfo(synergies, negSynergies);
-        } else { this.synergyTooltip.hide(); }
-      } else {
-        this.plantInfoPanel.hide();
-        this.synergyTooltip.hide();
-      }
-    } else {
-      this.plantInfoPanel.hide();
-      this.synergyTooltip.hide();
-    }
+    // TLDR: PlantInfoPanel is now hover-based (BUG-F) — no per-frame persistence
     
     // TLDR: Per-frame visual polish updates (sway, shake, sky lerp, particles)
     this.updateVisuals(delta);

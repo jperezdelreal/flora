@@ -76,7 +76,7 @@ export interface EventMap {
   // Mutation events
   'mutation:discovered': { plantId: string; variantId: string; variantName: string; tint: number };
   // Seed selection events
-  'seed:selected': { seedId: string };
+  'seed:selected': { seedId: string; seedName: string };
   // Accessibility events
   'accessibility:colorVisionChanged': { mode: string; label: string };
   'accessibility:settingsChanged': { setting: string; value: boolean | string };

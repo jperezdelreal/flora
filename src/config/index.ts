@@ -112,6 +112,11 @@ export const UI_COLORS = {
   FLOWER_SKY_BLUE: 0x87ceeb,
   FLOWER_PLUM: 0xdda0dd,
   TOOLBAR_SEPARATOR: 0x6b5b4e,
+  // TLDR: Tile hover and seed selection highlight colors
+  TILE_HOVER_FILL: 0xffffff,
+  SEED_SELECTED_BG: 0x5a4a1e,
+  SEED_SELECTED_BORDER: 0xffd700,
+  TILE_SEED_PREVIEW: 0x66bb6a,
   // TLDR: Button hover glow color (#326)
   BUTTON_GLOW: 0x88d498,
   BACK_BUTTON_BG: 0x2a2a2a,

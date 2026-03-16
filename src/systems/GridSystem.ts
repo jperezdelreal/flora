@@ -4,6 +4,7 @@ import { Tile, TileState } from '../entities/Tile';
 import { Structure } from '../entities/Structure';
 import { StructureType, STRUCTURE_CONFIGS } from '../config/structures';
 import { Season, SEASON_CONFIG } from '../config/seasons';
+import { UI_COLORS } from '../config';
 import { eventBus } from '../core/EventBus';
 import type { TileRenderer } from './TileRenderer';
 
@@ -13,6 +14,9 @@ export class GridSystem {
   private tileGraphics: Map<Tile, Graphics>;
   private selectedTile: Tile | null = null;
   private selectionHighlight: Graphics;
+  // TLDR: Hover highlight graphic drawn on the tile under the cursor
+  private hoverHighlight: Graphics;
+  private hoverSeedMode = false;
   private tileClickCallbacks: Array<(row: number, col: number) => void> = [];
   private onTileClickCallback?: (tile: Tile) => void;
   private tileHoverCallbacks: Array<(row: number, col: number) => void> = [];
@@ -28,7 +32,10 @@ export class GridSystem {
     this.container = new Container();
     this.tileGraphics = new Map();
     this.selectionHighlight = new Graphics();
+    this.hoverHighlight = new Graphics();
+    this.hoverHighlight.visible = false;
     this.container.addChild(this.selectionHighlight);
+    this.container.addChild(this.hoverHighlight);
 
     this.initializeGrid();
     this.setupInteraction();
@@ -136,6 +143,7 @@ export class GridSystem {
 
   private setupInteraction(): void {
     this.container.eventMode = 'static';
+    this.container.cursor = 'pointer';
     this.container.hitArea = {
       contains: (x: number, y: number) => {
         const dims = this.grid.getGridDimensions();
@@ -192,12 +200,14 @@ export class GridSystem {
     if (!tile) {
       if (this.lastHoveredTileKey) {
         this.lastHoveredTileKey = '';
+        this.updateHoverHighlight(null);
         for (const cb of this.tileHoverOutCallbacks) cb();
       }
       return;
     }
 
     this.lastHoveredTileKey = key;
+    this.updateHoverHighlight(tile);
     for (const cb of this.tileHoverCallbacks) {
       cb(tile.row, tile.col);
     }
@@ -207,8 +217,43 @@ export class GridSystem {
   private onPointerLeave(): void {
     if (this.lastHoveredTileKey) {
       this.lastHoveredTileKey = '';
+      this.updateHoverHighlight(null);
       for (const cb of this.tileHoverOutCallbacks) cb();
     }
+  }
+
+  // TLDR: Draw a hover highlight on the given tile, or clear if null
+  private updateHoverHighlight(tile: Tile | null): void {
+    this.hoverHighlight.clear();
+    if (!tile) {
+      this.hoverHighlight.visible = false;
+      return;
+    }
+    const pos = this.grid.getTilePosition(tile.row, tile.col);
+    const size = this.grid.config.tileSize;
+    const padding = this.grid.config.padding;
+    const x = pos.x + padding;
+    const y = pos.y + padding;
+    const w = size - padding * 2;
+    const h = size - padding * 2;
+
+    if (this.hoverSeedMode && tile.isEmpty()) {
+      // TLDR: Seed tool hover — green preview tint on plantable tiles
+      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.fill({ color: UI_COLORS.TILE_SEED_PREVIEW, alpha: 0.25 });
+      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.stroke({ color: UI_COLORS.TILE_SEED_PREVIEW, width: 2 });
+    } else {
+      // TLDR: Default hover — subtle brightness increase
+      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.fill({ color: UI_COLORS.TILE_HOVER_FILL, alpha: 0.12 });
+    }
+    this.hoverHighlight.visible = true;
+  }
+
+  // TLDR: Enable/disable seed-tool hover mode for green tile previews
+  public setHoverSeedMode(active: boolean): void {
+    this.hoverSeedMode = active;
   }
 
   /** Register a callback to be notified when a tile is clicked */
