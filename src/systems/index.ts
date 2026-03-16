@@ -38,3 +38,6 @@ export { TileRenderer } from './TileRenderer';
 export type { TileRendererConfig } from './TileRenderer';
 export { MutationSystem } from './MutationSystem';
 export type { MutationCheckContext, MutationResult } from './MutationSystem';
+export { CloudSystem } from './CloudSystem';
+export { IdleCharmSystem } from './IdleCharmSystem';
+export type { IdleCharmConfig } from './IdleCharmSystem';

@@ -15,11 +15,23 @@ export const ANIMATION = {
   SWAY_X_AMPLITUDE: 1.5,
   SWAY_X_FREQUENCY: 0.8,
 
-  // Harvest burst particles
-  HARVEST_PARTICLE_COUNT: 14,
+  // TLDR: Harvest celebration particles (Sabrina §5.4 item 9)
+  HARVEST_PARTICLE_COUNT: 14,        // 8 accent + 4 gold + 2-4 leaf = 14-16
   HARVEST_PARTICLE_LIFETIME: 0.7,
   HARVEST_PARTICLE_SPEED: 140,
   HARVEST_PARTICLE_SIZE: 4,
+  HARVEST_GOLD_COLOR: 0xF2CC8F,      // §5.4 honey gold
+  HARVEST_GOLD_COUNT: 4,             // §5.4 gold particles
+  HARVEST_LEAF_COUNT: 3,             // §5.4 leaf shapes (2-4, avg 3)
+  HARVEST_LEAF_SIZE: 5,
+  HARVEST_RARE_PARTICLE_COUNT: 22,   // §5.4 rare/heirloom 20+ particles
+  HARVEST_RARE_RING_COLOR: 0xF2CC8F, // §5.4 golden ring flash
+  HARVEST_RARE_RING_RADIUS: 32,
+  HARVEST_SCORE_FONT_SIZE: 18,       // §5.4 score float 18px bold
+  HARVEST_SCORE_COLOR: '#F2CC8F',    // §5.4 honey gold
+  HARVEST_SCORE_RISE: 30,            // §5.4 rises 30px
+  HARVEST_SCORE_DURATION: 1.2,       // §5.4 fades over 1.2s
+  HARVEST_SEED_BOUNCE_COUNT: 2,      // §5.4 1-3 seed sprites bounce
   HARVEST_SHAKE_DURATION: 0.15,
   HARVEST_SHAKE_INTENSITY: 4,
 
@@ -85,8 +97,8 @@ export const ANIMATION = {
   HARVEST_PULSE_OPACITY: 0.25,
   HARVEST_PULSE_DURATION: 0.35,
 
-  // Harvest seed drop particles
-  HARVEST_SEED_PARTICLE_COUNT: 6,
+  // TLDR: Seed drop particles (Sabrina §5.4 — bounce then float toward inventory)
+  HARVEST_SEED_PARTICLE_COUNT: 3,
 
   // Pest squish effect
   PEST_SQUISH_PARTICLE_COUNT: 10,
@@ -149,6 +161,16 @@ export const ANIMATION = {
   // TLDR: Toolbar tier tooltip (#317)
   TOOL_TOOLTIP_WIDTH: 220,
   TOOL_TOOLTIP_PADDING: 10,
+
+  // TLDR: Planting soil splash (Sabrina §5.2 item 10)
+  PLANT_SPLASH_PARTICLE_COUNT: 5,
+  PLANT_SPLASH_PARTICLE_SPEED: 60,
+  PLANT_SPLASH_PARTICLE_LIFETIME: 0.4,
+  PLANT_SPLASH_PARTICLE_SIZE: 3,
+  PLANT_SPLASH_GRAVITY: 200,
+  PLANT_SPLASH_COLOR: 0xC9A06C,
+  PLANT_SPLASH_TILE_BRIGHTEN: 0.15,
+  PLANT_SPLASH_TILE_BRIGHTEN_DURATION: 0.3,
 } as const;
 
 // TLDR: Plant color palettes per rarity for growth visuals

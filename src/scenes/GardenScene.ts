@@ -44,6 +44,8 @@ import {
 } from '../config/plantVisuals';
 import { TutorialSystem } from '../systems/TutorialSystem';
 import { WeedSystem } from '../systems/WeedSystem';
+import { CloudSystem } from '../systems/CloudSystem';
+import { IdleCharmSystem } from '../systems/IdleCharmSystem';
 import { shouldReduceMotion } from '../utils/accessibility';
 import {
   getViewportInfo,
@@ -145,6 +147,8 @@ export class GardenScene implements Scene {
   private particleSystem!: ParticleSystem;
   private plantRenderer!: PlantRenderer;
   private tileRenderer!: TileRenderer;
+  private cloudSystem!: CloudSystem;
+  private idleCharmSystem!: IdleCharmSystem;
   private shakeContainer!: Container;
   private shakeElapsed = 0;
   private shakeDuration = 0;
@@ -520,6 +524,47 @@ export class GardenScene implements Scene {
     this.container.addChild(this.particleSystem.getContainer());
     this.plantRenderer.rebuildAllVisuals();
     this.setupVisualListeners();
+
+    // TLDR: Cloud drift — soft ambient clouds in the sky (Sabrina §5.1 item 12)
+    this.cloudSystem = new CloudSystem(ctx.app.screen.width, ctx.app.screen.height);
+    this.cloudSystem.init();
+    this.container.addChildAt(this.cloudSystem.getContainer(), 0);
+
+    // TLDR: Idle charm events — bird/ladybug after 5s idle (Sabrina §5.6 item 13)
+    this.idleCharmSystem = new IdleCharmSystem({
+      screenWidth: ctx.app.screen.width,
+      screenHeight: ctx.app.screen.height,
+      getPlantPositions: () => {
+        const positions: Array<{ x: number; y: number }> = [];
+        const gridPos = this.gridSystem.getContainer().position;
+        for (const [, plant] of this.plants) {
+          const tilePos = this.grid.getTilePosition(plant.y, plant.x);
+          const tileSize = this.grid.config.tileSize;
+          positions.push({
+            x: gridPos.x + tilePos.x + tileSize / 2,
+            y: gridPos.y + tilePos.y + tileSize / 2,
+          });
+        }
+        return positions;
+      },
+      getTilePositions: () => {
+        const positions: Array<{ x: number; y: number; size: number }> = [];
+        const gridPos = this.gridSystem.getContainer().position;
+        const tileSize = this.grid.config.tileSize;
+        for (let r = 0; r < this.grid.config.rows; r++) {
+          for (let c = 0; c < this.grid.config.cols; c++) {
+            const tilePos = this.grid.getTilePosition(r, c);
+            positions.push({
+              x: gridPos.x + tilePos.x + tileSize / 2,
+              y: gridPos.y + tilePos.y + tileSize / 2,
+              size: tileSize,
+            });
+          }
+        }
+        return positions;
+      },
+    });
+    this.container.addChild(this.idleCharmSystem.getContainer());
 
     // TLDR: Initialize tutorial system and overlay
     this.tutorialSystem = new TutorialSystem();
@@ -2018,6 +2063,8 @@ export class GardenScene implements Scene {
   private setupVisualListeners(): void {
     this.listenTo('plant:created', (data) => {
       this.plantRenderer.createPlantVisual(data.plantId, data.x, data.y);
+      // TLDR: Soil splash on planting — satisfying "tuck into earth" (Sabrina §5.2 item 10)
+      this.triggerPlantingSoilSplash(data.x, data.y);
     });
 
     this.listenTo('plant:grew', (data) => {
@@ -2063,6 +2110,49 @@ export class GardenScene implements Scene {
     this.listenTo('day:advanced', () => {
       this.triggerDaySkyLerp();
     });
+  }
+
+  /**
+   * TLDR: Soil splash + tile brighten on seed planting (Sabrina §5.2 item 10)
+   */
+  private triggerPlantingSoilSplash(col: number, row: number): void {
+    const tilePos = this.grid.getTilePosition(row, col);
+    const tileSize = this.grid.config.tileSize;
+    const gridPos = this.gridSystem.getContainer().position;
+
+    const cx = gridPos.x + tilePos.x + tileSize / 2;
+    const cy = gridPos.y + tilePos.y + tileSize / 2;
+
+    // TLDR: Upward soil particle burst — 4-6 particles, gravity 200, fade 0.4s
+    this.particleSystem.burst({
+      x: cx,
+      y: cy,
+      count: ANIMATION.PLANT_SPLASH_PARTICLE_COUNT,
+      speed: ANIMATION.PLANT_SPLASH_PARTICLE_SPEED,
+      lifetime: ANIMATION.PLANT_SPLASH_PARTICLE_LIFETIME,
+      colors: [ANIMATION.PLANT_SPLASH_COLOR, 0xB8956A, 0xD4A574],
+      size: ANIMATION.PLANT_SPLASH_PARTICLE_SIZE,
+      gravity: ANIMATION.PLANT_SPLASH_GRAVITY,
+    });
+
+    // TLDR: Tile briefly brightens 15% then returns
+    const overlay = new Graphics();
+    overlay.rect(tilePos.x, tilePos.y, tileSize, tileSize);
+    overlay.fill({ color: 0xffffff, alpha: ANIMATION.PLANT_SPLASH_TILE_BRIGHTEN });
+    this.gridSystem.getContainer().addChild(overlay);
+
+    this.animationSystem.tween(
+      overlay as unknown as Record<string, unknown>,
+      { alpha: 0 },
+      ANIMATION.PLANT_SPLASH_TILE_BRIGHTEN_DURATION,
+      {
+        easing: Easing.easeOut,
+        onComplete: () => {
+          this.gridSystem.getContainer().removeChild(overlay);
+          overlay.destroy();
+        },
+      },
+    );
   }
 
   /**
@@ -2524,6 +2614,8 @@ export class GardenScene implements Scene {
     this.particleSystem.update(delta);
     this.plantRenderer.update(delta);
     this.tileRenderer.update(delta);
+    this.cloudSystem.update(delta);
+    this.idleCharmSystem.update(delta);
 
     this.updateSynergyConnectionLines();
     this.updatePlacementPreview();
@@ -2785,6 +2877,8 @@ export class GardenScene implements Scene {
     this.particleSystem.destroy();
     this.plantRenderer.destroy();
     this.tileRenderer.destroy();
+    this.cloudSystem.destroy();
+    this.idleCharmSystem.destroy();
     this.gridSystem.destroy();
     this.playerSystem.destroy();
     this.plantSystem.destroy();
