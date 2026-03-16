@@ -239,7 +239,7 @@ export class MenuScene implements Scene {
     this.logoText.alpha = 0;
     this.titleLayer.addChild(this.logoText);
 
-    const tagline = new Text({ text: 'A cozy gardening roguelite', style: { fontFamily: 'Arial', fontSize: 20, fill: '#c8e6c9', align: 'center' } });
+    const tagline = new Text({ text: 'A cozy gardening roguelite', style: { fontFamily: 'Arial', fontSize: 20, fill: '#5E4B3B', align: 'center' } });
     tagline.anchor.set(0.5);
     tagline.x = cx;
     tagline.y = cy - 20;
@@ -290,14 +290,14 @@ export class MenuScene implements Scene {
       const item = this.menuItems[i];
       const y = startY + i * itemHeight;
       const bg = new Graphics();
-      bg.roundRect(cx - 150, y, 300, 46, 10);
-      bg.fill({ color: 0x1a1a1a, alpha: 0.85 });
-      bg.stroke({ color: 0x3e7a38, width: 2 });
+      bg.roundRect(cx - 150, y, 300, 46, 23);
+      bg.fill({ color: UI_COLORS.MENU_ITEM_BG, alpha: 0.95 });
+      bg.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
       bg.eventMode = 'static';
       bg.cursor = item.enabled ? 'pointer' : 'default';
       this.mainMenuLayer.addChild(bg);
 
-      const text = new Text({ text: item.label, style: { fontFamily: 'Arial', fontSize: 22, fill: item.enabled ? '#ffffff' : '#666666', fontWeight: 'bold', align: 'center' } });
+      const text = new Text({ text: item.label, style: { fontFamily: 'Arial', fontSize: 22, fill: item.enabled ? UI_COLORS.TEXT_PRIMARY : UI_COLORS.TEXT_DISABLED, fontWeight: 'bold', align: 'center' } });
       text.anchor.set(0.5);
       text.x = cx;
       text.y = y + 23;
@@ -339,11 +339,11 @@ export class MenuScene implements Scene {
 
     const panel = new Graphics();
     panel.roundRect(cx - 220, 40, 440, this.screenHeight - 80, 16);
-    panel.fill({ color: 0x111111, alpha: 0.92 });
-    panel.stroke({ color: 0x4caf50, width: 2 });
+    panel.fill({ color: 0xFAF3E8, alpha: 0.95 });
+    panel.stroke({ color: 0xD4C4A8, width: 2 });
     this.settingsLayer.addChild(panel);
 
-    const title = new Text({ text: '⚙️  Settings', style: { fontFamily: 'Arial', fontSize: 32, fill: '#c8e6c9', fontWeight: 'bold', align: 'center' } });
+    const title = new Text({ text: '⚙️  Settings', style: { fontFamily: 'Arial', fontSize: 32, fill: '#5E4B3B', fontWeight: 'bold', align: 'center' } });
     title.anchor.set(0.5);
     title.x = cx;
     title.y = 70;
@@ -366,14 +366,14 @@ export class MenuScene implements Scene {
 
     // TLDR: Colorblind mode toggle
     sliderY += 10;
-    const cbLabel = new Text({ text: 'Colorblind Mode', style: { fontFamily: 'Arial', fontSize: 16, fill: '#c8e6c9', align: 'left' } });
+    const cbLabel = new Text({ text: 'Colorblind Mode', style: { fontFamily: 'Arial', fontSize: 16, fill: '#5E4B3B', align: 'left' } });
     cbLabel.x = cx - 180;
     cbLabel.y = sliderY;
     this.settingsLayer.addChild(cbLabel);
 
     const toggleBg = new Graphics();
     const toggleText = new Text({ text: this.colorblindMode ? '✅ ON' : '❌ OFF', style: { fontFamily: 'Arial', fontSize: 16, fill: this.colorblindMode ? '#88d498' : '#888888', fontWeight: 'bold', align: 'center' } });
-    toggleBg.roundRect(cx + 80, sliderY - 4, 100, 30, 6);
+    toggleBg.roundRect(cx + 80, sliderY - 4, 100, 30, 15);
     toggleBg.fill({ color: this.colorblindMode ? 0x2d5a27 : 0x2a2a2a });
     toggleBg.stroke({ color: 0x4a4a4a, width: 1 });
     toggleBg.eventMode = 'static';
@@ -397,13 +397,13 @@ export class MenuScene implements Scene {
       const item = this.settingsItems[i];
       const y = sliderY + i * 52;
       const bg = new Graphics();
-      bg.roundRect(cx - 130, y, 260, 40, 8);
-      bg.fill({ color: 0x2a2a2a });
-      bg.stroke({ color: 0x4a4a4a, width: 2 });
+      bg.roundRect(cx - 130, y, 260, 40, 20);
+      bg.fill({ color: UI_COLORS.BACK_BUTTON_BG });
+      bg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 });
       bg.eventMode = 'static';
       bg.cursor = 'pointer';
       this.settingsLayer.addChild(bg);
-      const text = new Text({ text: item.label, style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+      const text = new Text({ text: item.label, style: { fontFamily: 'Arial', fontSize: 18, fill: UI_COLORS.TEXT_PRIMARY, fontWeight: 'bold', align: 'center' } });
       text.anchor.set(0.5);
       text.x = cx;
       text.y = y + 20;
@@ -416,7 +416,7 @@ export class MenuScene implements Scene {
   }
 
   private createSlider(cx: number, y: number, channel: VolumeChannel, label: string, value: number): number {
-    const labelText = new Text({ text: label, style: { fontFamily: 'Arial', fontSize: 16, fill: '#c8e6c9', align: 'left' } });
+    const labelText = new Text({ text: label, style: { fontFamily: 'Arial', fontSize: 16, fill: '#5E4B3B', align: 'left' } });
     labelText.x = cx - 180;
     labelText.y = y;
     this.settingsLayer.addChild(labelText);
@@ -482,7 +482,7 @@ export class MenuScene implements Scene {
       this.colorblindToggle.text.text = this.colorblindMode ? '✅ ON' : '❌ OFF';
       this.colorblindToggle.text.style.fill = this.colorblindMode ? '#88d498' : '#888888';
       this.colorblindToggle.bg.clear();
-      this.colorblindToggle.bg.roundRect(this.screenWidth / 2 + 80, 0, 100, 30, 6);
+      this.colorblindToggle.bg.roundRect(this.screenWidth / 2 + 80, 0, 100, 30, 15);
       this.colorblindToggle.bg.fill({ color: this.colorblindMode ? 0x2d5a27 : 0x2a2a2a });
       this.colorblindToggle.bg.stroke({ color: 0x4a4a4a, width: 1 });
     }
@@ -498,11 +498,11 @@ export class MenuScene implements Scene {
     const cx = this.screenWidth / 2;
     const panel = new Graphics();
     panel.roundRect(cx - 200, 60, 400, this.screenHeight - 120, 16);
-    panel.fill({ color: 0x111111, alpha: 0.92 });
-    panel.stroke({ color: 0x4caf50, width: 2 });
+    panel.fill({ color: 0xFAF3E8, alpha: 0.95 });
+    panel.stroke({ color: 0xD4C4A8, width: 2 });
     this.creditsLayer.addChild(panel);
 
-    const title = new Text({ text: '📜  Credits', style: { fontFamily: 'Arial', fontSize: 32, fill: '#c8e6c9', fontWeight: 'bold', align: 'center' } });
+    const title = new Text({ text: '📜  Credits', style: { fontFamily: 'Arial', fontSize: 32, fill: '#5E4B3B', fontWeight: 'bold', align: 'center' } });
     title.anchor.set(0.5);
     title.x = cx;
     title.y = 90;
@@ -527,22 +527,22 @@ export class MenuScene implements Scene {
       cy += 65;
     }
 
-    const thanks = new Text({ text: '🌿 Thank you for playing! 🌿', style: { fontFamily: 'Arial', fontSize: 16, fill: '#c8e6c9', align: 'center' } });
+    const thanks = new Text({ text: '🌿 Thank you for playing! 🌿', style: { fontFamily: 'Arial', fontSize: 16, fill: '#5E4B3B', align: 'center' } });
     thanks.anchor.set(0.5); thanks.x = cx; thanks.y = cy + 20;
     this.creditsLayer.addChild(thanks);
 
     const backBg = new Graphics();
-    backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8);
-    backBg.fill({ color: 0x2a2a2a });
-    backBg.stroke({ color: 0x4a4a4a, width: 2 });
+    backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 20);
+    backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG });
+    backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 });
     backBg.eventMode = 'static';
     backBg.cursor = 'pointer';
     this.creditsLayer.addChild(backBg);
-    const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+    const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: UI_COLORS.TEXT_PRIMARY, fontWeight: 'bold', align: 'center' } });
     backText.anchor.set(0.5); backText.x = cx; backText.y = this.screenHeight - 80;
     this.creditsLayer.addChild(backText);
-    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
-    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 20); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 100, 160, 40, 20); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
     backBg.on('pointerdown', () => { this.showState('settings'); });
   }
 
@@ -628,17 +628,17 @@ export class MenuScene implements Scene {
       if (selected && enabled) {
         // TLDR: Glow halo behind selected button (#326)
         const gx = ANIMATION.MENU_HOVER_GLOW_EXPAND;
-        bg.roundRect(cx - 150 - gx, y - gx, 300 + gx * 2, 46 + gx * 2, 14);
+        bg.roundRect(cx - 150 - gx, y - gx, 300 + gx * 2, 46 + gx * 2, 23);
         bg.fill({ color: UI_COLORS.BUTTON_GLOW, alpha: ANIMATION.MENU_HOVER_GLOW_ALPHA });
-        bg.roundRect(cx - 150, y, 300, 46, 10);
+        bg.roundRect(cx - 150, y, 300, 46, 23);
         bg.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG, alpha: 0.9 });
         bg.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 3 });
         text.style.fill = UI_COLORS.TEXT_PRIMARY;
       } else {
-        bg.roundRect(cx - 150, y, 300, 46, 10);
+        bg.roundRect(cx - 150, y, 300, 46, 23);
         bg.fill({ color: UI_COLORS.MENU_ITEM_BG, alpha: 0.85 });
         bg.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
-        text.style.fill = enabled ? '#cccccc' : UI_COLORS.TEXT_DISABLED;
+        text.style.fill = enabled ? UI_COLORS.TEXT_PRIMARY : UI_COLORS.TEXT_DISABLED;
       }
     }
   }
@@ -676,7 +676,7 @@ export class MenuScene implements Scene {
     if (this.colorblindToggle) {
       const isToggleSelected = index === sliderCount;
       this.colorblindToggle.bg.clear();
-      this.colorblindToggle.bg.roundRect(cx + 80, 0, 100, 30, 6);
+      this.colorblindToggle.bg.roundRect(cx + 80, 0, 100, 30, 15);
       this.colorblindToggle.bg.fill({ color: isToggleSelected ? 0x4caf50 : (this.colorblindMode ? 0x2d5a27 : 0x2a2a2a) });
       this.colorblindToggle.bg.stroke({ color: isToggleSelected ? 0x88d498 : 0x4a4a4a, width: isToggleSelected ? 2 : 1 });
     }
@@ -686,9 +686,9 @@ export class MenuScene implements Scene {
       const selected = index === buttonStartIndex + i;
       const btnY = this.getSettingsButtonY(i);
       bg.clear();
-      bg.roundRect(cx - 130, btnY, 260, 40, 8);
-      if (selected) { bg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); text.style.fill = '#ffffff'; bg.scale.set(ANIMATION.MENU_HOVER_SCALE); }
-      else { bg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); text.style.fill = '#cccccc'; bg.scale.set(1.0); }
+      bg.roundRect(cx - 130, btnY, 260, 40, 20);
+      if (selected) { bg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); text.style.fill = UI_COLORS.TEXT_PRIMARY; bg.scale.set(ANIMATION.MENU_HOVER_SCALE); }
+      else { bg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); bg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); text.style.fill = UI_COLORS.TEXT_PRIMARY; bg.scale.set(1.0); }
       text.text = this.settingsItems[i].label;
     }
   }
@@ -820,18 +820,18 @@ export class MenuScene implements Scene {
 
     const panel = new Graphics();
     panel.roundRect(cx - 260, 30, 520, this.screenHeight - 60, 16);
-    panel.fill({ color: 0x111111, alpha: 0.94 });
-    panel.stroke({ color: 0xdaa520, width: 2 });
+    panel.fill({ color: 0xFAF3E8, alpha: 0.95 });
+    panel.stroke({ color: 0xD4C4A8, width: 2 });
     this.customizeLayer.addChild(panel);
 
-    const title = new Text({ text: '🎨  Customize', style: { fontFamily: 'Arial', fontSize: 28, fill: '#daa520', fontWeight: 'bold', align: 'center' } });
+    const title = new Text({ text: '🎨  Customize', style: { fontFamily: 'Arial', fontSize: 28, fill: '#5E4B3B', fontWeight: 'bold', align: 'center' } });
     title.anchor.set(0.5); title.x = cx; title.y = 60;
     this.customizeLayer.addChild(title);
 
     let yPos = 100;
 
     // ── Seed Skins Section ────────────────────────
-    const skinHeader = new Text({ text: '🌱 Seed Packet Skins', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    const skinHeader = new Text({ text: '🌱 Seed Packet Skins', style: { fontFamily: 'Arial', fontSize: 18, fill: '#5E4B3B', fontWeight: 'bold' } });
     skinHeader.x = cx - 230; skinHeader.y = yPos;
     this.customizeLayer.addChild(skinHeader);
     yPos += 30;
@@ -852,7 +852,7 @@ export class MenuScene implements Scene {
     yPos += 12;
 
     // ── HUD Themes Section ────────────────────────
-    const themeHeader = new Text({ text: '🎨 HUD Themes', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    const themeHeader = new Text({ text: '🎨 HUD Themes', style: { fontFamily: 'Arial', fontSize: 18, fill: '#5E4B3B', fontWeight: 'bold' } });
     themeHeader.x = cx - 230; themeHeader.y = yPos;
     this.customizeLayer.addChild(themeHeader);
     yPos += 30;
@@ -872,7 +872,7 @@ export class MenuScene implements Scene {
     yPos += 12;
 
     // ── Badges Section ────────────────────────
-    const badgeHeader = new Text({ text: '🏅 Badges', style: { fontFamily: 'Arial', fontSize: 18, fill: '#c8e6c9', fontWeight: 'bold' } });
+    const badgeHeader = new Text({ text: '🏅 Badges', style: { fontFamily: 'Arial', fontSize: 18, fill: '#5E4B3B', fontWeight: 'bold' } });
     badgeHeader.x = cx - 230; badgeHeader.y = yPos;
     this.customizeLayer.addChild(badgeHeader);
     yPos += 30;
@@ -895,17 +895,17 @@ export class MenuScene implements Scene {
     // ── Back Button ────────────────────────
     yPos += 20;
     const backBg = new Graphics();
-    backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8);
-    backBg.fill({ color: 0x2a2a2a });
-    backBg.stroke({ color: 0x4a4a4a, width: 2 });
+    backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 20);
+    backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG });
+    backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 });
     backBg.eventMode = 'static';
     backBg.cursor = 'pointer';
     this.customizeLayer.addChild(backBg);
-    const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: '#ffffff', fontWeight: 'bold', align: 'center' } });
+    const backText = new Text({ text: '🔙  Back', style: { fontFamily: 'Arial', fontSize: 18, fill: UI_COLORS.TEXT_PRIMARY, fontWeight: 'bold', align: 'center' } });
     backText.anchor.set(0.5); backText.x = cx; backText.y = this.screenHeight - 60;
     this.customizeLayer.addChild(backText);
-    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
-    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 8); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
+    backBg.on('pointerover', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 20); backBg.fill({ color: UI_COLORS.BACK_BUTTON_HOVER_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_HOVER_BORDER, width: 2 }); backBg.scale.set(ANIMATION.MENU_HOVER_SCALE); });
+    backBg.on('pointerout', () => { backBg.clear(); backBg.roundRect(cx - 80, this.screenHeight - 80, 160, 40, 20); backBg.fill({ color: UI_COLORS.BACK_BUTTON_BG }); backBg.stroke({ color: UI_COLORS.BACK_BUTTON_BORDER, width: 2 }); backBg.scale.set(1.0); });
     backBg.on('pointerdown', () => { this.showState('main'); });
   }
 
@@ -946,7 +946,7 @@ export class MenuScene implements Scene {
     this.customizeLayer.addChild(icon);
 
     // TLDR: Cosmetic name
-    const name = new Text({ text: displayName, style: { fontFamily: 'Arial', fontSize: 14, fill: isUnlocked ? '#ffffff' : '#555555', fontWeight: isActive ? 'bold' : 'normal' } });
+    const name = new Text({ text: displayName, style: { fontFamily: 'Arial', fontSize: 14, fill: isUnlocked ? '#5E4B3B' : '#B0A898', fontWeight: isActive ? 'bold' : 'normal' } });
     name.x = x + 38; name.y = y + 8;
     this.customizeLayer.addChild(name);
 

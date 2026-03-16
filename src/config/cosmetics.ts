@@ -107,16 +107,16 @@ export const SEED_SKINS: Record<string, SeedSkinConfig> = {
 export const DEFAULT_HUD_THEME: HudThemeConfig = {
   id: 'default',
   displayName: 'Default',
-  panelBg: 0x2a2520,
-  panelBgAlpha: 0.92,
-  panelBorder: 0x6b5b4e,
-  primaryTextColor: '#f5e6d3',
-  secondaryTextColor: '#d4a574',
-  tertiaryTextColor: '#8a7a6a',
-  accentColor: 0xa8e6cf,
-  progressBarColor: 0xa8e6cf,
-  phaseBarBg: 0x2a2520,
-  hintBgColor: 0x2e7d32,
+  panelBg: 0xFAF3E8,
+  panelBgAlpha: 0.88,
+  panelBorder: 0xD4C4A8,
+  primaryTextColor: '#5E4B3B',
+  secondaryTextColor: '#8B7355',
+  tertiaryTextColor: '#8B7355',
+  accentColor: 0x7FB069,
+  progressBarColor: 0x7FB069,
+  phaseBarBg: 0xFAF3E8,
+  hintBgColor: 0xC5DEB5,
 };
 
 export const HUD_THEMES: Record<string, HudThemeConfig> = {

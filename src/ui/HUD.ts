@@ -81,25 +81,24 @@ export class HUD {
     this.bg = new Graphics();
     this.container.addChild(this.bg);
 
-    // --- PRIMARY TIER (20px, warm cozy colors) ---
+    // --- PRIMARY TIER — Horizontal strip (Sabrina §4.6) ---
+    // TLDR: Items flow left-to-right: [🌱 Day 4/12] · [☀️ Summer] · [💧 3 actions] · [⭐ 142 pts]
     this.dayText = new Text({
-      text: 'Day 1 / 12',
+      text: '🌱 Day 1/12',
       style: {
         fontFamily: 'Arial',
-        fontSize: 20,
+        fontSize: 16,
         fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
     });
-    this.dayText.x = 16;
-    this.dayText.y = 10;
     this.container.addChild(this.dayText);
 
     this.seasonText = new Text({
-      text: '\uD83C\uDF38 Spring',
+      text: '☀️ Spring',
       style: {
         fontFamily: 'Arial',
-        fontSize: 20,
+        fontSize: 16,
         fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
@@ -107,27 +106,26 @@ export class HUD {
     this.container.addChild(this.seasonText);
 
     this.actionsText = new Text({
-      text: 'Actions: 3/3',
+      text: '💧 3 actions',
       style: {
         fontFamily: 'Arial',
-        fontSize: 20,
+        fontSize: 16,
         fill: this.activeTheme.primaryTextColor,
         fontWeight: 'bold',
       },
     });
     this.container.addChild(this.actionsText);
 
-    // --- SECONDARY TIER (14px, present but subdued) ---
+    // TLDR: Score is now part of the horizontal strip
     this.scoreText = new Text({
-      text: 'Score: 0',
+      text: '⭐ 0 pts',
       style: {
         fontFamily: 'Arial',
-        fontSize: 14,
-        fill: this.activeTheme.secondaryTextColor,
+        fontSize: 16,
+        fill: this.activeTheme.primaryTextColor,
+        fontWeight: 'bold',
       },
     });
-    this.scoreText.x = 16;
-    this.scoreText.y = 38;
     this.container.addChild(this.scoreText);
 
     this.lastActionPointsText = new Text({
@@ -135,7 +133,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 14,
-        fill: '#a8e6cf',
+        fill: '#7FB069',
         fontWeight: 'bold',
       },
     });
@@ -153,7 +151,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 11,
-        fill: '#8a7a6a',
+        fill: '#8B7355',
       },
     });
     this.container.addChild(this.dayProgressLabel);
@@ -222,7 +220,7 @@ export class HUD {
         style: {
           fontFamily: 'Arial',
           fontSize: 13,
-          fill: '#555555',
+          fill: '#8B7355',
           fontWeight: 'normal',
         },
       });
@@ -238,7 +236,7 @@ export class HUD {
           style: {
             fontFamily: 'Arial',
             fontSize: 13,
-            fill: '#444444',
+            fill: '#A09080',
           },
         });
         arrow.x = phaseX;
@@ -260,7 +258,7 @@ export class HUD {
       style: {
         fontFamily: 'Arial',
         fontSize: 12,
-        fill: '#e8f5e9',
+        fill: '#5E4B3B',
         fontWeight: 'bold',
         align: 'center',
       },
@@ -305,58 +303,67 @@ export class HUD {
   }
 
   /**
-   * TLDR: Redraws background and repositions elements for a given panel width.
+   * TLDR: Redraws background and repositions elements for horizontal strip layout (Sabrina §4.6).
+   * 32px tall, 8px corner radius, items flow left-to-right with 16px gaps.
    */
   private layoutPanel(width: number): void {
     this.panelWidth = width;
-    const primaryHeight = 60;
+    const stripHeight = 32;
     const theme = this.activeTheme;
+    const pad = 12;
+    const gap = 16;
 
-    // Redraw main background
+    // TLDR: Redraw horizontal strip background
     this.bg.clear();
-    this.bg.roundRect(0, 0, width, primaryHeight, 10);
-    this.bg.fill({ color: theme.panelBg, alpha: theme.panelBgAlpha });
+    this.bg.roundRect(0, 0, width, stripHeight, 8);
+    this.bg.fill({ color: theme.panelBg, alpha: 0.88 });
     this.bg.stroke({ color: theme.panelBorder, width: 1.5 });
 
-    // Primary: Season centered
-    this.seasonText.x = width / 2 - 50;
-    this.seasonText.y = 10;
+    // TLDR: Primary items flow left-to-right, vertically centered
+    const textY = (stripHeight - 16) / 2;
+    let curX = pad;
 
-    // Primary: Actions right-aligned
-    this.actionsText.x = width - 16;
-    this.actionsText.y = 10;
-    this.actionsText.anchor.set(1, 0);
-    
-    // TLDR: Action flash background (same position as actions text)
+    this.dayText.x = curX;
+    this.dayText.y = textY;
+    curX += this.dayText.width + gap;
+
+    this.seasonText.x = curX;
+    this.seasonText.y = textY;
+    curX += this.seasonText.width + gap;
+
+    this.actionsText.x = curX;
+    this.actionsText.y = textY;
+    this.actionsText.anchor.set(0, 0);
+    curX += this.actionsText.width + gap;
+
+    this.scoreText.x = curX;
+    this.scoreText.y = textY;
+
+    // TLDR: Last action points (floating indicator next to score)
+    this.lastActionPointsText.x = curX + this.scoreText.width + 8;
+    this.lastActionPointsText.y = textY;
+
+    // TLDR: Action flash background
     this.actionFlashBg = new Graphics();
     this.actionFlashBg.visible = false;
     this.container.addChild(this.actionFlashBg);
 
-    // Secondary: Score left
-    this.scoreText.x = 16;
-    this.scoreText.y = 38;
-
-    // Secondary: Last action points next to score
-    this.lastActionPointsText.x = 110;
-    this.lastActionPointsText.y = 38;
-
-    // Secondary: Day progress bar right side
+    // TLDR: Day progress bar below the strip
     const barWidth = Math.min(160, width * 0.35);
-    const barX = width - barWidth - 16;
-    const barY = 40;
-    const barHeight = 12;
+    const barX = width - barWidth - pad;
+    const barY = stripHeight + 4;
+    const barHeight = 6;
 
     this.dayProgressBarBg.clear();
     this.dayProgressBarBg.roundRect(barX, barY, barWidth, barHeight, 3);
-    this.dayProgressBarBg.fill({ color: 0x3d342c });
+    this.dayProgressBarBg.fill({ color: 0xE8E0D8 });
 
     this.dayProgressLabel.x = barX;
-    this.dayProgressLabel.y = barY - 13;
+    this.dayProgressLabel.y = barY + barHeight + 2;
 
-    // Tertiary container sits below the main panel
-    this.tertiaryContainer.y = primaryHeight + 4;
+    // TLDR: Tertiary container sits below the strip
+    this.tertiaryContainer.y = stripHeight + 4;
 
-    // Tertiary background
     this.tertiaryBg.clear();
     this.tertiaryBg.roundRect(0, 0, width, 28, 6);
     this.tertiaryBg.fill({ color: theme.panelBg, alpha: 0.85 });
@@ -372,18 +379,18 @@ export class HUD {
     // Unlock progress bar in tertiary
     this.unlockProgressBarBg.clear();
     this.unlockProgressBarBg.roundRect(12, 20, width - 24, 6, 3);
-    this.unlockProgressBarBg.fill({ color: 0x3d342c });
+    this.unlockProgressBarBg.fill({ color: 0xE8E0D8 });
 
     this.unlockProgressText.x = 12;
     this.unlockProgressText.y = 6;
 
     // Phase bar positioning (below tertiary)
-    const phaseY = primaryHeight + 36;
+    const phaseY = stripHeight + 36;
     this.phaseContainer.y = phaseY;
     this.phaseBg.clear();
     this.phaseBg.roundRect(0, 0, width, 32, 6);
     this.phaseBg.fill({ color: theme.phaseBarBg, alpha: 0.85 });
-    this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
+    this.phaseBg.stroke({ color: 0xD4C4A8, width: 1 });
 
     // Hint positioning
     this.hintBg.clear();
@@ -400,7 +407,7 @@ export class HUD {
     this.escHintText.y = phaseY + 9;
 
     this.dailyBadge.x = 16;
-    this.dailyBadge.y = primaryHeight - 24;
+    this.dailyBadge.y = stripHeight - 24;
   }
 
   /**
@@ -429,16 +436,16 @@ export class HUD {
     maxActions: number = 0,
   ): void {
     // Primary: Day counter
-    this.dayText.text = `Day ${day} / ${maxDays}`;
+    this.dayText.text = `🌱 Day ${day}/${maxDays}`;
 
     // TLDR: ESC hint visible only on days 1-2 for new-player discoverability (#295)
     this.escHintText.visible = day <= 2;
 
     // Secondary: Day progress bar
     const barWidth = Math.min(160, this.panelWidth * 0.35);
-    const barX = this.panelWidth - barWidth - 16;
-    const barY = 40;
-    const barHeight = 12;
+    const barX = this.panelWidth - barWidth - 12;
+    const barY = 36;
+    const barHeight = 6;
 
     this.dayProgressBar.clear();
     if (dayProgress > 0) {
@@ -453,13 +460,13 @@ export class HUD {
     }
 
     // Primary: Actions with color coding
-    this.actionsText.text = `Actions: ${actionsRemaining}/${maxActions}`;
+    this.actionsText.text = `💧 ${actionsRemaining} actions`;
     if (actionsRemaining === 0) {
-      this.actionsText.style.fill = '#e57373';
+      this.actionsText.style.fill = '#c0392b';
     } else if (actionsRemaining === maxActions) {
-      this.actionsText.style.fill = '#a8e6cf';
+      this.actionsText.style.fill = '#5E4B3B';
     } else {
-      this.actionsText.style.fill = '#ffe082';
+      this.actionsText.style.fill = '#8B7355';
     }
   }
   
@@ -474,7 +481,7 @@ export class HUD {
    * TLDR: Update score display (secondary tier)
    */
   updateScore(totalScore: number, lastActionPoints: number = 0): void {
-    this.scoreText.text = `Score: ${totalScore}`;
+    this.scoreText.text = `⭐ ${totalScore} pts`;
 
     if (lastActionPoints > 0) {
       this.lastActionPointsText.text = `+${lastActionPoints}`;
@@ -517,10 +524,10 @@ export class HUD {
     this.seasonText.text = `${cfg.emoji} ${cfg.displayName}`;
 
     const seasonColors: Record<Season, string> = {
-      [Season.SPRING]: '#a8e6cf',
-      [Season.SUMMER]: '#ffe082',
-      [Season.FALL]: '#ffcc80',
-      [Season.WINTER]: '#b3d9ff',
+      [Season.SPRING]: '#5E4B3B',
+      [Season.SUMMER]: '#5E4B3B',
+      [Season.FALL]: '#5E4B3B',
+      [Season.WINTER]: '#5E4B3B',
     };
     this.seasonText.style.fill = seasonColors[season];
   }
@@ -609,12 +616,12 @@ export class HUD {
     for (let i = 0; i < this.phaseLabels.length; i++) {
       const cfg = PHASE_CONFIG[PHASE_ORDER[i]];
       const isActive = i === activeIndex;
-      this.phaseLabels[i].style.fill = isActive ? cfg.color : '#555555';
+      this.phaseLabels[i].style.fill = isActive ? cfg.color : '#8B7355';
       this.phaseLabels[i].style.fontWeight = isActive ? 'bold' : 'normal';
       this.phaseLabels[i].style.fontSize = isActive ? 14 : 13;
     }
     for (let i = 0; i < this.phaseArrows.length; i++) {
-      this.phaseArrows[i].style.fill = i < activeIndex ? '#888888' : '#444444';
+      this.phaseArrows[i].style.fill = i < activeIndex ? '#8B7355' : '#A09080';
     }
   }
 
@@ -654,7 +661,7 @@ export class HUD {
         const flashColor = parseInt(cfg.color.replace('#', ''), 16);
         this.phaseBg.stroke({ color: flashColor, width: 2, alpha: this.phaseTransitionAlpha });
       } else {
-        this.phaseBg.stroke({ color: 0x3d342c, width: 1 });
+        this.phaseBg.stroke({ color: 0xD4C4A8, width: 1 });
       }
     }
     
@@ -673,8 +680,8 @@ export class HUD {
         const flashX = this.panelWidth - flashWidth - 8;
         const flashY = 7;
         this.actionFlashBg.roundRect(flashX, flashY, flashWidth, flashHeight, 6);
-        this.actionFlashBg.fill({ color: 0xffe082, alpha: this.actionFlashAlpha * 0.4 });
-        this.actionFlashBg.stroke({ color: 0xffd54f, width: 2, alpha: this.actionFlashAlpha });
+        this.actionFlashBg.fill({ color: 0xF2CC8F, alpha: this.actionFlashAlpha * 0.4 });
+        this.actionFlashBg.stroke({ color: 0xF2CC8F, width: 2, alpha: this.actionFlashAlpha });
       }
     }
   }

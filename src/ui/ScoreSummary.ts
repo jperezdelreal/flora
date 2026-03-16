@@ -50,8 +50,8 @@ export class ScoreSummary {
 
     const panel = new Graphics();
     panel.roundRect(50, 50, 700, 500, 16);
-    panel.fill({ color: 0x1a1a1a, alpha: 0.98 });
-    panel.stroke({ color: COLORS.ACCENT_GREEN, width: 3 });
+    panel.fill({ color: 0xFAF3E8, alpha: 0.98 });
+    panel.stroke({ color: 0xD4C4A8, width: 3 });
     this.container.addChild(panel);
 
     this.titleText = new Text({
@@ -92,7 +92,7 @@ export class ScoreSummary {
       style: {
         fontFamily: 'Arial',
         fontSize: 18,
-        fill: '#ffffff',
+        fill: '#5E4B3B',
         align: 'left',
         lineHeight: 28,
       },
@@ -158,19 +158,19 @@ export class ScoreSummary {
   // TLDR: Draw continue button in enabled or disabled state
   private drawContinueButton(enabled: boolean): void {
     this.continueButton.clear();
-    this.continueButton.roundRect(0, 0, 200, 50, 8);
+    this.continueButton.roundRect(0, 0, 200, 50, 25);
     if (enabled) {
       this.continueButton.fill({ color: COLORS.ACCENT_GREEN });
       this.continueButton.stroke({ color: COLORS.LIGHT_GREEN, width: 2 });
       this.continueButton.eventMode = 'static';
       this.continueButton.cursor = 'pointer';
-      this.continueButtonText.style.fill = '#ffffff';
+      this.continueButtonText.style.fill = '#5E4B3B';
     } else {
       this.continueButton.fill({ color: UI_COLORS.BUTTON_LOCKED_BG });
       this.continueButton.stroke({ color: UI_COLORS.BUTTON_LOCKED_BORDER, width: 2 });
       this.continueButton.eventMode = 'none';
       this.continueButton.cursor = 'default';
-      this.continueButtonText.style.fill = UI_COLORS.TEXT_DISABLED;
+      this.continueButtonText.style.fill = '#B0A898';
     }
   }
 
@@ -183,7 +183,7 @@ export class ScoreSummary {
     this.continueButton.on('pointerover', () => {
       if (!this.buttonEnabled) return;
       this.continueButton.clear();
-      this.continueButton.roundRect(0, 0, 200, 50, 8);
+      this.continueButton.roundRect(0, 0, 200, 50, 25);
       this.continueButton.fill({ color: COLORS.LIGHT_GREEN });
       this.continueButton.stroke({ color: COLORS.PALE_GREEN, width: 2 });
     });
@@ -246,7 +246,7 @@ export class ScoreSummary {
       this.milestoneBadge.stroke({ color: milestone.color, width: 3 });
     } else {
       this.milestoneText.text = 'Keep Growing!';
-      this.milestoneText.style.fill = '#88d498';
+      this.milestoneText.style.fill = '#7FB069';
       this.milestoneBadge.clear();
     }
 
@@ -259,10 +259,10 @@ export class ScoreSummary {
       this.personalBestText.style.fill = '#ffd700';
     } else if (personalBest > 0) {
       this.personalBestText.text = `Personal Best: ${personalBest}`;
-      this.personalBestText.style.fill = '#c8c8c8';
+      this.personalBestText.style.fill = '#8B7355';
     } else {
       this.personalBestText.text = 'First Run Complete!';
-      this.personalBestText.style.fill = '#88d498';
+      this.personalBestText.style.fill = '#7FB069';
     }
 
     this.renderHighScores(highScores);
@@ -308,7 +308,7 @@ export class ScoreSummary {
         style: {
           fontFamily: 'Arial',
           fontSize: 14,
-          fill: index === 0 ? '#ffd700' : '#ffffff',
+          fill: index === 0 ? '#ffd700' : '#5E4B3B',
         },
       });
       scoreText.y = 30 + index * 24;
@@ -319,7 +319,7 @@ export class ScoreSummary {
         style: {
           fontFamily: 'Arial',
           fontSize: 12,
-          fill: '#888888',
+          fill: '#8B7355',
         },
       });
       dateText.x = 180;

@@ -51,7 +51,7 @@ export class DaySummary {
       style: {
         fontFamily: 'Arial',
         fontSize: 32,
-        fill: '#c8e6c9',
+        fill: '#5E4B3B',
         fontWeight: 'bold',
         align: 'center',
       },
@@ -80,7 +80,7 @@ export class DaySummary {
     const buttonWidth = 200;
     const buttonHeight = 50;
     this.nextButton = new Graphics();
-    this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 25);
     this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
     this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     this.nextButton.x = (GAME.WIDTH - buttonWidth) / 2;
@@ -90,13 +90,13 @@ export class DaySummary {
     this.nextButton.on('pointerdown', () => this.handleNextClick());
     this.nextButton.on('pointerover', () => {
       this.nextButton.clear();
-      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 25);
       this.nextButton.fill({ color: UI_COLORS.BUTTON_SELECTED_BG });
       this.nextButton.stroke({ color: UI_COLORS.BUTTON_SELECTED_BORDER, width: 2 });
     });
     this.nextButton.on('pointerout', () => {
       this.nextButton.clear();
-      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.nextButton.roundRect(0, 0, buttonWidth, buttonHeight, 25);
       this.nextButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.nextButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });

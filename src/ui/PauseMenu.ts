@@ -194,7 +194,7 @@ export class PauseMenu {
       targetButton.y - 3,
       buttonWidth + 6,
       buttonHeight + 6,
-      10,
+      26,
     );
     this.focusRing.stroke({ color: 0xffff00, width: 3 });
   }
@@ -203,7 +203,7 @@ export class PauseMenu {
     const buttonWidth = Math.min(260, this.screenWidth * 0.325);
     const buttonHeight = 45;
     const button = new Graphics();
-    button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    button.roundRect(0, 0, buttonWidth, buttonHeight, 23);
     button.fill({ color: UI_COLORS.MENU_ITEM_BG });
     button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     button.x = (this.screenWidth - buttonWidth) / 2;
@@ -230,14 +230,14 @@ export class PauseMenu {
     // TLDR: Hover effects with warm green palette
     button.on('pointerover', () => {
       button.clear();
-      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      button.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       button.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       button.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     button.on('pointerout', () => {
       button.clear();
-      button.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      button.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       button.fill({ color: UI_COLORS.MENU_ITEM_BG });
       button.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
@@ -296,7 +296,7 @@ export class PauseMenu {
     const buttonHeight = 45;
     
     this.muteButton = new Graphics();
-    this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
     this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
     this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     this.muteButton.x = (this.screenWidth - buttonWidth) / 2;
@@ -322,14 +322,14 @@ export class PauseMenu {
 
     this.muteButton.on('pointerover', () => {
       this.muteButton.clear();
-      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.muteButton.on('pointerout', () => {
       this.muteButton.clear();
-      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.muteButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.muteButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
       this.muteButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
@@ -348,7 +348,7 @@ export class PauseMenu {
     const buttonHeight = 45;
 
     this.colorblindButton = new Graphics();
-    this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
     this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
     this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     this.colorblindButton.x = (this.screenWidth - buttonWidth) / 2;
@@ -374,14 +374,14 @@ export class PauseMenu {
 
     this.colorblindButton.on('pointerover', () => {
       this.colorblindButton.clear();
-      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.colorblindButton.on('pointerout', () => {
       this.colorblindButton.clear();
-      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.colorblindButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.colorblindButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
       this.colorblindButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
@@ -414,7 +414,7 @@ export class PauseMenu {
     const buttonHeight = 45;
 
     this.reducedMotionButton = new Graphics();
-    this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+    this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
     this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
     this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     this.reducedMotionButton.x = (this.screenWidth - buttonWidth) / 2;
@@ -440,14 +440,14 @@ export class PauseMenu {
 
     this.reducedMotionButton.on('pointerover', () => {
       this.reducedMotionButton.clear();
-      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_HOVER_BG });
       this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_HOVER_BORDER, width: 2 });
     });
 
     this.reducedMotionButton.on('pointerout', () => {
       this.reducedMotionButton.clear();
-      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 8);
+      this.reducedMotionButton.roundRect(0, 0, buttonWidth, buttonHeight, 23);
       this.reducedMotionButton.fill({ color: UI_COLORS.MENU_ITEM_BG });
       this.reducedMotionButton.stroke({ color: UI_COLORS.MENU_ITEM_BORDER, width: 2 });
     });
