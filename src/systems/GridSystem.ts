@@ -63,18 +63,18 @@ export class GridSystem {
 
     if (this.tileRenderer) {
       // TileRenderer owns visuals — only draw transparent hit area for interaction
-      graphics.rect(padding, padding, size - padding * 2, size - padding * 2);
+      graphics.roundRect(padding, padding, size - padding * 2, size - padding * 2, 6);
       graphics.fill({ color: 0x000000, alpha: 0 });
       return;
     }
 
     // Base soil color with quality variation
     const soilColor = this.getSoilColor(tile.soilQuality);
-    graphics.rect(padding, padding, size - padding * 2, size - padding * 2);
+    graphics.roundRect(padding, padding, size - padding * 2, size - padding * 2, 6);
     graphics.fill({ color: soilColor });
 
     // Border
-    graphics.rect(padding, padding, size - padding * 2, size - padding * 2);
+    graphics.roundRect(padding, padding, size - padding * 2, size - padding * 2, 6);
     graphics.stroke({ color: 0x1a3a1a, width: 1 });
 
     // State-specific rendering
@@ -239,15 +239,15 @@ export class GridSystem {
 
     if (this.hoverSeedMode && tile.isEmpty()) {
       // TLDR: Seed tool hover — green preview tint on plantable tiles
-      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.roundRect(x, y, w, h, 6);
       this.hoverHighlight.fill({ color: UI_COLORS.TILE_SEED_PREVIEW, alpha: 0.25 });
-      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.roundRect(x, y, w, h, 6);
       this.hoverHighlight.stroke({ color: UI_COLORS.TILE_SEED_PREVIEW, width: 2 });
     } else {
       // TLDR: Default hover — subtle brightness increase
-      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.roundRect(x, y, w, h, 6);
       this.hoverHighlight.fill({ color: UI_COLORS.TILE_HOVER_FILL, alpha: 0.15 });
-      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.roundRect(x, y, w, h, 6);
       this.hoverHighlight.stroke({ color: 0xffd700, width: 2, alpha: 0.45 });
     }
     this.hoverHighlight.visible = true;
@@ -291,11 +291,12 @@ export class GridSystem {
     const size = this.grid.config.tileSize;
     const padding = this.grid.config.padding;
 
-    this.selectionHighlight.rect(
+    this.selectionHighlight.roundRect(
       pos.x + padding,
       pos.y + padding,
       size - padding * 2,
-      size - padding * 2
+      size - padding * 2,
+      6,
     );
     this.selectionHighlight.stroke({ color: 0xffeb3b, width: 3 });
   }

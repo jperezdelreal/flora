@@ -39,7 +39,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.SPRING]: {
     displayName: 'Spring',
     emoji: '🌸',
-    backgroundColor: 0xe8f5e9,  // Light mint green
+    backgroundColor: 0xC5E8F0,  // TLDR: Pale robin-egg blue (spec §1.3 Spring sky)
     gridTint: 0xffffff,          // no tint — natural palette
     pestSpawnMultiplier: 0.5,    // mild pest activity
     droughtEnabled: false,
@@ -52,7 +52,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.SUMMER]: {
     displayName: 'Summer',
     emoji: '☀️',
-    backgroundColor: 0xfff8e1,  // Cream yellow
+    backgroundColor: 0x7EC8E3,  // TLDR: Warm cerulean (spec §1.3 Summer sky)
     gridTint: 0xffefaa,          // warm golden tint
     pestSpawnMultiplier: 1.0,    // normal pest activity
     droughtEnabled: true,        // drought hazard active
@@ -65,7 +65,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.FALL]: {
     displayName: 'Fall',
     emoji: '🍂',
-    backgroundColor: 0xfbe9e7,  // Warm peach
+    backgroundColor: 0xE8C8A0,  // TLDR: Warm amber sky (spec §1.3 Fall sky)
     gridTint: 0xffcc88,          // warm orange tint
     pestSpawnMultiplier: 2.0,   // pest surge
     droughtEnabled: false,
@@ -78,7 +78,7 @@ export const SEASON_CONFIG: Record<Season, SeasonConfig> = {
   [Season.WINTER]: {
     displayName: 'Winter',
     emoji: '❄️',
-    backgroundColor: 0xe3f2fd,  // Light blue
+    backgroundColor: 0xC8D8E8,  // TLDR: Soft steel blue (spec §1.3 Winter sky)
     gridTint: 0xccddff,          // cool blue tint
     pestSpawnMultiplier: 0.2,    // minimal pest activity
     droughtEnabled: false,

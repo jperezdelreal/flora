@@ -132,9 +132,12 @@ export class TileRenderer implements System {
   /** TLDR: Active compost particle animations */
   private compostParticles: CompostParticle[] = [];
 
+  private grassBackground: Graphics | null = null;
+
   constructor(config: TileRendererConfig) {
     this.grid = config.grid;
     this.tileLayer = new Container();
+    this.drawGrassBackground();
     this.initializeTiles();
   }
 
@@ -161,6 +164,7 @@ export class TileRenderer implements System {
     this.drawCache.clear();
 
     this.grid = grid;
+    this.drawGrassBackground();
     this.initializeTiles();
   }
 
@@ -231,6 +235,18 @@ export class TileRenderer implements System {
 
   // ─── Initialization ─────────────────────────────────────────────────────
 
+  /** TLDR: Draw grass-green background behind the entire grid so tile gaps become grass paths */
+  private drawGrassBackground(): void {
+    if (this.grassBackground) {
+      this.grassBackground.destroy();
+    }
+    this.grassBackground = new Graphics();
+    const dims = this.grid.getGridDimensions();
+    this.grassBackground.roundRect(0, 0, dims.width, dims.height, 8);
+    this.grassBackground.fill({ color: 0xA8C88A });
+    this.tileLayer.addChildAt(this.grassBackground, 0);
+  }
+
   private initializeTiles(): void {
     const tiles = this.grid.getAllTiles();
     for (const tile of tiles) {
@@ -263,10 +279,10 @@ export class TileRenderer implements System {
     gfx.x = pos.x;
     gfx.y = pos.y;
 
-    // Base soil with moisture-responsive darkness and quality + per-tile shade variation
+    // TLDR: Rounded tile corners (6px radius) per cozy spec §2.2
     const soilColor = this.computeSoilColor(tile.moisture, tile.soilQuality);
     const variedColor = this.applyTileVariation(soilColor, tile.row, tile.col);
-    gfx.rect(padding, padding, size - padding * 2, size - padding * 2);
+    gfx.roundRect(padding, padding, size - padding * 2, size - padding * 2, 6);
     gfx.fill({ color: variedColor });
 
     // Subtle soil texture decorations (pebbles, grass specks)
@@ -274,7 +290,7 @@ export class TileRenderer implements System {
 
     // Border with seasonal tint
     const borderColor = this.getSeasonalBorderColor();
-    gfx.rect(padding, padding, size - padding * 2, size - padding * 2);
+    gfx.roundRect(padding, padding, size - padding * 2, size - padding * 2, 6);
     gfx.stroke({ color: borderColor, width: 1 });
 
     // State-specific overlays
@@ -417,7 +433,7 @@ export class TileRenderer implements System {
   /** Subtle brown border to indicate a planted tile — plant shape provides color feedback */
   private drawPlantedOverlay(gfx: Graphics, size: number, padding: number): void {
     const inset = padding + 1;
-    gfx.rect(inset, inset, size - inset * 2, size - inset * 2);
+    gfx.roundRect(inset, inset, size - inset * 2, size - inset * 2, 5);
     gfx.stroke({ color: TILE_OVERLAYS.planted, width: 1.5, alpha: 0.4 });
   }
 

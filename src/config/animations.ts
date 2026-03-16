@@ -9,8 +9,8 @@ export const ANIMATION = {
   GROWTH_SCALE_OVERSHOOT: 1.25,
 
   // Plant idle sway (sine wave rotation)
-  SWAY_AMPLITUDE: 0.04,
-  SWAY_FREQUENCY: 1.2,
+  SWAY_AMPLITUDE: 0.02,
+  SWAY_FREQUENCY: 0.7,
   // Idle sway x-offset on mature plants (gentle horizontal motion)
   SWAY_X_AMPLITUDE: 1.5,
   SWAY_X_FREQUENCY: 0.8,
