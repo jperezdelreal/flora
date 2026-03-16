@@ -289,7 +289,7 @@ export class GardenScene implements Scene {
     this.playerSystem.setOnDayAdvance(() => {
       this.onDayAdvance();
     });
-    this.container.addChild(this.playerSystem.getContainer());
+    this.gridSystem.getContainer().addChild(this.playerSystem.getContainer());
 
     // Initialize tool bar
     this.toolBar = new ToolBar(this.toolSystem, this.unlockSystem);

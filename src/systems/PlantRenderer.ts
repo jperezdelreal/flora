@@ -651,14 +651,8 @@ export class PlantRenderer implements System {
   }
 
   private drawFallbackShape(gfx: Graphics, stage: GrowthStage): void {
-    const sizeMap: Record<string, number> = {
-      [GrowthStage.SEED]: ANIMATION.PLANT_SIZE_SEED,
-      [GrowthStage.SPROUT]: ANIMATION.PLANT_SIZE_SPROUT,
-      [GrowthStage.GROWING]: ANIMATION.PLANT_SIZE_GROWING,
-      [GrowthStage.MATURE]: ANIMATION.PLANT_SIZE_MATURE,
-      [GrowthStage.WILTING]: ANIMATION.PLANT_SIZE_WILTING,
-    };
-    const radius = sizeMap[stage] ?? ANIMATION.PLANT_SIZE_SEED;
+    // Container scale handles stage sizing — use mature size as base radius
+    const radius = ANIMATION.PLANT_SIZE_MATURE;
     const colors = PLANT_STAGE_COLORS[stage] ?? PLANT_STAGE_COLORS.seed;
 
     gfx.circle(0, 0, radius);

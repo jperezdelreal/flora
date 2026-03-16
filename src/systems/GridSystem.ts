@@ -246,7 +246,9 @@ export class GridSystem {
     } else {
       // TLDR: Default hover — subtle brightness increase
       this.hoverHighlight.rect(x, y, w, h);
-      this.hoverHighlight.fill({ color: UI_COLORS.TILE_HOVER_FILL, alpha: 0.12 });
+      this.hoverHighlight.fill({ color: UI_COLORS.TILE_HOVER_FILL, alpha: 0.15 });
+      this.hoverHighlight.rect(x, y, w, h);
+      this.hoverHighlight.stroke({ color: 0xffd700, width: 2, alpha: 0.45 });
     }
     this.hoverHighlight.visible = true;
   }
@@ -343,6 +345,10 @@ export class GridSystem {
     // Register existing structures with TileRenderer
     for (const structure of this.structures.values()) {
       renderer.registerStructure(structure.row, structure.col, structure.type);
+    }
+    // Re-render GridSystem tiles as transparent hit areas now that TileRenderer owns visuals
+    for (const [tile, graphics] of this.tileGraphics) {
+      this.renderTile(tile, graphics);
     }
   }
 

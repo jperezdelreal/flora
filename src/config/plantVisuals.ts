@@ -37,9 +37,9 @@ export interface PlantVisualDef {
 }
 
 const KEYFRAMES: Record<GrowthStage, PlantKeyframe> = {
-  [GrowthStage.SEED]: { scale: 0.3, alpha: 0.8, saturation: 0.4, yOffset: 0 },
-  [GrowthStage.SPROUT]: { scale: 0.5, alpha: 0.9, saturation: 0.6, yOffset: -2 },
-  [GrowthStage.GROWING]: { scale: 0.8, alpha: 1.0, saturation: 0.85, yOffset: -5 },
+  [GrowthStage.SEED]: { scale: 0.5, alpha: 0.9, saturation: 0.4, yOffset: 0 },
+  [GrowthStage.SPROUT]: { scale: 0.65, alpha: 0.95, saturation: 0.6, yOffset: -2 },
+  [GrowthStage.GROWING]: { scale: 0.85, alpha: 1.0, saturation: 0.85, yOffset: -5 },
   [GrowthStage.MATURE]: { scale: 1.0, alpha: 1.0, saturation: 1.0, yOffset: -8 },
   [GrowthStage.WILTING]: { scale: 0.9, alpha: 0.7, saturation: 0.3, yOffset: -4 },
 };
@@ -452,8 +452,8 @@ export function getShapeData(
   stage: GrowthStage,
   baseSize: number,
 ): PlantShapeData {
-  const keyframe = visualDef.keyframes[stage];
-  const size = baseSize * keyframe.scale;
+  // Container scale already handles stage sizing — draw shapes at full base size
+  const size = baseSize;
   
   const shapeMap: Record<typeof visualDef.matureShape, PlantShapeData> = {
     circle: {
