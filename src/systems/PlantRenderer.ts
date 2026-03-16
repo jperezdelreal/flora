@@ -4,7 +4,7 @@
  * Sprites cached per (plantType, growthStage, season) — no per-frame regeneration.
  */
 
-import { Container, Graphics } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import { GrowthStage } from '../entities/Plant';
 import { Season } from '../config/seasons';
 import { ANIMATION, PLANT_STAGE_COLORS, SYNERGY_GLOW_COLORS } from '../config/animations';
@@ -31,6 +31,16 @@ const SOIL_QUALITY_LOW_THRESHOLD = 25;
 const SOIL_QUALITY_BRIGHTEN_FACTOR = 0.12;
 const SOIL_QUALITY_DULL_FACTOR = 0.18;
 const SOIL_QUALITY_LOW_DROOP_PX = 1.5;
+
+// Emoji labels for plant identification at small growth stages
+const PLANT_EMOJI: Record<string, string> = {
+  tomato: '🍅', lettuce: '🥬', carrot: '🥕', radish: '🌱', pea: '🫛',
+  sunflower: '🌻', mint: '🌿', pepper: '🌶️', basil: '🌿', cucumber: '🥒',
+  blueberry: '🫐', frost_willow: '🌳', lavender: '💜', orchid: '🌸',
+  venus_flytrap: '🪴', heirloom_squash: '🎃', golden_marigold: '🌼',
+  ghost_pepper: '👻', moonflower: '🌙', strawberry: '🍓', sage: '🍃',
+  watermelon: '🍉',
+};
 
 export interface PlantRendererConfig {
   animationSystem: AnimationSystem;
@@ -68,6 +78,7 @@ export class PlantRenderer implements System {
   private maturityGlows = new Map<string, Graphics>();
   private soilQualityGlows = new Map<string, Graphics>();
   private synergyAuras = new Map<string, Graphics>();
+  private plantLabels = new Map<string, Text>();
   private connectionLinesLayer: Graphics;
   private previewLinesLayer: Graphics;
   private currentSeason: Season = Season.SPRING;
@@ -126,6 +137,17 @@ export class PlantRenderer implements System {
     this.drawPlantShape(gfx, configId, GrowthStage.SEED, plant.getHealth(), sq);
     visual.addChild(gfx);
 
+    // Emoji label for immediate plant identification at seed/sprout stage
+    const emoji = PLANT_EMOJI[configId] ?? '🌱';
+    const label = new Text({
+      text: emoji,
+      style: { fontSize: 14, align: 'center' },
+    });
+    label.anchor.set(0.5);
+    label.y = -tileSize * 0.38;
+    visual.addChild(label);
+    this.plantLabels.set(plantId, label);
+
     this.plantVisualLayer.addChild(visual);
     this.plantVisuals.set(plantId, visual);
 
@@ -168,6 +190,11 @@ export class PlantRenderer implements System {
       this.drawPlantShape(gfx, configId, stage, plant.getHealth(), sq);
     }
 
+    // Remove emoji label once plant is large enough to identify visually
+    if (stage !== GrowthStage.SEED && stage !== GrowthStage.SPROUT) {
+      this.removePlantLabel(plantId);
+    }
+
     const swayIntensity = visualDef?.swayIntensity ?? 1.0;
     const targetScale = keyframe.scale * (1 + 0.15 * swayIntensity);
 
@@ -201,6 +228,7 @@ export class PlantRenderer implements System {
       this.removeMaturityGlow(plantId);
       this.removeSoilQualityGlow(plantId);
       this.removeSynergyAura(plantId);
+      this.plantLabels.delete(plantId);
     }
   }
 
@@ -250,6 +278,15 @@ export class PlantRenderer implements System {
     if (glow) {
       glow.destroy();
       this.soilQualityGlows.delete(plantId);
+    }
+  }
+
+  /** Remove emoji label from a plant visual */
+  private removePlantLabel(plantId: string): void {
+    const label = this.plantLabels.get(plantId);
+    if (label) {
+      label.destroy();
+      this.plantLabels.delete(plantId);
     }
   }
 
@@ -632,6 +669,11 @@ export class PlantRenderer implements System {
         this.drawWiltingShape(gfx, visualDef, shapeData, adjustedMainColor, adjustedAccColor, adjustedDetColor, alpha, keyframe.yOffset);
         break;
     }
+
+    // Dark outline for visibility against soil background
+    const outlineY = stage === GrowthStage.SEED ? 0 : keyframe.yOffset;
+    gfx.circle(0, outlineY, shapeData.mainRadius + 1);
+    gfx.stroke({ color: 0x2d1a0e, width: 2 });
   }
 
   /**

@@ -44,7 +44,7 @@ const SOIL_COLORS = {
 
 /** Overlay colors for tile states */
 const TILE_OVERLAYS = {
-  planted: 0x4caf50,     // Green ring for planted tiles
+  planted: 0x3e2c1c,     // Subtle dark brown border for planted tiles (not green — avoids green-on-green)
   weedBase: 0x6b7a3d,   // Scraggly weed overlay base
   weedTip: 0x8b9a5b,    // Weed tip color
 } as const;
@@ -414,15 +414,11 @@ export class TileRenderer implements System {
 
   // ─── State overlays ─────────────────────────────────────────────────────
 
-  /** Green ring to indicate a planted tile */
+  /** Subtle brown border to indicate a planted tile — plant shape provides color feedback */
   private drawPlantedOverlay(gfx: Graphics, size: number, padding: number): void {
-    const palette = getActivePalette();
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = (size - padding * 4) / 2.8;
-
-    gfx.circle(cx, cy, radius);
-    gfx.stroke({ color: palette.accentGreen, width: 2, alpha: 0.6 });
+    const inset = padding + 1;
+    gfx.rect(inset, inset, size - inset * 2, size - inset * 2);
+    gfx.stroke({ color: TILE_OVERLAYS.planted, width: 1.5, alpha: 0.4 });
   }
 
   /** Scraggly weed overlay — small irregular lines */
